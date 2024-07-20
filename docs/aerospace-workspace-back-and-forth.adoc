@@ -16,6 +16,8 @@ aerospace workspace-back-and-forth [-h|--help]
 
 // tag::body[]
 {manpurpose}
+
+Also see: <<focus-back-and-forth, focus-back-and-forth>>
 // end::body[]
 
 // =========================================================== Options

@@ -1,0 +1,30 @@
+= aerospace-focus-back-and-forth(1)
+include::util/man-attributes.adoc[]
+// tag::purpose[]
+:manpurpose: Switch between the focused object and previously focused object back and forth
+// end::purpose[]
+:manname: aerospace-focus-back-and-forth
+
+// =========================================================== Synopsis
+== Synopsis
+// tag::synopsis[]
+aerospace focus-back-and-forth [-h|--help]
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}.
+The object is either a window or an empty workspace.
+
+Also see: <<workspace-back-and-forth, workspace-back-and-forth>>
+// end::body[]
+
+// =========================================================== Options
+include::util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+// =========================================================== Footer
+include::util/man-footer.adoc[]
