@@ -132,6 +132,9 @@ final class MacWindow: Window {
                 let absolutePoint = topLeftCorner - monitorRect.topLeftCorner
                 prevUnhiddenProportionalPositionInsideWorkspaceRect =
                     CGPoint(x: absolutePoint.x / monitorRect.width, y: absolutePoint.y / monitorRect.height)
+                if isFloating {
+                    lastFloatingSize = windowRect.size
+                }
             }
         }
         let p: CGPoint
