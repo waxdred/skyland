@@ -91,5 +91,6 @@
     }
   ],
   "Aero.treeNodeParent" : "Optional(AppBundle.Workspace)",
+  "Aero.windowLevel" : "normalWindow",
   "Aero.workspace" : "V"
 }
