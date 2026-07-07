@@ -23,6 +23,5 @@ else
     ./.deps/periphery/periphery scan --quiet \
         --strict \
         --disable-redundant-public-analysis \
-        --no-superfluous-ignore-comments \
-        --exclude-targets ShellParserGenerated
+        --no-superfluous-ignore-comments
 fi

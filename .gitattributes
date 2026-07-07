@@ -2,7 +2,6 @@
 AeroSpace.xcodeproj/project.pbxproj linguist-generated=true
 
 # Treat generated files as binary files so that they don't show up in `git diff` (can be overridden by `git diff --text`)
-ShellParserGenerated/Sources/ -diff
 Sources/Cli/subcommandDescriptionsGenerated.swift -diff
 Sources/Common/versionGenerated.swift -diff
 Sources/Common/cmdHelpGenerated.swift -diff
