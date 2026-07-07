@@ -1,5 +1,4 @@
 # https://github.com/nicklockwood/SwiftFormat/blob/main/Rules.md
---exclude ./ShellParserGenerated
 --indentcase true
 --patternlet inline
 --indentstrings true

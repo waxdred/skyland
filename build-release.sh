@@ -36,17 +36,19 @@ swift build -c release --arch arm64 --arch x86_64 --product aerospace -Xswiftc -
 
 rm -rf .release && mkdir .release
 
-xcode_configuration="Release"
-xcodebuild -version
-xcodebuild-pretty .release/xcodebuild.log clean build \
-    -scheme AeroSpace \
-    -destination "generic/platform=macOS" \
-    -configuration "$xcode_configuration" \
-    -derivedDataPath .xcode-build
+cd ./xcode
+    xcode_configuration="Release"
+    xcodebuild -version
+    xcodebuild-pretty ../.release/xcodebuild.log clean build \
+        -scheme AeroSpace \
+        -destination "generic/platform=macOS" \
+        -configuration "$xcode_configuration" \
+        -derivedDataPath .xcode-build
+cd -
 
 git checkout .
 
-cp -r ".xcode-build/Build/Products/$xcode_configuration/AeroSpace.app" .release
+cp -r "xcode/.xcode-build/Build/Products/$xcode_configuration/AeroSpace.app" .release
 cp -r .build/apple/Products/Release/aerospace .release
 
 ################

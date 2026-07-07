@@ -48,7 +48,7 @@ If you only plan to build the debug version of AeroSpace, you can run it from th
 -   `build-docs.sh` - Build the site and man pages to `.site` and `.man` dirs respectively.
 -   `build-shell-completion.sh` - Build shell completion to `.shell-completion`.
     You can test that the completion works properly by sourcing the file `source ./.shell-completion/zsh/_aerospace`
--   `generate.sh` - Regenerate generated project files. `AeroSpace.xcodeproj` is generated, and some of the source files
+-   `generate.sh` - Regenerate generated project files. `xcode/AeroSpace.xcodeproj` is generated, and some of the source files
     (the source files have `Generated` suffix in their names).
 
 **Release build**
@@ -71,9 +71,9 @@ If you only plan to build the debug version of AeroSpace, you can run it from th
 
 Even if you use LSP and another text editor, Xcode is still useful to attach debugger (though you can use `lldb` in CLI).
 
-1.  To open the project in Xcode: File -> Open -> Choose `Package.swift` file instead of `AeroSpace.xcodeproj`.
+1.  To open the project in Xcode: File -> Open -> Choose `Package.swift` file instead of `xcode/AeroSpace.xcodeproj`.
     It's better to open `Package.swift`, because SPM project is more lightweight.
-    `AeroSpace.xcodeproj` is only used in `*release*.sh` build scripts.
+    `xcode/AeroSpace.xcodeproj` is only used in `*release*.sh` build scripts.
 2.  After you opened the project in Xcode.
     Edit Scheme... -> Options -> Console -> Choose `Terminal`.
     This way Accessibility permission will be requested from Terminal.

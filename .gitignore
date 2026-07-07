@@ -8,7 +8,7 @@
 # IDK, AppCode randomly creates this EMPTY file. I have no idea what this is
 /default.profraw
 .DS_Store
-/.xcode-build
+/xcode/.xcode-build
 # Swift package manager
 /.build
 /.swiftpm
