@@ -363,7 +363,9 @@ extension AXUIElement: AxUiElementMock {
         let state = signposter.beginInterval(#function, "axTaskLocalAppThreadToken: \(axTaskLocalAppThreadToken?.idForDebug)")
         defer { signposter.endInterval(#function, state) }
         var cgWindowId = CGWindowID()
-        return unsafe _AXUIElementGetWindow(self, &cgWindowId) == .success ? cgWindowId : nil
+        return unsafe _AXUIElementGetWindow(self, &cgWindowId) == .success && cgWindowId != kCGNullWindowID
+            ? cgWindowId
+            : nil
     }
 }
 
