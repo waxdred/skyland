@@ -189,12 +189,8 @@ end tell'
 +
 [source,toml]
 ----
-ctrl-g = '''exec-and-forget osascript -e '
-tell application "Terminal"
-    do script
-    activate
-end tell'
-'''
+ctrl-g = '''exec-and-forget osascript -e \
+'tell application "Terminal" to tell (do script) to activate' '''
 ----
 - Ghostty
 +
