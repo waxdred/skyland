@@ -80,6 +80,7 @@ light = '~/.config/skyland/themes/43pr-white.css'
 dir = '~/Pictures/Wallpapers'
 dynamic-colors = true
 prefer = 'saturation'
+scheme = 'auto' # monochrome for grayscale wallpapers, else content (any matugen scheme-*)
 
 # hyprlock-like screen saver (bin/skyland-lock): blurred wallpaper, glassy clock
 # in the current theme. alt-tab starts it (43PR SUPER+Tab); macOS asks the password.

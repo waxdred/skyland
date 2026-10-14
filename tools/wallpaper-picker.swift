@@ -2,12 +2,33 @@
 //   skyland-wallpaper-picker <dir>     pick an image: prints its path, exit 1 if cancelled
 //   skyland-wallpaper-picker --set <file>   set it as wallpaper on every screen
 //   skyland-wallpaper-picker --blur <in> <out.jpg> <radius>   blurred copy (lock screen)
+//   skyland-wallpaper-picker --saturation <file>   mean chroma 0..1 (0 = grayscale)
 // Built by bin/skyland-build; driven by bin/skyland-wallpaper and bin/skyland-lock.
 import AppKit
 import CoreImage
 import ImageIO
 
 let args = CommandLine.arguments
+if args.count == 3, args[1] == "--saturation" {
+    // Mean chroma (max - min of r, g, b) of a 64x64 downscale, 0 = grayscale image
+    guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: args[2]) as CFURL, nil),
+          let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+              kCGImageSourceCreateThumbnailFromImageAlways: true,
+              kCGImageSourceThumbnailMaxPixelSize: 64,
+          ] as CFDictionary),
+          let context = CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 64 * 4,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { exit(1) }
+    context.draw(image, in: CGRect(x: 0, y: 0, width: 64, height: 64))
+    let pixels = context.data!.bindMemory(to: UInt8.self, capacity: 64 * 64 * 4)
+    var total = 0.0
+    for i in 0 ..< 64 * 64 {
+        let r = pixels[i * 4], g = pixels[i * 4 + 1], b = pixels[i * 4 + 2]
+        total += Double(max(r, g, b) - min(r, g, b)) / 255
+    }
+    print(String(format: "%.3f", total / Double(64 * 64)))
+    exit(0)
+}
 if args.count == 5, args[1] == "--blur" {
     // Downscale first: a 1920 px wide image is plenty once blurred, and fast
     guard let input = CIImage(contentsOf: URL(fileURLWithPath: args[2])), let radius = Double(args[4]) else { exit(1) }
