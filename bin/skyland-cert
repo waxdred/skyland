@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# One-time: create a self-signed "skyland-codesign" code signing identity in the
+# login keychain, so Accessibility stays granted across rebuilds.
+# Then build with: SKYLAND_SIGN_IDENTITY=skyland-codesign skyland-build
+set -euo pipefail
+NAME=skyland-codesign
+KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
+
+if security find-identity -v -p codesigning | grep -q "\"$NAME\""; then
+    echo "$NAME already exists"
+    exit 0
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+cat > "$tmp/cert.cnf" <<EOF
+[req]
+distinguished_name = dn
+x509_extensions = ext
+prompt = no
+[dn]
+CN = $NAME
+[ext]
+basicConstraints = critical, CA:false
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, codeSigning
+EOF
+/usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -config "$tmp/cert.cnf" \
+    -keyout "$tmp/key.pem" -out "$tmp/cert.pem" 2>/dev/null
+pass="$(/usr/bin/openssl rand -hex 16)"
+/usr/bin/openssl pkcs12 -export -inkey "$tmp/key.pem" -in "$tmp/cert.pem" -name "$NAME" \
+    -passout "pass:$pass" -out "$tmp/id.p12"
+security import "$tmp/id.p12" -k "$KEYCHAIN" -P "$pass" -T /usr/bin/codesign
+# Asks for your login password: trust the cert for code signing only
+security add-trusted-cert -p codeSign -k "$KEYCHAIN" "$tmp/cert.pem"
+security find-identity -v -p codesigning | grep "\"$NAME\""
