@@ -41,7 +41,15 @@ relink() { # profile_dir
 # addition); macOS moves their windows to a remaining Space, nothing is closed.
 # Native fullscreen Spaces stay. Asks first, skips without a terminal.
 collapse_spaces() {
-    yabai -m query --spaces >/dev/null 2>&1 || return 0 # yabai not running
+    # yabai may have just been started by `skyland-env work`: give it time to answer
+    local tries=0
+    until yabai -m query --spaces >/dev/null 2>&1; do
+        if ! pgrep -xq yabai || (( ++tries > 20 )); then
+            echo "yabai not available: extra macOS Spaces not checked (run skyland-env work first)" >&2
+            return 0
+        fi
+        sleep 0.5
+    done
     local spaces extra
     spaces=$(yabai -m query --spaces)
     extra=$(jq -r 'group_by(.display) | map(sort_by(.index) | .[1:][]
