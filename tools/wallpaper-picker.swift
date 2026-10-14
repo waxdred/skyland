@@ -42,15 +42,31 @@ guard args.count == 2 else {
 }
 
 let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "webp", "heic", "gif", "bmp", "tiff"]
-let files = ((try? FileManager.default.contentsOfDirectory(atPath: args[1])) ?? [])
-    .filter { imageExtensions.contains(($0 as NSString).pathExtension.lowercased()) }
-    .sorted()
-    .map { URL(fileURLWithPath: args[1]).appendingPathComponent($0) }
-if files.isEmpty {
+func images(in dir: URL) -> [URL] {
+    ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [])
+        .filter { imageExtensions.contains(($0 as NSString).pathExtension.lowercased()) }
+        .sorted()
+        .map { dir.appendingPathComponent($0) }
+}
+
+// Themes: one per sub-folder of <dir> (skyland-wallpaper fetch user/), plus <dir> itself for loose images
+let root = URL(fileURLWithPath: args[1])
+let subdirs = ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])) ?? [])
+    .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+    .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+let themes: [(name: String, files: [URL])] = (subdirs + [root])
+    .map { ($0.lastPathComponent, images(in: $0)) }
+    .filter { !$0.1.isEmpty }
+if themes.isEmpty {
     FileHandle.standardError.write("no images in \(args[1])\n".data(using: .utf8)!)
     exit(1)
 }
 
+// So "cyber" finds 43PR's small-caps labels like "ꜱᴄɪ-ꜰɪ∕ᴄʏʙᴇʀᴘᴜɴᴋ"
+let smallCaps = Dictionary(uniqueKeysWithValues: zip("ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡʏᴢ", "abcdefghijklmnopqrstuvwyz"))
+func fold(_ text: String) -> String {
+    String(text.map { smallCaps[$0] ?? $0 }).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+}
 func thumbnail(_ url: URL, maxPixels: Int) -> NSImage? {
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
           let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
@@ -65,26 +81,34 @@ final class KeyPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
-final class Picker: NSObject, NSApplicationDelegate {
+final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     let thumbSize = NSSize(width: 300, height: 190)
     let spacing: CGFloat = 14
+    let rowHeight: CGFloat = 30
+    let maxRows = 14 // ponytail: no scrolling in the theme list, past this rows are hidden until searched
     var panel: KeyPanel!
+    var blur: NSVisualEffectView!
+    var showingThemes = true
+
+    // theme list
+    var search: NSSearchField!
+    var rows: [NSView] = []
+    var shown: [Int] = [] // indices into themes, after search
+    var row = 0
+
+    // wallpapers of one theme
+    var files: [URL] = []
     var cells: [NSImageView] = []
     var scroll: NSScrollView!
     var selected = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let screen = NSScreen.main ?? NSScreen.screens[0]
-        let width = min(screen.visibleFrame.width * 0.85, CGFloat(files.count) * (thumbSize.width + spacing) + spacing)
-        let height = thumbSize.height + 2 * spacing
-        let frame = NSRect(x: screen.visibleFrame.midX - width / 2, y: screen.visibleFrame.midY - height / 2, width: width, height: height)
-        panel = KeyPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel = KeyPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .floating
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-
-        let blur = NSVisualEffectView(frame: NSRect(origin: .zero, size: frame.size))
+        blur = NSVisualEffectView()
         blur.material = .hudWindow
         blur.state = .active
         blur.wantsLayer = true
@@ -92,8 +116,98 @@ final class Picker: NSObject, NSApplicationDelegate {
         blur.layer?.masksToBounds = true
         panel.contentView = blur
 
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.key(event) == true ? nil : event
+        }
+        if themes.count == 1 { showWallpapers(0) } else { showThemes() }
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+        if showingThemes { panel.makeFirstResponder(search) }
+    }
+
+    func resize(_ size: NSSize) {
+        let screen = NSScreen.main ?? NSScreen.screens[0]
+        panel.setFrame(NSRect(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.midY - size.height / 2,
+                              width: size.width, height: size.height), display: true)
+    }
+
+    // MARK: theme list
+
+    func showThemes() {
+        showingThemes = true
+        blur.subviews.forEach { $0.removeFromSuperview() }
+        cells = []
+        search = NSSearchField()
+        search.placeholderString = "theme"
+        search.delegate = self
+        search.focusRingType = .none
+        blur.addSubview(search)
+        let list = NSView()
+        list.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(clickedTheme(_:))))
+        blur.addSubview(list)
+        filterThemes()
+        panel.makeFirstResponder(search)
+    }
+
+    func controlTextDidChange(_ notification: Notification) { filterThemes() }
+
+    func filterThemes() {
+        let query = fold(search.stringValue.trimmingCharacters(in: .whitespaces))
+        shown = themes.indices.filter { query.isEmpty || fold(themes[$0].name).contains(query) }
+        shown = Array(shown.prefix(maxRows))
+        let width: CGFloat = 460
+        let listHeight = CGFloat(max(shown.count, 1)) * rowHeight
+        let height = spacing + 28 + spacing / 2 + listHeight + spacing
+        resize(NSSize(width: width, height: height))
+        search.frame = NSRect(x: spacing, y: height - spacing - 28, width: width - 2 * spacing, height: 28)
+        let list = blur.subviews[1]
+        list.frame = NSRect(x: spacing, y: spacing, width: width - 2 * spacing, height: listHeight)
+        list.subviews.forEach { $0.removeFromSuperview() }
+        rows = shown.enumerated().map { position, index in
+            let rowView = NSView(frame: NSRect(x: 0, y: listHeight - CGFloat(position + 1) * rowHeight, width: list.frame.width, height: rowHeight))
+            rowView.wantsLayer = true
+            rowView.layer?.cornerRadius = 7
+            let name = NSTextField(labelWithString: themes[index].name)
+            name.font = .systemFont(ofSize: 15)
+            name.frame = NSRect(x: 10, y: 5, width: rowView.frame.width - 80, height: 20)
+            let count = NSTextField(labelWithString: "\(themes[index].files.count)")
+            count.textColor = .secondaryLabelColor
+            count.alignment = .right
+            count.frame = NSRect(x: rowView.frame.width - 70, y: 5, width: 60, height: 20)
+            rowView.addSubview(name)
+            rowView.addSubview(count)
+            list.addSubview(rowView)
+            return rowView
+        }
+        selectRow(0)
+    }
+
+    func selectRow(_ index: Int) {
+        row = max(0, min(rows.count - 1, index))
+        for (i, rowView) in rows.enumerated() {
+            rowView.layer?.backgroundColor = i == row ? NSColor.white.withAlphaComponent(0.18).cgColor : nil
+        }
+    }
+
+    @objc func clickedTheme(_ gesture: NSClickGestureRecognizer) {
+        let point = gesture.location(in: gesture.view)
+        if let index = rows.firstIndex(where: { $0.frame.contains(point) }) { showWallpapers(shown[index]) }
+    }
+
+    // MARK: wallpapers
+
+    func showWallpapers(_ theme: Int) {
+        showingThemes = false
+        files = themes[theme].files
+        blur.subviews.forEach { $0.removeFromSuperview() }
+        let screen = NSScreen.main ?? NSScreen.screens[0]
+        let width = min(screen.visibleFrame.width * 0.85, CGFloat(files.count) * (thumbSize.width + spacing) + spacing)
+        let height = thumbSize.height + 2 * spacing
+        resize(NSSize(width: width, height: height))
+        panel.makeFirstResponder(nil)
+
         let strip = NSView(frame: NSRect(x: 0, y: 0, width: CGFloat(files.count) * (thumbSize.width + spacing) + spacing, height: height))
-        for (index, file) in files.enumerated() {
+        cells = files.enumerated().map { index, file in
             let cell = NSImageView(frame: NSRect(x: spacing + CGFloat(index) * (thumbSize.width + spacing), y: spacing, width: thumbSize.width, height: thumbSize.height))
             cell.imageScaling = .scaleProportionallyUpOrDown
             cell.wantsLayer = true
@@ -102,28 +216,19 @@ final class Picker: NSObject, NSApplicationDelegate {
             cell.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.25).cgColor
             cell.toolTip = file.lastPathComponent
             strip.addSubview(cell)
-            cells.append(cell)
             DispatchQueue.global(qos: .userInitiated).async {
                 let image = thumbnail(file, maxPixels: 600)
                 DispatchQueue.main.async { cell.image = image }
             }
+            return cell
         }
-        scroll = NSScrollView(frame: NSRect(origin: .zero, size: frame.size))
+        scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: width, height: height))
         scroll.drawsBackground = false
         scroll.hasHorizontalScroller = false
         scroll.documentView = strip
         blur.addSubview(scroll)
-
-        let click = NSClickGestureRecognizer(target: self, action: #selector(clicked(_:)))
-        strip.addGestureRecognizer(click)
-
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.key(event)
-            return nil
-        }
+        strip.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(clicked(_:))))
         select(0)
-        NSApp.activate(ignoringOtherApps: true)
-        panel.makeKeyAndOrderFront(nil)
     }
 
     func select(_ index: Int) {
@@ -148,9 +253,20 @@ final class Picker: NSObject, NSApplicationDelegate {
         }
     }
 
-    func key(_ event: NSEvent) {
+    /// true when handled; unhandled keys go on to the search field
+    func key(_ event: NSEvent) -> Bool {
+        if showingThemes {
+            switch event.keyCode {
+                case 53: exit(1) // esc
+                case 36, 76: if !shown.isEmpty { showWallpapers(shown[row]) } // return, keypad enter
+                case 126: selectRow(row - 1) // up
+                case 125: selectRow(row + 1) // down
+                default: return false
+            }
+            return true
+        }
         switch event.keyCode {
-            case 53: exit(1) // esc
+            case 53: if themes.count > 1 { showThemes() } else { exit(1) } // esc: back to themes
             case 36, 76: choose() // return, keypad enter
             case 123: select(selected - 1) // left
             case 124: select(selected + 1) // right
@@ -162,6 +278,7 @@ final class Picker: NSObject, NSApplicationDelegate {
                     default: break
                 }
         }
+        return true
     }
 }
 

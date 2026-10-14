@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # hyprlock-like screen saver (43PR): blurred wallpaper, glassy clock in the
-# current theme, user name, rounded password pill. macOS keeps authentication.
+# current theme, user name. macOS keeps authentication.
 # usage: skyland-lock install | refresh | now | preview [out.png] | uninstall
 #   install    build tools/lockscreen into ~/Library/Screen Savers/SkylandLock.saver
-#   refresh    copy current theme, blurred wallpaper, [lock] name/hint into it
+#   refresh    copy current theme, blurred wallpaper, [lock] name into it
 #              (the screen saver host is sandboxed: it only reads its bundle)
 #   now        start it (bound to alt-tab, 43PR SUPER+Tab)
 #   preview    render it to a PNG
 #
 # [lock]
 # name = 'Waxcoin'
-# hint = 'Mot de passe'
-# blur = 12            # wallpaper blur radius (on a 1920 px wide copy)
+# blur = 4             # wallpaper blur radius (on a 1920 px wide copy)
 set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 CACHE="$HOME/.cache/skyland"
@@ -20,17 +19,16 @@ BUILD="$REPO/.build/SkylandLock.saver"
 conf() { "$REPO/bin/skyland-config" lock "$1"; }
 die() { echo "skyland-lock: $*" >&2; exit 1; }
 
-# theme.css, wallpaper.jpg, name.txt, hint.txt into <dir>
+# theme.css, wallpaper.jpg, name.txt into <dir>
 write_resources() {
     local dir="$1" wallpaper
     mkdir -p "$dir"
     [[ -r "$CACHE/theme.css" ]] && cp "$CACHE/theme.css" "$dir/theme.css" # written by skyland-theme
     wallpaper="$(cat "$CACHE/wallpaper" 2>/dev/null || true)" # written by skyland-wallpaper
     if [[ -r "$wallpaper" ]]; then
-        "$REPO/.build/skyland-wallpaper-picker" --blur "$wallpaper" "$dir/wallpaper.jpg" "$(conf blur | grep . || echo 12)"
+        "$REPO/.build/skyland-wallpaper-picker" --blur "$wallpaper" "$dir/wallpaper.jpg" "$(conf blur | grep . || echo 4)"
     fi
     conf name > "$dir/name.txt"
-    conf hint > "$dir/hint.txt"
 }
 
 sign() {

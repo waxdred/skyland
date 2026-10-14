@@ -1,5 +1,5 @@
 // skyland lock screen saver, hyprlock-like (43PR): blurred wallpaper, glassy
-// clock and date in the current theme colors, user name, rounded password pill.
+// clock and date in the current theme colors, user name.
 // macOS still owns authentication: any key shows the real lock screen.
 //
 // Reads its data from its own bundle Resources (the screen saver host is
@@ -16,7 +16,6 @@ final class SkylandLockView: ScreenSaverView {
     // wallpaper brightness is from the theme background, the stronger (contrast).
     private var veil: CGFloat = 0.25
     private var name = NSFullUserName()
-    private var hint = "Mot de passe"
 
     override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)
@@ -47,12 +46,6 @@ final class SkylandLockView: ScreenSaverView {
            !text.isEmpty
         {
             name = text
-        }
-        if let url = bundle.url(forResource: "hint", withExtension: "txt"),
-           let text = try? String(contentsOf: url, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
-           !text.isEmpty
-        {
-            hint = text
         }
         if let wallpaper {
             let bg = luminance(colors["bg"] ?? .black)
@@ -99,28 +92,9 @@ final class SkylandLockView: ScreenSaverView {
         text(date.string(from: now).capitalized, size: 30 * s, weight: .regular, color: color("fg_dim", fallback: .lightGray),
              center: NSPoint(x: card.midX, y: card.minY + 55 * s))
 
-        // User name and the rounded password pill
+        // User name
         text(name, size: 34 * s, weight: .medium, color: color("fg", fallback: .white),
              center: NSPoint(x: b.midX, y: b.midY - 50 * s))
-        let pill = NSRect(x: b.midX - 190 * s, y: b.midY - 150 * s, width: 380 * s, height: 58 * s)
-        glass(pill, radius: pill.height / 2)
-        let border = NSBezierPath(roundedRect: pill, xRadius: pill.height / 2, yRadius: pill.height / 2)
-        border.lineWidth = 2 * s
-        color("accent", 0.8, fallback: .white).setStroke()
-        border.stroke()
-        if let lock = NSImage(systemSymbolName: "lock.fill", accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 20 * s, weight: .regular))
-        {
-            let tinted = NSImage(size: lock.size, flipped: false) { r in
-                lock.draw(in: r)
-                self.color("fg_dim", fallback: .lightGray).set()
-                r.fill(using: .sourceAtop)
-                return true
-            }
-            tinted.draw(in: NSRect(x: pill.minX + 24 * s, y: pill.midY - lock.size.height / 2, width: lock.size.width, height: lock.size.height))
-        }
-        text(hint, size: 18 * s, weight: .regular, color: color("fg_dim", 0.9, fallback: .lightGray),
-             center: NSPoint(x: pill.midX + 12 * s, y: pill.midY))
     }
 
     /// Frosted glass: translucent theme card color, light top highlight, thin border.
