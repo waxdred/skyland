@@ -8,10 +8,12 @@
 //   corner <wid> <radius>
 //   uncorner <wid>                     (back to the system radius)
 //   alpha <wid> <alpha>
-//   animate <wid> <x> <y> <w> <h> <ms> <x1> <y1> <x2> <y2>
+//   animate <wid> <x> <y> <w> <h> <ms> <x1> <y1> <x2> <y2> [<tx> <ty> <tw> <th>]
 //       show the window at rect (x,y,w,h) then move it to its real frame over
-//       <ms> following the cubic bezier (x1,y1,x2,y2). Stepped here with
-//       SLSSetWindowTransform, never with a WindowServer-side animation.
+//       <ms> following the cubic bezier (x1,y1,x2,y2). With a target rect it moves
+//       there instead and jumps to its real frame at the end (slide-out of a
+//       window being hidden). Stepped here with SLSSetWindowTransform, never with
+//       a WindowServer-side animation.
 //
 // Signatures from REA decompilation of SkyLight on macOS 15.6.1 (24G90),
 // see vault note "SkyLight private API recon".
@@ -76,7 +78,7 @@ static void show_at(int cid, uint32_t wid, CGRect real, CGRect visual)
     SLSSetWindowTransform(cid, wid, t);
 }
 
-struct animation { uint32_t wid; uint64_t gen; CGRect from; double ms, x1, y1, x2, y2; };
+struct animation { uint32_t wid; uint64_t gen; CGRect from, to; int has_to; double ms, x1, y1, x2, y2; };
 
 static double now_ms(void)
 {
@@ -97,13 +99,14 @@ static void *animate(void *arg)
         if (SLSGetWindowBounds(cid, a.wid, &real) != kCGErrorSuccess) return NULL; // window gone
         double x = (now_ms() - start) / a.ms;
         if (x >= 1) break;
-        // the target is read every frame: the app may apply the new frame late
+        // without a target the real frame is read every frame: the app may apply it late
+        CGRect to = a.has_to ? a.to : real;
         double p = bezier_ease(x, a.x1, a.y1, a.x2, a.y2);
         CGRect v = CGRectMake(
-            a.from.origin.x + (real.origin.x - a.from.origin.x) * p,
-            a.from.origin.y + (real.origin.y - a.from.origin.y) * p,
-            a.from.size.width + (real.size.width - a.from.size.width) * p,
-            a.from.size.height + (real.size.height - a.from.size.height) * p);
+            a.from.origin.x + (to.origin.x - a.from.origin.x) * p,
+            a.from.origin.y + (to.origin.y - a.from.origin.y) * p,
+            a.from.size.width + (to.size.width - a.from.size.width) * p,
+            a.from.size.height + (to.size.height - a.from.size.height) * p);
         if (v.size.width >= 1 && v.size.height >= 1) show_at(cid, a.wid, real, v);
         usleep(8000); // ~120 Hz
     }
@@ -111,14 +114,16 @@ static void *animate(void *arg)
     return NULL;
 }
 
-static const char *start_animation(uint32_t wid, double *args)
+static const char *start_animation(uint32_t wid, double *args, int argc)
 {
     if (args[2] < 1 || args[3] < 1 || args[4] <= 0) return "err bad rect or duration\n";
+    if (argc == 13 && (args[11] < 1 || args[12] < 1)) return "err bad target rect\n";
     struct animation *a = malloc(sizeof(*a));
     if (!a) return "err oom\n";
     *a = (struct animation) {
         .wid = wid, .gen = anim_claim(wid), .from = CGRectMake(args[0], args[1], args[2], args[3]),
         .ms = args[4], .x1 = args[5], .y1 = args[6], .x2 = args[7], .y2 = args[8],
+        .has_to = argc == 13, .to = argc == 13 ? CGRectMake(args[9], args[10], args[11], args[12]) : CGRectZero,
     };
     pthread_t thread;
     if (pthread_create(&thread, NULL, animate, a) != 0) { free(a); return "err thread\n"; }
@@ -141,7 +146,9 @@ static const char *handle(char *line)
     int argc = 0;
     for (char *tok; argc < 16 && (tok = strtok_r(NULL, " \n", &save));) args[argc++] = strtod(tok, NULL);
 
-    if (strcmp(cmd, "animate") == 0) return argc == 9 ? start_animation(wid, args) : "err bad argument count\n";
+    if (strcmp(cmd, "animate") == 0) {
+        return argc == 9 || argc == 13 ? start_animation(wid, args, argc) : "err bad argument count\n";
+    }
 
     int cid = SLSMainConnectionID();
     CFTypeRef t = SLSTransactionCreate(cid);

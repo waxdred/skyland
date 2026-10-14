@@ -135,6 +135,7 @@ final class MacWindow: Window {
                 if isFloating {
                     lastFloatingSize = windowRect.size
                 }
+                animateSlideOut(self, from: windowRect)
             }
         }
         let p: CGPoint

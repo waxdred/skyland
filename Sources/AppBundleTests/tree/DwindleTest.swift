@@ -40,3 +40,13 @@ final class DwindleTest: XCTestCase {
         assertEquals(dwindleSplit(nil, mouse: nil, fallback: .v) == (.v, false), true)
     }
 }
+
+final class WorkspaceSlideTest: XCTestCase {
+    func testDirectionFollowsWorkspaceOrder() {
+        assertEquals(workspaceSlideSign(from: "1", to: "2"), 1) // higher: comes from below
+        assertEquals(workspaceSlideSign(from: "2", to: "1"), -1)
+        assertEquals(workspaceSlideSign(from: "9", to: "10"), 1) // numeric, not "10" < "9"
+        assertEquals(workspaceSlideSign(from: "A", to: "B"), 1)
+        assertEquals(workspaceSlideSign(from: "B", to: "A"), -1)
+    }
+}
