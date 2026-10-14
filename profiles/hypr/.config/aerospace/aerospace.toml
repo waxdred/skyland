@@ -69,6 +69,14 @@ fade-bezier = '0.0, 0.75, 0.15, 1.0'
 dark = '~/.config/skyland/themes/43pr-catppuccin-mocha.css' # 43pr-default.css: the original pure black
 light = '~/.config/skyland/themes/43pr-white.css'
 
+# 43PR wallpaper picker (alt-w) and wallpaper-based colors (matugen, 43PR roles in
+# ~/.config/skyland/wallpaper-colors.json). `skyland-wallpaper fetch` downloads
+# the 43PR wallhaven uploads into dir.
+[wallpaper]
+dir = '~/Pictures/Wallpapers'
+dynamic-colors = true
+prefer = 'saturation'
+
 [mode.main.binding]
 # programs
 alt-t = 'exec-and-forget open -n -a Ghostty'
@@ -82,6 +90,7 @@ alt-f = 'fullscreen --no-outer-gaps' # 43PR: fullscreen mode 0
 alt-space = 'layout floating tiling' # 43PR SUPER+Space: float at 70%, centered
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
 alt-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme toggle' # 43PR SUPER+L light/dark
+alt-w = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-wallpaper pick' # 43PR SUPER+W
 
 # focus / move / resize (h j k l)
 cmd-h = 'focus left'

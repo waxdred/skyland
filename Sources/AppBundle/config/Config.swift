@@ -63,6 +63,7 @@ struct Config: ConvenienceMutable {
     var decoration: Decoration = Decoration()
     var animations: Animations = Animations()
     var theme: ThemeConfig = ThemeConfig()
+    var wallpaper: WallpaperConfig = WallpaperConfig()
     var workspaceToMonitorForceAssignment: [String: [MonitorDescription]] = [:]
     var modes: [String: Mode] = [:]
     var onWindowDetected: [WindowDetectedCallback] = []

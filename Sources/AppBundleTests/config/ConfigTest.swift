@@ -531,6 +531,15 @@ final class ConfigTest: XCTestCase {
         )
         assertEquals(result.errors, [])
         assertEquals(result.config.theme, ThemeConfig(dark: "~/a.css", light: "~/b.css"))
+        let wallpaper = parseConfig(
+            """
+            [wallpaper]
+                dir = '~/Pictures/Wallpapers'
+                dynamic-colors = true
+            """,
+        )
+        assertEquals(wallpaper.errors, [])
+        assertEquals(wallpaper.config.wallpaper, WallpaperConfig(dir: "~/Pictures/Wallpapers", dynamicColors: true, prefer: ""))
     }
 
     func testParseGaps() {

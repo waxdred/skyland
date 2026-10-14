@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Print `key` of table `[section]` from the skyland config, quotes, trailing
+# comment and a leading ~ resolved. Empty output when missing.
+# usage: skyland-config <section> <key>
+set -euo pipefail
+CONFIG="${SKYLAND_CONFIG:-$HOME/.config/aerospace/aerospace.toml}"
+[[ -r "$CONFIG" ]] || exit 0
+value="$(awk -v section="$1" -v key="$2" '
+    /^\[/ { in_section = ($0 ~ "^\\[" section "\\][[:space:]]*$"); next }
+    in_section && $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
+        sub(/^[^=]*=[[:space:]]*/, ""); sub(/[[:space:]]*(#.*)?$/, ""); gsub(/^["\x27]|["\x27]$/, ""); print; exit
+    }' "$CONFIG")"
+echo "${value/#\~/$HOME}"

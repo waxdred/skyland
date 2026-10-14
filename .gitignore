@@ -18,6 +18,7 @@
 !/bin
 !/profiles
 !/osax
+!/tools
 
 # Top level important files
 !/*.sh
