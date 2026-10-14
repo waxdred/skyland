@@ -19,6 +19,8 @@
 !/profiles
 !/osax
 !/tools
+!/third_party
+!/.gitmodules
 
 # Top level important files
 !/*.sh
