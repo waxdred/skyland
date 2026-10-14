@@ -1,180 +1,224 @@
-# AeroSpace Beta [![Build](https://github.com/nikitabobko/AeroSpace/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/nikitabobko/AeroSpace/actions/workflows/build.yml)
+# skyland
 
-<img src="./resources/Assets.xcassets/AppIcon.appiconset/icon.png" width="40%" align="right">
+A Hyprland-like tiling window manager for macOS, built as a fork of
+[AeroSpace](https://github.com/nikitabobko/AeroSpace), with the look and
+workflow of the [43PR Hyprland dotfiles](https://github.com/43PR/dotfiles).
 
-AeroSpace is an i3-like tiling window manager for macOS
+skyland keeps everything AeroSpace does (virtual workspaces, tree layouts, CLI,
+config file) and adds what makes Hyprland feel like Hyprland:
 
-Videos:
-- [YouTube 91 sec Demo](https://www.youtube.com/watch?v=UOl7ErqWbrk)
-- [YouTube Guide by Josean Martinez](https://www.youtube.com/watch?v=-FoWClVHG5g)
+- **dwindle** layout, split side following the cursor (`smart_split`), `togglesplit`
+- **window decoration**: rounded corners, active/inactive opacity
+- **bezier animations**: tiles slide, new windows pop in, `slidefadevert` workspace switch, fades
+- **43PR themes** as CSS files, light/dark toggle, **colors generated from the wallpaper**
+- **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget**
+- windows **keep their workspace** across restarts
+- a switch between this setup and a regular yabai/skhd setup (`skyland-env work|hypr`)
 
-Docs:
-- [AeroSpace Guide](https://nikitabobko.github.io/AeroSpace/guide)
-- [AeroSpace Commands](https://nikitabobko.github.io/AeroSpace/commands)
-- [AeroSpace Goodies](https://nikitabobko.github.io/AeroSpace/goodies)
+> This is a personal setup. Paths like `~/code/hyperland/skyland` are hard-coded in
+> the `hypr` profile bindings; adjust them if you clone elsewhere.
 
-## Key features
+## How it works
 
-- Tiling window manager based on a [tree paradigm](https://nikitabobko.github.io/AeroSpace/guide#tree)
-- [i3](https://i3wm.org/) inspired
-- Fast workspaces switching without animations and without the necessity to disable SIP
-- AeroSpace employs its [own emulation of virtual workspaces](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces) instead of relying on native macOS Spaces due to [their considerable limitations](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces)
-- Plain text configuration (dotfiles friendly). See: [default-config.toml](https://nikitabobko.github.io/AeroSpace/guide#default-config)
-- CLI first (manpages and shell completion included)
-- Doesn't require disabling SIP (System Integrity Protection)
-- [Proper multi-monitor support](https://nikitabobko.github.io/AeroSpace/guide#multiple-monitors) (i3-like paradigm)
+The window manager is AeroSpace's Swift app with skyland additions under
+`Sources/AppBundle/skyland/`. Everything AeroSpace cannot do through the public
+Accessibility API (corner radius, alpha of other apps' windows, transforms for
+animations) goes through a **scripting addition injected into Dock**: Dock owns
+the universal SkyLight connection, so changes sent from there apply to every
+app's windows. The payload (`osax/payload.m`) listens on
+`/tmp/skyland-sa_$USER.socket` and the app sends it one text command per change.
 
-## Installation
+- Animations and fades are **stepped by the payload** (`SLSSetWindowTransform`,
+  `SLSSetWindowAlpha` every 8 ms). WindowServer-side animations are never used:
+  an animated alpha crashed WindowServer when a window closed mid-fade.
+- The private SkyLight signatures were recovered with REA (reverse engineering of
+  the dyld shared cache on macOS 15.6.1).
 
-Install via [Homebrew](https://brew.sh/) to get autoupdates (Preferred)
+## Requirements
 
-```
-brew install --cask nikitabobko/tap/aerospace
-```
+- Apple Silicon Mac, macOS 15 (tested on 15.6.1)
+- **SIP partially disabled** and the `-arm64e_preview_abi` boot-arg, exactly like
+  [yabai's scripting addition](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection)
+- Swift 6.4 through [swiftly](https://github.com/swiftlang/swiftly) (`swiftly install 6.4.0`)
+- Homebrew: `cmake`, `jq`, `sketchybar`; optional `yabai` + `skhd` for the work profile
+- `matugen` for wallpaper colors: `cargo install matugen`
 
-In multi-monitor setup please make sure that monitors [are properly arranged](https://nikitabobko.github.io/AeroSpace/guide#proper-monitor-arrangement).
+## Build and install
 
-Other installation options: https://nikitabobko.github.io/AeroSpace/guide#installation
-
-> [!NOTE]
-> By using AeroSpace, you acknowledge that it's not [notarized](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution).
->
-> Notarization is a "security" feature by Apple.
-> You send binaries to Apple, and they either approve them or not.
-> In reality, notarization is about building binaries the way Apple likes it.
->
-> I don't have anything against notarization as a concept.
-> I specifically don't like the way Apple does notarization.
-> I don't have time to deal with Apple.
->
-> [Homebrew installation script](https://github.com/nikitabobko/homebrew-tap/blob/main/Casks/aerospace.rb) is configured to
-> automatically delete `com.apple.quarantine` attribute, that's why the app should work out of the box, without any warnings that
-> "Apple cannot check AeroSpace for malicious software"
-
-## Community, discussions, issues
-
-AeroSpace project doesn't accept Issues directly - we ask you to create a [Discussion](https://github.com/nikitabobko/AeroSpace/discussions) first.
-Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for more details.
-
-Community discussions happen at GitHub Discussions.
-There you can discuss bugs, propose new features, ask your questions, show off your setup, or just chat.
-
-There are 7 channels:
--   [#all](https://github.com/nikitabobko/AeroSpace/discussions).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions.atom?discussions_q=sort%3Adate_created).
-    Feed with all discussions.
--   [#announcements](https://github.com/nikitabobko/AeroSpace/discussions/categories/announcements).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/announcements.atom?discussions_q=category%3Aannouncements+sort%3Adate_created).
-    Only maintainers can post here.
-    Highly moderated traffic.
--   [#announcements-releases](https://github.com/nikitabobko/AeroSpace/discussions/categories/announcements-releases).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/announcements-releases.atom?discussions_q=category%3Aannouncements-releases+sort%3Adate_created).
-    Announcements about non-patch releases.
-    Only maintainers can post here.
--   [#feature-ideas](https://github.com/nikitabobko/AeroSpace/discussions/categories/feature-ideas).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/feature-ideas.atom?discussions_q=category%3Afeature-ideas+sort%3Adate_created).
--   [#general](https://github.com/nikitabobko/AeroSpace/discussions/categories/general).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/general.atom?discussions_q=sort%3Adate_created+category%3Ageneral).
--   [#potential-bugs](https://github.com/nikitabobko/AeroSpace/discussions/categories/potential-bugs).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/potential-bugs.atom?discussions_q=category%3Apotential-bugs+sort%3Adate_created).
-    If you think that you have encountered a bug, you can discuss your bugs here.
--   [#questions-and-answers](https://github.com/nikitabobko/AeroSpace/discussions/categories/questions-and-answers).
-    [RSS](https://github.com/nikitabobko/AeroSpace/discussions/categories/questions-and-answers.atom?discussions_q=category%3Aquestions-and-answers+sort%3Adate_created).
-    Everyone is welcome to ask questions.
-    Everyone is encouraged to answer other people's questions.
-
-## Project status
-
-Public Beta. AeroSpace can be used as a daily driver, but expect breaking changes until 1.0 is reached.
-
-What stops us from 1.0 release:
-- [x] https://github.com/nikitabobko/AeroSpace/issues/131 Performance. Implement thread-per-application to circumvent macOS blocking AX API.
-- [ ] https://github.com/nikitabobko/AeroSpace/issues/1215 _Big refactoring_. Rewrite mutable double-linked core tree data structure to immutable single-linked persistent tree.
-  Important for: stability and potential performance
-  - [ ] https://github.com/nikitabobko/AeroSpace/issues/1216 The big refactoring will help us to fix stability issue that windows may randomly jump to the focused workspace
-  - [ ] https://github.com/nikitabobko/AeroSpace/issues/68 The big refactoring will help us to support macOS native tabs
-- [x] https://github.com/nikitabobko/AeroSpace/issues/278 Implement shell-like combinators.
-  Ignore a lot of crazy fuss in the issue,
-  We are most probably going with the minimal approach to only introduce common shell-combinators: `||`, `&&`, `;` and `eval` command to send multiple commands in one go.
-- [ ] https://github.com/nikitabobko/AeroSpace/issues/1012 Investigate a possibility to use `CGEvent.tapCreate` API for global hotkeys
-  - [ ] https://github.com/nikitabobko/AeroSpace/issues/28 Maybe it will allow to distinguish left and right modifiers. Maybe not
-
-Big and important issues which will go after 1.0 release:
-- [ ] https://github.com/nikitabobko/AeroSpace/issues/2 sticky windows
-- [ ] https://github.com/nikitabobko/AeroSpace/issues/260 Dynamic TWM
-
-## Development
-
-A notes on how to setup the project, build it, how to run the tests, etc. can be found here: [dev-docs/development.md](./dev-docs/development.md)
-
-## Project values
-
-**Values**
-- AeroSpace is targeted at advanced users and developers
-- Keyboard centric
-- Breaking changes (configuration files, CLI, behavior) are avoided as much as possible, but it must not let the software stagnate.
-  Thus breaking changes can happen, but with careful considerations and helpful message.
-  [Semver](https://semver.org/) major version is bumped in case of a breaking change (It's all guaranteed once AeroSpace reaches 1.0 version, until then breaking changes just happen)
-- AeroSpace doesn't use GUI, unless necessarily
-  - AeroSpace will never provide a GUI for configuration.
-    For advanced users, it's easier to edit a configuration file in text editor rather than navigating through checkboxes in GUI.
-  - Status menu icon is ok, because visual feedback is needed
-- Provide _practical_ features. Fancy appearance features are not _practical_ (e.g. window borders, transparency, animations, etc.)
-- "dark magic" (aka "private APIs", "code injections", etc.) must be avoided as much as possible
-  - Right now, AeroSpace uses only a single private API to get window ID of accessibility object `_AXUIElementGetWindow`.
-    Everything else is [macOS public accessibility API](https://developer.apple.com/documentation/applicationservices/axuielement_h).
-  - AeroSpace will never require you to disable SIP (System Integrity Protection).
-  - The goal is to make AeroSpace easily maintainable, and resistant to macOS updates.
-
-**Non Values**
-- Play nicely with existing macOS features.
-  If limitations are imposed then AeroSpace won't play nicely with existing macOS features
-  (For example, AeroSpace doesn't acknowledge the existence of macOS Spaces, and it uses [emulation of its own workspaces](https://nikitabobko.github.io/AeroSpace/guide#emulation-of-virtual-workspaces))
-- Ricing.
-  AeroSpace provides only a very minimal support for ricing - gaps and a few callbacks for integrations with bars.
-  The current maintainer doesn't care about ricing.
-  Ricing issues are not a priority, and they are mostly ignored.
-  The ricing stance can change only with the appearance of more maintainers.
-
-## macOS compatibility
-
-* AeroSpace binary runs on: macOS 13+
-* AeroSpace debug build from sources is supported on: macOS 14+
-* AeroSpace release build from sources is supported on: macOS 15+ (Requires: Swift 6.4, Xcode 26.6+)
-
-## Sponsorship
-
-AeroSpace is developed and maintained in my free time.
-If you find it useful, [consider sponsoring](https://github.com/sponsors/nikitabobko#sponsors).
-
-## People who have write access
-
-In alphabetical order:
-
-- [@mobile-ar](https://github.com/mobile-ar)
-- [@nikitabobko](https://github.com/nikitabobko)
-- [@rickyz](https://github.com/rickyz)
-
-## Tip of the day
-
-```bash
-defaults write -g NSWindowShouldDragOnGesture -bool true
+```sh
+git clone --recurse-submodules git@github.com:waxdred/skyland.git
+cd skyland
+bin/skyland-cert                     # once: self-signed identity, keeps Accessibility across rebuilds
+bin/skyland-build                    # app, CLI, wallpaper picker, media widget
+bin/skyland-sa build && bin/skyland-sa load   # scripting addition into Dock (sudo)
+bin/skyland-lock install             # optional: lock screen saver
+ln -s "$PWD"/bin/skyland-* /opt/homebrew/bin/  # the skyland CLI is .build/debug/aerospace
+skyland-env hypr                     # switch to skyland
 ```
 
-Now, you can move windows by holding `ctrl`+`cmd` and dragging any part of the window (not necessarily the window title)
+Grant **Accessibility** to `Skyland` (System Settings > Privacy & Security), and
+only to the app: never to the scripts. Always start the app with `open` (or
+`skyland-env`); launched from a terminal, macOS attributes the request to the
+terminal and the app resets its own permission.
 
-Source: [reddit](https://www.reddit.com/r/MacOS/comments/k6hiwk/keyboard_modifier_to_simplify_click_drag_of/)
+After `killall Dock` or a reboot the payload is gone: run `skyland-sa load` again
+(see [autostart](#autostart) to automate it).
 
-## Related projects
+## Scripts
 
-In alphabetical order:
+| Script | What it does |
+|---|---|
+| `skyland-env work\|hypr\|status` | switch between yabai/skhd and skyland (config overlay, services, bar, theme, one macOS Space per display with confirmation) |
+| `skyland-build` | build everything with swiftly, sign `Skyland.app` |
+| `skyland-sa build\|load\|send` | build / install and inject / talk to the Dock payload |
+| `skyland-theme dark\|light\|toggle\|apply\|off` | apply a CSS theme to sketchybar and Ghostty |
+| `skyland-wallpaper pick\|set\|fetch` | picker, set wallpaper + generate colors, download wallhaven uploads |
+| `skyland-lock install\|refresh\|now\|preview` | hyprlock-like screen saver |
+| `skyland-media toggle\|open\|close` | floating media widget |
+| `skyland-config <section> <key>` | read a value of the config (used by the scripts) |
+| `skyland-cert` | create the `skyland-codesign` signing identity |
 
-- [Amethyst](https://github.com/ianyh/Amethyst) -
-  Beginners friendly GUI-configurable tiling window manager with automatic layouts à la xmonad.
-- [InstantSpaceSwitcher](https://github.com/jurplel/InstantSpaceSwitcher) -
-  Instant space switching by synthesizing trackpad gesture with an artificially high velocity.
-- [rift](https://github.com/acsandmann/rift) -
-  Virtual workspaces + private APIs.
-- [yabai](https://github.com/koekeishiya/yabai) -
-  A window manager that provides tight integration with native macOS Spaces and goes all the way to private APIs and code injection.
-  yabai is a source of inspiration for a lot of other OSS projects.
+## Configuration
+
+`profiles/hypr/.config/aerospace/aerospace.toml` is linked to
+`~/.config/aerospace/aerospace.toml` by `skyland-env hypr`. All AeroSpace options
+work ([AeroSpace guide](https://nikitabobko.github.io/AeroSpace/guide)); skyland adds:
+
+```toml
+dwindle = true                    # new window splits the focused one along its longest side
+dwindle-smart-split = true        # ...on the side of the cursor (Hyprland smart_split)
+floating-center-percent = 70      # 'layout floating' on a tile: N% of the monitor, centered
+
+[decoration]
+rounding = 8
+active-opacity = 100              # percent
+inactive-opacity = 85
+
+[animations]                      # Hyprland speed is in ds: speed 5 = 500 ms
+enabled = true
+windows-ms = 500
+windows-bezier = '0.05, 0.9, 0.1, 1.0'   # Hyprland "bezier = name, x1, y1, x2, y2"
+workspaces-ms = 600
+workspaces-bezier = '0.0, 0.75, 0.15, 1.0'
+fade-ms = 400
+fade-bezier = '0.0, 0.75, 0.15, 1.0'
+
+[theme]                           # GTK colors.css files: @define-color key #rrggbb;
+dark = '~/.config/skyland/themes/43pr-catppuccin-mocha.css'
+light = '~/.config/skyland/themes/43pr-white.css'
+
+[wallpaper]
+dir = '~/Pictures/Wallpapers'
+dynamic-colors = true             # theme colors from the wallpaper (matugen)
+prefer = 'saturation'
+scheme = 'auto'                   # monochrome for grayscale wallpapers, else content
+
+[lock]
+name = 'Waxcoin'
+blur = 4
+
+[media]
+opacity = 92
+```
+
+The 18 43PR themes are in `profiles/hypr/.config/skyland/themes/`: copy one and
+edit the colors to make your own. `wallpaper-colors.json` maps Material roles to
+theme keys (43PR's `semantic.json`).
+
+The profile also remaps `a/q/z/w/m` for a **French AZERTY** keyboard; remove
+`key-mapping.key-notation-to-key-code` on QWERTY.
+
+## Keybindings (hypr profile)
+
+| Keys | Action | 43PR |
+|---|---|---|
+| `alt-t`, `alt-enter` | Ghostty | `Super+T` |
+| `cmd-e` / `cmd-b` | Finder / Brave | `Super+E` / `Super+B` |
+| `alt-q` | close window | `Super+Q` |
+| `alt-f` | fullscreen | `Super+F` |
+| `alt-space` | float 70% centered / tile back | `Super+Space` |
+| `alt-j` | togglesplit | |
+| `cmd-h/j/k/l` | focus | `Super+H/J/K/L` |
+| `cmd-shift-h/j/k/l` | move window | `Super+Shift+H/J/K/L` |
+| `cmd-alt-h/j/k/l`, `cmd-alt-e` | resize, balance | `Super+Ctrl+H/J/K/L` |
+| `cmd-1..0`, `cmd-shift-1..0` | workspace, move window there | `Super+1..0` |
+| `cmd-left` / `cmd-right` | previous / next workspace | |
+| `alt-l` | light / dark theme | `Super+L` |
+| `alt-w` | wallpaper picker | `Super+W` |
+| `alt-tab` | lock screen | `Super+Tab` |
+| `alt-m` | media widget | |
+| `cmd-shift-e` | back to the work profile | `Super+Shift+E` |
+
+## Autostart
+
+Not installed by any script: both steps give extra privileges, so review and run
+them yourself.
+
+**1. Inject the payload without a password.** A sudoers rule allowing only the
+root-owned loader, pinned to its sha256 (redo it after every
+`skyland-sa build && skyland-sa load`, the hash changes):
+
+```sh
+LOADER=/Library/ScriptingAdditions/skyland.osax/Contents/MacOS/loader
+ls -l "$LOADER"                       # must be owned by root
+HASH=$(shasum -a 256 "$LOADER" | cut -d' ' -f1)
+echo "$(whoami) ALL=(root) NOPASSWD: sha256:$HASH $LOADER" > /tmp/skyland.sudoers
+sudo visudo -cf /tmp/skyland.sudoers && sudo install -m 0440 -o root -g wheel /tmp/skyland.sudoers /private/etc/sudoers.d/skyland
+rm /tmp/skyland.sudoers
+# then, any time: sudo -n "$LOADER" "$(pgrep -x Dock)"
+# revoke: sudo rm /private/etc/sudoers.d/skyland
+```
+
+**2. Restore the last profile at login** with a LaunchAgent,
+`~/Library/LaunchAgents/com.waxdred.skyland.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.waxdred.skyland</string>
+    <key>RunAtLoad</key><true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>sleep 5; L=/Library/ScriptingAdditions/skyland.osax/Contents/MacOS/loader; sudo -n "$L" "$(pgrep -x Dock)"; S="$HOME/code/hyperland/skyland/bin/skyland-env"; "$S" "$("$S" status)"</string>
+    </array>
+    <key>StandardErrorPath</key><string>/tmp/skyland-login.log</string>
+</dict>
+</plist>
+```
+
+```sh
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.waxdred.skyland.plist   # enable
+launchctl bootout gui/$(id -u)/com.waxdred.skyland                                   # disable
+```
+
+## Troubleshooting
+
+- **A window is invisible**: `killall Dock` resets alpha and transforms set by the
+  payload; `.build/debug/aerospace enable off` brings windows hidden in the corner back.
+  skyland restores both on quit and on SIGTERM, not on SIGKILL.
+- **No rounding / opacity / animations**: the payload is not loaded
+  (`skyland-sa send ping` must answer `ok fade`): `skyland-sa load`.
+- **Shortcuts do nothing**: check the Accessibility permission of `Skyland`.
+- **Two windows share a workspace after clicking another app**: several macOS
+  Spaces exist; skyland expects one per display (`skyland-env hypr` offers to
+  remove the others).
+
+## Credits and licenses
+
+- [AeroSpace](https://github.com/nikitabobko/AeroSpace) by Nikita Bobko, MIT: the
+  window manager skyland is forked from (`LICENSE.txt`).
+- [yabai](https://github.com/koekeishiya/yabai) by Åsmund Vikane, MIT:
+  `osax/loader.m` (Dock injection).
+- [43PR/dotfiles](https://github.com/43PR/dotfiles), MIT: default config, themes,
+  wallpaper color roles; wallpapers from [wallhaven](https://wallhaven.cc/user/43pr).
+- [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter), BSD-3-Clause:
+  now playing information (git submodule).
+- [matugen](https://github.com/InioX/matugen): Material colors from the wallpaper.
