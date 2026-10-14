@@ -18,6 +18,9 @@ DEST=/Library/ScriptingAdditions/skyland.osax
 case "${1:-}" in
     build)
         mkdir -p "$OUT"
+        # unlink first: a build once run with sudo leaves root-owned files that
+        # the linker cannot overwrite (the directory is ours, so rm works)
+        rm -f "$OUT/payload" "$OUT/loader" "$OUT/bezier_test"
         # Xcode 26 ld emits arm64e ABI v1 (USR01) by default; Dock on macOS 15 is
         # v0 (USR00) and the kernel refuses cross-ABI thread injection, so force v0.
         abi=-Wl,-no_mac_public_arm64e

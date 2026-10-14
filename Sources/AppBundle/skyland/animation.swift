@@ -100,6 +100,34 @@ func animateSlideOut(_ window: Window, from rect: Rect) {
     skylandSa("animate \(window.windowId) \(rect.args) \(anim.workspacesMs) \(anim.workspacesBezier.args) \(to.args)")
 }
 
+/// Hyprland windowsOut: before skyland closes a window (close command), it
+/// shrinks to 80% and fades out, then is closed. Windows closed by their app
+/// (cmd-w, red button) are gone before skyland knows, so they are not animated.
+@MainActor
+func animateClose(_ window: Window) async {
+    let anim = config.animations
+    guard anim.enabled, anim.windowsMs > 0, payloadCapabilities.contains("close"),
+          let rect = window.lastAppliedLayoutPhysicalRect else { return }
+    let ms = anim.windowsMs, bezier = anim.windowsBezier
+    skylandSa("animate \(window.windowId) \(rect.args) \(ms) \(bezier.args) \(centeredRect(in: rect, percent: 80).args) 1")
+    skylandSa("fade \(window.windowId) 0 \(ms) \(bezier.args)")
+    try? await Task.sleep(for: .milliseconds(ms))
+}
+
+/// The app may refuse to close (unsaved changes dialog): give the window back
+/// its size and opacity instead of leaving it invisible.
+@MainActor
+func restoreIfStillOpen(_ windowId: UInt32) {
+    Task { @MainActor in
+        try? await Task.sleep(for: .seconds(1))
+        let alive = (CGWindowListCopyWindowInfo([.optionIncludingWindow], windowId) as? [[String: Any]])?.isEmpty == false
+        if alive {
+            skylandSa("untransform \(windowId)")
+            skylandSa("alpha \(windowId) 1")
+        }
+    }
+}
+
 extension Rect {
     fileprivate var args: String { "\(topLeftX) \(topLeftY) \(width) \(height)" }
 }

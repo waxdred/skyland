@@ -10,6 +10,9 @@ struct CloseCommand: Command {
         guard let window = target.windowOrNil else {
             return .fail(io.err("Empty workspace"))
         }
+        let windowId = window.windowId
+        await animateClose(window) // skyland
+        defer { restoreIfStillOpen(windowId) } // skyland
         // Access ax directly. Not cool :(
         if await args.quitIfLastWindow.andAsync({ @MainActor @Sendable in (try? await window.macAppUnsafe.getAxWindowsCount(.nonCancellable)) == 1 }) {
             let app = window.macAppUnsafe

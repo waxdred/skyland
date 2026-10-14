@@ -39,7 +39,8 @@ func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inou
 @MainActor private var payloadSocketInode: ino_t = 0
 // Fades only when the loaded payload says it supports them (asked once per
 // injection); an older payload rejects `fade` and opacity would never change.
-@MainActor private var payloadCanFade = false
+/// Words of the payload's `ping` reply ("ok fade close"), asked once per injection.
+@MainActor private(set) var payloadCapabilities: Set<String> = []
 // Windows already there when skyland starts are not faded in: neither during the
 // startup refresh nor shortly after (windows can be registered a bit later).
 @MainActor private var firstApplyDate: Date? = nil
@@ -56,9 +57,9 @@ func applyDecorations() {
         payloadSocketInode = inode
         sentOpacity = [:]
         sentRounding = [:]
-        payloadCanFade = skylandSa("ping", wait: true)?.contains("fade") == true
+        payloadCapabilities = Set((skylandSa("ping", wait: true) ?? "").split(whereSeparator: \.isWhitespace).map(String.init))
     }
-    let fades = wantsFades && payloadCanFade
+    let fades = wantsFades && payloadCapabilities.contains("fade")
     let startedAt = firstApplyDate ?? .now
     firstApplyDate = startedAt
     let startingUp = isStartup || Date.now.timeIntervalSince(startedAt) < 2

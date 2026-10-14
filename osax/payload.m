@@ -4,19 +4,21 @@
 //
 // Protocol: one text line per connection on /tmp/skyland-sa_$USER.socket,
 // reply "ok\n" or "err <reason>\n".
-//   ping                               (replies "ok fade": capabilities, old payloads reply "ok")
+//   ping                               (replies "ok fade close": capabilities, old payloads reply less)
 //   corner <wid> <radius>
 //   uncorner <wid>                     (back to the system radius)
 //   alpha <wid> <alpha>                (cancels a running fade)
 //   fade <wid> <alpha> <ms> <x1> <y1> <x2> <y2> [<from>]
 //       step the alpha from its current value (or <from>) along the bezier, like yabai's
 //       opacity_fade: SLSSetWindowAlpha every 8 ms, no WindowServer fade.
-//   animate <wid> <x> <y> <w> <h> <ms> <x1> <y1> <x2> <y2> [<tx> <ty> <tw> <th>]
+//   animate <wid> <x> <y> <w> <h> <ms> <x1> <y1> <x2> <y2> [<tx> <ty> <tw> <th> [hold]]
 //       show the window at rect (x,y,w,h) then move it to its real frame over
 //       <ms> following the cubic bezier (x1,y1,x2,y2). With a target rect it moves
 //       there instead and jumps to its real frame at the end (slide-out of a
-//       window being hidden). Stepped here with SLSSetWindowTransform, never with
-//       a WindowServer-side animation.
+//       window being hidden), or stays there with hold = 1 (window being closed).
+//       Stepped here with SLSSetWindowTransform, never with a WindowServer-side
+//       animation.
+//   untransform <wid>                  (back to its real frame, stops an animation)
 //
 // Signatures from REA decompilation of SkyLight on macOS 15.6.1 (24G90),
 // see vault note "SkyLight private API recon".
@@ -86,7 +88,7 @@ static void show_at(int cid, uint32_t wid, CGRect real, CGRect visual)
     SLSSetWindowTransform(cid, wid, t);
 }
 
-struct animation { uint32_t wid; uint64_t gen; CGRect from, to; int has_to; double ms, x1, y1, x2, y2; };
+struct animation { uint32_t wid; uint64_t gen; CGRect from, to; int has_to, hold; double ms, x1, y1, x2, y2; };
 
 static double now_ms(void)
 {
@@ -106,7 +108,10 @@ static void *animate(void *arg)
         if (!anim_current(&frame_anims, a.wid, a.gen)) return NULL; // a newer animation owns the window
         if (SLSGetWindowBounds(cid, a.wid, &real) != kCGErrorSuccess) return NULL; // window gone
         double x = (now_ms() - start) / a.ms;
-        if (x >= 1) break;
+        if (x >= 1) {
+            if (a.hold) { show_at(cid, a.wid, real, a.to); return NULL; } // closing window: stay small
+            break;
+        }
         // without a target the real frame is read every frame: the app may apply it late
         CGRect to = a.has_to ? a.to : real;
         double p = bezier_ease(x, a.x1, a.y1, a.x2, a.y2);
@@ -165,13 +170,14 @@ static const char *start_fade(uint32_t wid, double *args, int argc)
 static const char *start_animation(uint32_t wid, double *args, int argc)
 {
     if (args[2] < 1 || args[3] < 1 || args[4] <= 0) return "err bad rect or duration\n";
-    if (argc == 13 && (args[11] < 1 || args[12] < 1)) return "err bad target rect\n";
+    if (argc >= 13 && (args[11] < 1 || args[12] < 1)) return "err bad target rect\n";
     struct animation *a = malloc(sizeof(*a));
     if (!a) return "err oom\n";
     *a = (struct animation) {
         .wid = wid, .gen = anim_claim(&frame_anims, wid), .from = CGRectMake(args[0], args[1], args[2], args[3]),
         .ms = args[4], .x1 = args[5], .y1 = args[6], .x2 = args[7], .y2 = args[8],
-        .has_to = argc == 13, .to = argc == 13 ? CGRectMake(args[9], args[10], args[11], args[12]) : CGRectZero,
+        .has_to = argc >= 13, .to = argc >= 13 ? CGRectMake(args[9], args[10], args[11], args[12]) : CGRectZero,
+        .hold = argc == 14 && args[13] != 0,
     };
     pthread_t thread;
     if (pthread_create(&thread, NULL, animate, a) != 0) { free(a); return "err thread\n"; }
@@ -184,7 +190,7 @@ static const char *handle(char *line)
     char *save = NULL;
     char *cmd = strtok_r(line, " \n", &save);
     if (!cmd) return "err empty\n";
-    if (strcmp(cmd, "ping") == 0) return "ok fade\n";
+    if (strcmp(cmd, "ping") == 0) return "ok fade close\n";
 
     char *wid_str = strtok_r(NULL, " \n", &save);
     if (!wid_str) return "err missing wid\n";
@@ -198,7 +204,14 @@ static const char *handle(char *line)
         return argc == 6 || argc == 7 ? start_fade(wid, args, argc) : "err bad argument count\n";
     }
     if (strcmp(cmd, "animate") == 0) {
-        return argc == 9 || argc == 13 ? start_animation(wid, args, argc) : "err bad argument count\n";
+        return argc == 9 || argc == 13 || argc == 14 ? start_animation(wid, args, argc) : "err bad argument count\n";
+    }
+    if (strcmp(cmd, "untransform") == 0 && argc == 0) {
+        anim_claim(&frame_anims, wid); // stops a running animation
+        CGRect real;
+        if (SLSGetWindowBounds(SLSMainConnectionID(), wid, &real) != kCGErrorSuccess) return "err no window\n";
+        SLSSetWindowTransform(SLSMainConnectionID(), wid, CGAffineTransformMakeTranslation(-real.origin.x, -real.origin.y));
+        return "ok\n";
     }
 
     int cid = SLSMainConnectionID();
