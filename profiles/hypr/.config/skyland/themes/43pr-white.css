@@ -1,5 +1,5 @@
 /* 43pr-white (light): White monochrome negative of the 43PR default.
- * From 43PR/dotfiles .config/43pr/themes/white.toml, same keys as its palette.
+ * From 43PR/dotfiles .config/43pr/themes/white.toml (MIT), same keys as its palette.
  * GTK colors.css syntax: copy this file, edit the colors, point [theme] at it. */
 @define-color bg #ffffff;
 @define-color bg_panel #fafafa;

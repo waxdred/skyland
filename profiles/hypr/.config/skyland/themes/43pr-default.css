@@ -1,5 +1,5 @@
 /* 43pr-default (dark): The original 43PR look, extracted from the repo.
- * From 43PR/dotfiles .config/43pr/themes/default.toml, same keys as its palette.
+ * From 43PR/dotfiles .config/43pr/themes/default.toml (MIT), same keys as its palette.
  * GTK colors.css syntax: copy this file, edit the colors, point [theme] at it. */
 @define-color bg #000000;
 @define-color bg_panel #050505;

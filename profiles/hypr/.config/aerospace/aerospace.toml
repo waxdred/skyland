@@ -63,9 +63,10 @@ fade-ms = 400
 fade-bezier = '0.0, 0.75, 0.15, 1.0'
 
 # 43PR themes as GTK colors.css files (`@define-color key #rrggbb;`), applied
-# to sketchybar and Ghostty by bin/skyland-theme. Copy one to customize.
+# to sketchybar and Ghostty by bin/skyland-theme. All 18 43PR presets are in
+# ~/.config/skyland/themes; copy one to customize.
 [theme]
-dark = '~/.config/skyland/themes/43pr-default.css'
+dark = '~/.config/skyland/themes/43pr-catppuccin-mocha.css' # 43pr-default.css: the original pure black
 light = '~/.config/skyland/themes/43pr-white.css'
 
 [mode.main.binding]
