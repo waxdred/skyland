@@ -105,4 +105,9 @@ esac
 
 echo "$1" > "$STATE"
 sketchybar --reload 2>/dev/null || true
+if [[ "$1" == hypr ]]; then
+    # ponytail: --reload runs the work config asynchronously, give it time before
+    # replacing its yabai Spaces by skyland workspaces
+    { sleep 1.5; "$REPO/profiles/hypr/sketchybar/skyland.sh"; } >/dev/null 2>&1 &
+fi
 echo "profile: $1"
