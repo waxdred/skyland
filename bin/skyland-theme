@@ -91,4 +91,6 @@ if sketchybar --query bar >/dev/null 2>&1; then
             background.color=0xff$c_bg_card background.border_color=0xff$c_border \
         --trigger skyland_update
 fi
+cp "$file" "$CACHE/theme.css" # current theme, for skyland-lock
+"$REPO/bin/skyland-lock" refresh || true
 echo "theme: $mode ($file)"

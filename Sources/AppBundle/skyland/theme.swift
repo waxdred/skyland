@@ -38,6 +38,24 @@ func parseWallpaper(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout
     parseTable(raw, WallpaperConfig(), wallpaperParser, backtrace, &c)
 }
 
+/// Read by bin/skyland-lock; parsed here so the config validates.
+// [lock]
+// name = 'Waxcoin'
+// hint = 'Mot de passe'
+struct LockConfig: ConvenienceMutable, Equatable, Sendable {
+    var name: String = ""
+    var hint: String = ""
+}
+
+private let lockParser: [String: any ParserProtocol<LockConfig>] = [
+    "name": Parser(\.name, parseString),
+    "hint": Parser(\.hint, parseString),
+]
+
+func parseLock(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> LockConfig {
+    parseTable(raw, LockConfig(), lockParser, backtrace, &c)
+}
+
 func parseTheme(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> ThemeConfig {
     parseTable(raw, ThemeConfig(), themeParser, backtrace, &c)
 }

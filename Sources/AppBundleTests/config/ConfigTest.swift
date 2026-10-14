@@ -540,6 +540,7 @@ final class ConfigTest: XCTestCase {
         )
         assertEquals(wallpaper.errors, [])
         assertEquals(wallpaper.config.wallpaper, WallpaperConfig(dir: "~/Pictures/Wallpapers", dynamicColors: true, prefer: ""))
+        assertEquals(parseConfig("[lock]\nname = 'Waxcoin'").config.lock, LockConfig(name: "Waxcoin", hint: ""))
     }
 
     func testParseGaps() {

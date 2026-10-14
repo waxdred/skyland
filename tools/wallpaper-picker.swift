@@ -1,11 +1,29 @@
 // skyland wallpaper picker, like 43PR's quickshell hyprquickpaper.
 //   skyland-wallpaper-picker <dir>     pick an image: prints its path, exit 1 if cancelled
 //   skyland-wallpaper-picker --set <file>   set it as wallpaper on every screen
-// Built by bin/skyland-build; driven by bin/skyland-wallpaper.
+//   skyland-wallpaper-picker --blur <in> <out.jpg> <radius>   blurred copy (lock screen)
+// Built by bin/skyland-build; driven by bin/skyland-wallpaper and bin/skyland-lock.
 import AppKit
+import CoreImage
 import ImageIO
 
 let args = CommandLine.arguments
+if args.count == 5, args[1] == "--blur" {
+    // Downscale first: a 1920 px wide image is plenty once blurred, and fast
+    guard let input = CIImage(contentsOf: URL(fileURLWithPath: args[2])), let radius = Double(args[4]) else { exit(1) }
+    let scale = min(1, 1920 / input.extent.width)
+    let small = input.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+    let blurred = small.clampedToExtent().applyingGaussianBlur(sigma: radius).cropped(to: small.extent)
+    let context = CIContext()
+    do {
+        try context.writeJPEGRepresentation(of: blurred, to: URL(fileURLWithPath: args[3]),
+                                            colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.85])
+    } catch {
+        exit(1)
+    }
+    exit(0)
+}
 if args.count == 3, args[1] == "--set" {
     let url = URL(fileURLWithPath: args[2])
     do {

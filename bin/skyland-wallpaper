@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Wallpaper picker and wallpaper-based colors, like 43PR (hyprquickpaper + matugen).
-# usage: skyland-wallpaper pick | set <file> | fetch [wallhaven-user]
+# usage: skyland-wallpaper pick | set <file> | fetch [wallhaven-user | user/collection-id]
 #   pick   choose an image of [wallpaper] dir in a picker, then `set` it
 #   set    make <file> the wallpaper of every screen; with dynamic-colors, generate
 #          dark/light themes from it (matugen) and apply the current mode
-#   fetch  download the SFW uploads of a wallhaven user (default 43pr) into dir
+#   fetch  download the SFW uploads of a wallhaven user (default 43pr), or a public
+#          collection given as user/id (e.g. 43PR/1262809), into dir
 #
 # [wallpaper]
 # dir = '~/Pictures/Wallpapers'
@@ -51,14 +52,21 @@ case "${1:-}" in
         echo "$file" > "$CACHE/wallpaper"
         if [[ "$(conf dynamic-colors)" == true ]]; then
             generate_colors "$file"
-            "$REPO/bin/skyland-theme" apply
+            "$REPO/bin/skyland-theme" apply # also refreshes the lock screen
+        else
+            "$REPO/bin/skyland-lock" refresh
         fi
         ;;
     fetch)
-        user="${2:-43pr}"
+        src="${2:-43pr}"
+        if [[ "$src" == */* ]]; then # user/collection-id, e.g. 43PR/1262809 (public collection)
+            api="https://wallhaven.cc/api/v1/collections/${src%%/*}/${src##*/}?"
+        else
+            api="https://wallhaven.cc/api/v1/search?q=@$src&purity=100&"
+        fi
         mkdir -p "$dir"
         for page in $(seq 1 10); do
-            urls="$(curl -sf "https://wallhaven.cc/api/v1/search?q=@$user&purity=100&page=$page" | jq -r '.data[].path')"
+            urls="$(curl -sf "${api}page=$page" | jq -r '.data[].path')"
             [[ -n "$urls" ]] || break
             while read -r url; do
                 name="${url##*/}"
@@ -69,6 +77,6 @@ case "${1:-}" in
         done
         ;;
     *)
-        die "usage: skyland-wallpaper pick | set <file> | fetch [wallhaven-user]"
+        die "usage: skyland-wallpaper pick | set <file> | fetch [wallhaven-user | user/collection-id]"
         ;;
 esac

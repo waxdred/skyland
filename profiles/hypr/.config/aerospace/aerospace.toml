@@ -81,6 +81,12 @@ dir = '~/Pictures/Wallpapers'
 dynamic-colors = true
 prefer = 'saturation'
 
+# hyprlock-like screen saver (bin/skyland-lock): blurred wallpaper, glassy clock
+# in the current theme. alt-tab starts it (43PR SUPER+Tab); macOS asks the password.
+[lock]
+name = 'Waxcoin'
+hint = 'Mot de passe'
+
 [mode.main.binding]
 # programs
 alt-t = 'exec-and-forget open -n -a Ghostty'
@@ -95,6 +101,7 @@ alt-space = 'layout floating tiling' # 43PR SUPER+Space: float at 70%, centered
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
 alt-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme toggle' # 43PR SUPER+L light/dark
 alt-w = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-wallpaper pick' # 43PR SUPER+W
+alt-tab = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-lock now' # 43PR SUPER+Tab (hyprlock)
 
 # focus / move / resize (h j k l)
 cmd-h = 'focus left'

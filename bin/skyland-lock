@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# hyprlock-like screen saver (43PR): blurred wallpaper, glassy clock in the
+# current theme, user name, rounded password pill. macOS keeps authentication.
+# usage: skyland-lock install | refresh | now | preview [out.png] | uninstall
+#   install    build tools/lockscreen into ~/Library/Screen Savers/SkylandLock.saver
+#   refresh    copy current theme, blurred wallpaper, [lock] name/hint into it
+#              (the screen saver host is sandboxed: it only reads its bundle)
+#   now        start it (bound to alt-tab, 43PR SUPER+Tab)
+#   preview    render it to a PNG
+#
+# [lock]
+# name = 'Waxcoin'
+# hint = 'Mot de passe'
+set -euo pipefail
+REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+CACHE="$HOME/.cache/skyland"
+SAVER="$HOME/Library/Screen Savers/SkylandLock.saver"
+BUILD="$REPO/.build/SkylandLock.saver"
+conf() { "$REPO/bin/skyland-config" lock "$1"; }
+die() { echo "skyland-lock: $*" >&2; exit 1; }
+
+# theme.css, wallpaper.jpg, name.txt, hint.txt into <dir>
+write_resources() {
+    local dir="$1" wallpaper
+    mkdir -p "$dir"
+    [[ -r "$CACHE/theme.css" ]] && cp "$CACHE/theme.css" "$dir/theme.css" # written by skyland-theme
+    wallpaper="$(cat "$CACHE/wallpaper" 2>/dev/null || true)" # written by skyland-wallpaper
+    if [[ -r "$wallpaper" ]]; then
+        "$REPO/.build/skyland-wallpaper-picker" --blur "$wallpaper" "$dir/wallpaper.jpg" 30
+    fi
+    conf name > "$dir/name.txt"
+    conf hint > "$dir/hint.txt"
+}
+
+sign() {
+    local identity=-
+    security find-identity -v -p codesigning | grep -q '"skyland-codesign"' && identity=skyland-codesign
+    codesign --force --sign "$identity" "$1" >/dev/null 2>&1
+}
+
+case "${1:-}" in
+    install)
+        rm -rf "$BUILD"
+        mkdir -p "$BUILD/Contents/MacOS"
+        swiftc -O -module-name SkylandLock -emit-library -Xlinker -bundle -framework ScreenSaver \
+            "$REPO/tools/lockscreen/SkylandLock.swift" -o "$BUILD/Contents/MacOS/SkylandLock"
+        cat > "$BUILD/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key><string>com.waxdred.skyland-lock</string>
+    <key>CFBundleName</key><string>SkylandLock</string>
+    <key>CFBundleExecutable</key><string>SkylandLock</string>
+    <key>CFBundlePackageType</key><string>BNDL</string>
+    <key>CFBundleShortVersionString</key><string>1.0</string>
+    <key>NSPrincipalClass</key><string>SkylandLockView</string>
+</dict>
+</plist>
+PLIST
+        rm -rf "$SAVER"
+        mkdir -p "$(dirname "$SAVER")"
+        cp -R "$BUILD" "$SAVER"
+        "$0" refresh
+        echo "installed $SAVER"
+        echo "choose 'SkylandLock' in System Settings > Screen Saver, and set"
+        echo "Lock Screen > 'Require password after screen saver begins' to Immediately"
+        ;;
+    refresh)
+        [[ -d "$SAVER" ]] || exit 0 # not installed
+        write_resources "$SAVER/Contents/Resources"
+        sign "$SAVER" # resources are sealed by the signature
+        ;;
+    now)
+        open -a ScreenSaverEngine
+        ;;
+    preview)
+        out="${2:-$CACHE/lock-preview.png}"
+        tmp="$(mktemp -d)"
+        trap 'rm -rf "$tmp"' EXIT
+        write_resources "$tmp/res"
+        swiftc -O -module-name SkylandLock -framework ScreenSaver \
+            "$REPO/tools/lockscreen/SkylandLock.swift" "$REPO/tools/lockscreen/preview/main.swift" -o "$tmp/preview"
+        SKYLAND_LOCK_RESOURCES="$tmp/res" "$tmp/preview" "$out"
+        echo "$out"
+        ;;
+    uninstall)
+        rm -rf "$SAVER"
+        ;;
+    *)
+        die "usage: skyland-lock install | refresh | now | preview [out.png] | uninstall"
+        ;;
+esac

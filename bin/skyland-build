@@ -10,6 +10,7 @@ cd "$(dirname "$(readlink -f "$0")")/.."
 swiftly run swift build --product AeroSpaceApp
 swiftly run swift build --product aerospace
 swiftc -O tools/wallpaper-picker.swift -o .build/skyland-wallpaper-picker
+"$PWD/bin/skyland-lock" refresh # re-sign the installed lock screen if any
 
 app=.build/Skyland.app
 rm -rf "$app"
