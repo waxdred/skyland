@@ -86,6 +86,7 @@ prefer = 'saturation'
 [lock]
 name = 'Waxcoin'
 hint = 'Mot de passe'
+blur = 12 # wallpaper blur radius, 0 = sharp
 
 [mode.main.binding]
 # programs

@@ -11,6 +11,7 @@
 # [lock]
 # name = 'Waxcoin'
 # hint = 'Mot de passe'
+# blur = 12            # wallpaper blur radius (on a 1920 px wide copy)
 set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 CACHE="$HOME/.cache/skyland"
@@ -26,7 +27,7 @@ write_resources() {
     [[ -r "$CACHE/theme.css" ]] && cp "$CACHE/theme.css" "$dir/theme.css" # written by skyland-theme
     wallpaper="$(cat "$CACHE/wallpaper" 2>/dev/null || true)" # written by skyland-wallpaper
     if [[ -r "$wallpaper" ]]; then
-        "$REPO/.build/skyland-wallpaper-picker" --blur "$wallpaper" "$dir/wallpaper.jpg" 30
+        "$REPO/.build/skyland-wallpaper-picker" --blur "$wallpaper" "$dir/wallpaper.jpg" "$(conf blur | grep . || echo 12)"
     fi
     conf name > "$dir/name.txt"
     conf hint > "$dir/hint.txt"

@@ -42,14 +42,17 @@ func parseWallpaper(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout
 // [lock]
 // name = 'Waxcoin'
 // hint = 'Mot de passe'
+// blur = 12
 struct LockConfig: ConvenienceMutable, Equatable, Sendable {
     var name: String = ""
     var hint: String = ""
+    var blur: Int = 0
 }
 
 private let lockParser: [String: any ParserProtocol<LockConfig>] = [
     "name": Parser(\.name, parseString),
     "hint": Parser(\.hint, parseString),
+    "blur": Parser(\.blur, parseInt),
 ]
 
 func parseLock(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> LockConfig {
