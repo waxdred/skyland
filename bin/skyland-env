@@ -36,8 +36,39 @@ relink() { # profile_dir
     done
 }
 
+# skyland workspaces replace macOS Spaces and expect one Space per display.
+# Offers to destroy the others through the running yabai (and its scripting
+# addition); macOS moves their windows to a remaining Space, nothing is closed.
+# Native fullscreen Spaces stay. Asks first, skips without a terminal.
+collapse_spaces() {
+    yabai -m query --spaces >/dev/null 2>&1 || return 0 # yabai not running
+    local spaces extra
+    spaces=$(yabai -m query --spaces)
+    extra=$(jq -r 'group_by(.display) | map(sort_by(.index) | .[1:][]
+        | select(."is-native-fullscreen" | not) | .index) | flatten | sort | reverse | .[]' <<<"$spaces")
+    [[ -n "$extra" ]] || return 0
+    echo "skyland uses one macOS Space per display. These Spaces would be removed"
+    echo "(their windows move to a remaining Space, nothing is closed):"
+    for index in $extra; do
+        jq -r --argjson i "$index" '.[] | select(.index == $i)
+            | "  Space \(.index) \(if .label != "" then "(\(.label))" else "" end) on display \(.display): \(.windows | length) window(s)"' <<<"$spaces"
+    done
+    if [[ ! -r /dev/tty ]] || ! { exec 3</dev/tty; } 2>/dev/null; then
+        echo "no terminal to confirm, Spaces kept (windows on other Spaces may tile together)" >&2
+        return 0
+    fi
+    local answer
+    read -r -u 3 -p "Remove them? [y/N] " answer || answer= # EOF = no
+    exec 3<&-
+    [[ "$answer" == [yY]* ]] || { echo "Spaces kept"; return 0; }
+    for index in $extra; do
+        yabai -m space --destroy "$index" || true # highest first, lower indices stay valid
+    done
+}
+
 case "${1:-status}" in
     hypr)
+        collapse_spaces
         yabai --stop-service 2>/dev/null || true
         skhd --stop-service 2>/dev/null || true
         pkill -x borders 2>/dev/null || true
@@ -50,6 +81,9 @@ case "${1:-status}" in
         relink "$WORK"
         yabai --start-service 2>/dev/null || true
         skhd --start-service 2>/dev/null || true
+        # recreate the work Spaces that the hypr profile collapsed
+        spaces="$WORK/yabai/script/generate-workspace.sh"
+        [[ -x "$spaces" ]] && { sleep 2; "$spaces"; } >/dev/null 2>&1 &
         ;;
     status)
         cat "$STATE" 2>/dev/null || echo work
