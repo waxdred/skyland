@@ -46,7 +46,7 @@ case "${1:-}" in
 </dict>
 </plist>
 PLIST
-        "$DEST/Contents/MacOS/loader"
+        "$DEST/Contents/MacOS/loader" "$(pgrep -x -u "$(stat -f %Su /dev/console)" Dock)"
         echo "injected into Dock"
         ;;
     send)

@@ -1,5 +1,6 @@
 // Copied from koekeishiya/yabai src/osax/loader.m (MIT, Copyright (c) 2019 Åsmund Vikane).
-// Only change: payload_path.
+// Changes: payload_path, and the Dock pid can be passed as argv[1] (NSRunningApplication
+// does not see Dock when run with sudo after a session restart).
 #include <Cocoa/Cocoa.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -129,7 +130,7 @@ int main(int argc, char **argv)
     mach_vm_address_t stack = 0;
     vm_size_t stack_size = 16 * 1024;
     uint64_t stack_contents = 0x00000000CAFEBABE;
-    pid_t pid = get_dock_pid();
+    pid_t pid = argc > 1 ? (pid_t) atoi(argv[1]) : get_dock_pid();
 
     if (!pid) {
         fprintf(stderr, "could not locate Dock.app pid\n");
