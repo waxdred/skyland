@@ -1,0 +1,87 @@
+# Skyland default config, translated from 43PR/dotfiles (.config/hypr/*.lua)
+# SUPER is split: cmd for navigation (macOS muscle memory), alt where cmd
+# would shadow a system shortcut (cmd-t, cmd-q, cmd-f, cmd-space).
+#
+# Not portable yet (skyland roadmap): rounding = 8, blur, shadow,
+# bezier easeOut (0.05, 0.9, 0.1, 1.0) window/workspace animations.
+
+config-version = 2
+start-at-login = false
+auto-reload-config = true
+
+# dwindle not implemented yet, tiles is the closest
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+focus-follows-mouse.enabled = true # 43PR: follow_mouse = 1
+
+# 43PR: workspaces 1-4 persistent
+persistent-workspaces = ["1", "2", "3", "4"]
+
+key-mapping.preset = 'qwerty'
+
+# 43PR: gaps_in = 4, gaps_out = { top 5, right 8, bottom 8, left 8 }
+# top adds the 32px sketchybar
+gaps.inner.horizontal = 4
+gaps.inner.vertical = 4
+gaps.outer.top = 37
+gaps.outer.right = 8
+gaps.outer.bottom = 8
+gaps.outer.left = 8
+
+[mode.main.binding]
+# programs
+alt-t = 'exec-and-forget open -n -a Ghostty'
+alt-enter = 'exec-and-forget open -n -a Ghostty'
+cmd-e = 'exec-and-forget open -a Finder'
+cmd-b = 'exec-and-forget open -a "Brave Browser"'
+
+# window
+alt-q = 'close'
+alt-f = 'fullscreen'
+alt-space = 'layout floating tiling'
+
+# focus / move / resize (h j k l)
+cmd-h = 'focus left'
+cmd-j = 'focus down'
+cmd-k = 'focus up'
+cmd-l = 'focus right'
+cmd-shift-h = 'move left'
+cmd-shift-j = 'move down'
+cmd-shift-k = 'move up'
+cmd-shift-l = 'move right'
+cmd-alt-h = 'resize width -40'
+cmd-alt-l = 'resize width +40'
+cmd-alt-k = 'resize height -40'
+cmd-alt-j = 'resize height +40'
+cmd-alt-e = 'balance-sizes'
+
+# workspaces 1-10
+cmd-1 = 'workspace 1'
+cmd-2 = 'workspace 2'
+cmd-3 = 'workspace 3'
+cmd-4 = 'workspace 4'
+cmd-5 = 'workspace 5'
+cmd-6 = 'workspace 6'
+cmd-7 = 'workspace 7'
+cmd-8 = 'workspace 8'
+cmd-9 = 'workspace 9'
+cmd-0 = 'workspace 10'
+cmd-shift-1 = 'move-node-to-workspace 1'
+cmd-shift-2 = 'move-node-to-workspace 2'
+cmd-shift-3 = 'move-node-to-workspace 3'
+cmd-shift-4 = 'move-node-to-workspace 4'
+cmd-shift-5 = 'move-node-to-workspace 5'
+cmd-shift-6 = 'move-node-to-workspace 6'
+cmd-shift-7 = 'move-node-to-workspace 7'
+cmd-shift-8 = 'move-node-to-workspace 8'
+cmd-shift-9 = 'move-node-to-workspace 9'
+cmd-shift-0 = 'move-node-to-workspace 10'
+cmd-left = 'workspace prev'
+cmd-right = 'workspace next'
+
+# 43PR: SUPER+SHIFT+E exit, here back to the work profile
+cmd-shift-e = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-env work'

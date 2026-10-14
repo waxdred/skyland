@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Switch between the work setup (yabai + skhd) and the skyland setup.
+# usage: skyland-env work|hypr|status
+#
+# Profile "hypr" is an overlay: each entry of profiles/hypr/.config is linked
+# into ~/.config. Switching back to "work" relinks those entries to the work
+# dotfiles (or removes them when work has no such entry).
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+HYPR="$REPO/profiles/hypr/.config"
+WORK="${SKYLAND_WORK_CONFIG:-$HOME/tools/dotfiles/.config}"
+APP="${SKYLAND_APP:-$REPO/.build/debug/AeroSpaceApp}"
+STATE="$HOME/.config/.skyland-profile"
+
+# Only touch symlinks or missing paths, never a real file or dir.
+link() { # src dest
+    if [[ -e "$2" && ! -L "$2" ]]; then
+        echo "skip $2: real file, move it away first" >&2
+        return
+    fi
+    ln -sfn "$1" "$2"
+}
+
+relink() { # profile_dir
+    for entry in "$HYPR"/* "$HYPR"/.[!.]*; do
+        [[ -e "$entry" ]] || continue
+        local name dest
+        name="$(basename "$entry")"
+        dest="$HOME/.config/$name"
+        if [[ -e "$1/$name" ]]; then
+            link "$1/$name" "$dest"
+        elif [[ -L "$dest" && "$(readlink "$dest")" == "$HYPR"/* ]]; then
+            rm "$dest"
+        fi
+    done
+}
+
+case "${1:-status}" in
+    hypr)
+        yabai --stop-service 2>/dev/null || true
+        skhd --stop-service 2>/dev/null || true
+        pkill -x borders 2>/dev/null || true
+        relink "$HYPR"
+        nohup "$APP" >/dev/null 2>&1 &
+        ;;
+    work)
+        # SIGTERM lets AeroSpace restore hidden windows before exit
+        pkill -x "$(basename "$APP")" 2>/dev/null || true
+        relink "$WORK"
+        yabai --start-service 2>/dev/null || true
+        skhd --start-service 2>/dev/null || true
+        ;;
+    status)
+        cat "$STATE" 2>/dev/null || echo work
+        exit 0
+        ;;
+    *)
+        echo "usage: skyland-env work|hypr|status" >&2
+        exit 1
+        ;;
+esac
+
+echo "$1" > "$STATE"
+sketchybar --reload 2>/dev/null || true
+echo "profile: $1"
