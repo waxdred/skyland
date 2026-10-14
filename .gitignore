@@ -17,6 +17,7 @@
 !/xcode
 !/bin
 !/profiles
+!/osax
 
 # Top level important files
 !/*.sh

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Build, install and inject the skyland scripting addition into Dock.
+# usage: skyland-sa build | load | send <command...>
+#   build  compile payload + loader into .build/osax
+#   load   (sudo) install into /Library/ScriptingAdditions/skyland.osax, inject into Dock
+#   send   send one command to the payload, e.g. `skyland-sa send corner 414 12`
+# Requires SIP partially disabled and boot-arg -arm64e_preview_abi (same as yabai).
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")/.."
+
+OUT=.build/osax
+DEST=/Library/ScriptingAdditions/skyland.osax
+
+case "${1:-}" in
+    build)
+        mkdir -p "$OUT"
+        # Xcode 26 ld emits arm64e ABI v1 (USR01) by default; Dock on macOS 15 is
+        # v0 (USR00) and the kernel refuses cross-ABI thread injection, so force v0.
+        abi=-Wl,-no_mac_public_arm64e
+        xcrun clang osax/payload.m -shared -fPIC -O2 -arch arm64e -mmacosx-version-min=13.0 $abi \
+            -F/System/Library/PrivateFrameworks -framework SkyLight -framework QuartzCore -framework CoreFoundation \
+            -o "$OUT/payload"
+        xcrun clang osax/loader.m -O2 -arch arm64e -mmacosx-version-min=13.0 -framework Cocoa $abi -o "$OUT/loader"
+        otool -hv "$OUT/payload" "$OUT/loader" | awk '/ARM64/ {print "abi:", $4}'
+        echo "built $OUT/payload $OUT/loader"
+        ;;
+    load)
+        [[ $EUID -eq 0 ]] || exec sudo "$0" load
+        mkdir -p "$DEST"
+        cp "$OUT/payload" "$OUT/loader" "$DEST/"
+        "$DEST/loader"
+        echo "injected into Dock"
+        ;;
+    send)
+        shift
+        echo "$*" | nc -U "/tmp/skyland-sa_$USER.socket"
+        ;;
+    *)
+        echo "usage: skyland-sa build | load | send <command...>" >&2
+        exit 1
+        ;;
+esac
