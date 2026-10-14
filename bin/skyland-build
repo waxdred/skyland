@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Build the app and wrap it in .build/Skyland.app so macOS can grant
 # Accessibility to the bundle instead of the launching terminal.
-# ponytail: ad-hoc signature changes on every build, so Accessibility must be
-# re-granted after each rebuild; use a self-signed cert if that gets annoying.
+# Ad-hoc signing (default) changes the signature on every build, so Accessibility
+# must be re-granted after each rebuild. Set SKYLAND_SIGN_IDENTITY to a
+# self-signed code signing cert name to keep the grant across rebuilds.
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")/.."
 
@@ -27,5 +28,5 @@ cat > "$app/Contents/Info.plist" <<EOF
 </dict>
 </plist>
 EOF
-codesign --force --sign - --entitlements resources/AeroSpace.entitlements "$app"
+codesign --force --sign "${SKYLAND_SIGN_IDENTITY:--}" --entitlements resources/AeroSpace.entitlements "$app"
 echo "built $app"

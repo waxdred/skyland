@@ -6,6 +6,7 @@
 // reply "ok\n" or "err <reason>\n".
 //   ping
 //   corner <wid> <radius>
+//   uncorner <wid>                     (back to the system radius)
 //   alpha <wid> <alpha> <duration>
 //   transform <wid> <m11> ... <m44>    (CATransform3D, 16 values, row major)
 //
@@ -26,6 +27,7 @@ extern int SLSMainConnectionID(void);
 extern CFTypeRef SLSTransactionCreate(int cid);
 extern int SLSTransactionCommit(CFTypeRef t, int sync);
 extern void SLSTransactionSetWindowCornerRadius(CFTypeRef t, uint32_t wid, double radius);
+extern void SLSTransactionClearWindowCornerRadius(CFTypeRef t, uint32_t wid);
 extern void SLSTransactionSetWindowAlphaAnimated(CFTypeRef t, uint32_t wid, float alpha, float duration);
 extern void SLSTransactionSetWindowTransform3D(CFTypeRef t, uint32_t wid, CATransform3D *transform);
 
@@ -51,6 +53,8 @@ static const char *handle(char *line)
     const char *reply = "ok\n";
     if (strcmp(cmd, "corner") == 0 && argc == 1) {
         SLSTransactionSetWindowCornerRadius(t, wid, args[0]);
+    } else if (strcmp(cmd, "uncorner") == 0 && argc == 0) {
+        SLSTransactionClearWindowCornerRadius(t, wid);
     } else if (strcmp(cmd, "alpha") == 0 && argc == 2) {
         SLSTransactionSetWindowAlphaAnimated(t, wid, (float) args[0], (float) args[1]);
     } else if (strcmp(cmd, "transform") == 0 && argc == 16) {

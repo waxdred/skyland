@@ -2,7 +2,7 @@
 # SUPER is split: cmd for navigation (macOS muscle memory), alt where cmd
 # would shadow a system shortcut (cmd-t, cmd-q, cmd-f, cmd-space).
 #
-# Not portable yet (skyland roadmap): rounding = 8, blur, shadow,
+# Not portable yet (skyland roadmap): blur, shadow,
 # bezier easeOut (0.05, 0.9, 0.1, 1.0) window/workspace animations.
 
 config-version = 2
@@ -31,6 +31,14 @@ gaps.outer.top = 37
 gaps.outer.right = 8
 gaps.outer.bottom = 8
 gaps.outer.left = 8
+
+# 43PR: rounding = 8, opacity 1.0 override (inactive dimmed here to test the
+# scripting addition, set 100 for the exact 43PR look). Needs `skyland-sa load`.
+[decoration]
+rounding = 8
+active-opacity = 100
+inactive-opacity = 85
+fade-ms = 200
 
 [mode.main.binding]
 # programs

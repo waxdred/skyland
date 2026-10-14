@@ -478,6 +478,20 @@ final class ConfigTest: XCTestCase {
         XCTAssertTrue(!"System Settings".contains(caseInsensitiveRegex: CaseInsensitiveRegex.new("^settings^").getOrNil(appendErrorTo: &devNull)!))
     }
 
+    func testParseDecoration() {
+        let result = parseConfig(
+            """
+            [decoration]
+                rounding = 8
+                inactive-opacity = 85
+                fade-ms = 200
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.config.decoration, Decoration(rounding: 8, activeOpacity: 100, inactiveOpacity: 85, fadeMs: 200))
+        assertEquals(parseConfig("").config.decoration.isEnabled, false)
+    }
+
     func testParseGaps() {
         let result1 = parseConfig(
             """
