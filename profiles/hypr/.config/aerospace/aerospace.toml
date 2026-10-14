@@ -33,6 +33,10 @@ exec-on-workspace-change = ['/bin/bash', '-c', 'sketchybar --trigger skyland_upd
 persistent-workspaces = ["1", "2", "3", "4"]
 
 key-mapping.preset = 'qwerty'
+# French AZERTY keyboard: AeroSpace reads keys by their QWERTY position, so
+# letters that move are remapped to their AZERTY label (physical keys, so it
+# also holds when the input layout is switched to QWERTY).
+key-mapping.key-notation-to-key-code = { a = 'q', q = 'a', z = 'w', w = 'z', m = 'semicolon' }
 
 # 43PR: gaps_in = 4, gaps_out = { top 5, right 8, bottom 8, left 8 }
 # sketchybar (32px) overlays the macOS menu bar, which macOS already reserves
