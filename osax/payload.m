@@ -4,10 +4,13 @@
 //
 // Protocol: one text line per connection on /tmp/skyland-sa_$USER.socket,
 // reply "ok\n" or "err <reason>\n".
-//   ping
+//   ping                               (replies "ok fade": capabilities, old payloads reply "ok")
 //   corner <wid> <radius>
 //   uncorner <wid>                     (back to the system radius)
-//   alpha <wid> <alpha>
+//   alpha <wid> <alpha>                (cancels a running fade)
+//   fade <wid> <alpha> <ms> <x1> <y1> <x2> <y2> [<from>]
+//       step the alpha from its current value (or <from>) along the bezier, like yabai's
+//       opacity_fade: SLSSetWindowAlpha every 8 ms, no WindowServer fade.
 //   animate <wid> <x> <y> <w> <h> <ms> <x1> <y1> <x2> <y2> [<tx> <ty> <tw> <th>]
 //       show the window at rect (x,y,w,h) then move it to its real frame over
 //       <ms> following the cubic bezier (x1,y1,x2,y2). With a target rect it moves
@@ -39,30 +42,35 @@ extern void SLSTransactionClearWindowCornerRadius(CFTypeRef t, uint32_t wid);
 // CGXWindow::fade_finish (seen 2026-10-14, logs the user out).
 extern void SLSTransactionSetWindowAlpha(CFTypeRef t, uint32_t wid, float alpha);
 extern CGError SLSGetWindowBounds(int cid, uint32_t wid, CGRect *frame);
+extern CGError SLSSetWindowAlpha(int cid, uint32_t wid, float alpha);
+extern CGError SLSGetWindowAlpha(int cid, uint32_t wid, float *alpha);
 extern CGError SLSSetWindowTransform(int cid, uint32_t wid, CGAffineTransform t);
 
 // Latest animation generation per window: a newer `animate` on the same window
 // takes over and the older stepping thread stops without touching it.
 // ponytail: fixed table, slot reuse by hash; collisions only cancel early.
+// Frame (transform) and alpha animations are tracked separately: a window can
+// slide and fade at the same time.
 #define ANIM_SLOTS 512
+struct anim_table { struct { uint32_t wid; uint64_t gen; } slots[ANIM_SLOTS]; };
+static struct anim_table frame_anims, alpha_anims;
 static pthread_mutex_t anim_lock = PTHREAD_MUTEX_INITIALIZER;
-static struct { uint32_t wid; uint64_t gen; } anim_slots[ANIM_SLOTS];
 static uint64_t anim_counter;
 
-static uint64_t anim_claim(uint32_t wid)
+static uint64_t anim_claim(struct anim_table *table, uint32_t wid)
 {
     pthread_mutex_lock(&anim_lock);
     uint64_t gen = ++anim_counter;
-    anim_slots[wid % ANIM_SLOTS].wid = wid;
-    anim_slots[wid % ANIM_SLOTS].gen = gen;
+    table->slots[wid % ANIM_SLOTS].wid = wid;
+    table->slots[wid % ANIM_SLOTS].gen = gen;
     pthread_mutex_unlock(&anim_lock);
     return gen;
 }
 
-static int anim_current(uint32_t wid, uint64_t gen)
+static int anim_current(struct anim_table *table, uint32_t wid, uint64_t gen)
 {
     pthread_mutex_lock(&anim_lock);
-    int current = anim_slots[wid % ANIM_SLOTS].wid == wid && anim_slots[wid % ANIM_SLOTS].gen == gen;
+    int current = table->slots[wid % ANIM_SLOTS].wid == wid && table->slots[wid % ANIM_SLOTS].gen == gen;
     pthread_mutex_unlock(&anim_lock);
     return current;
 }
@@ -95,7 +103,7 @@ static void *animate(void *arg)
     double start = now_ms();
     CGRect real;
     for (;;) {
-        if (!anim_current(a.wid, a.gen)) return NULL; // a newer animation owns the window
+        if (!anim_current(&frame_anims, a.wid, a.gen)) return NULL; // a newer animation owns the window
         if (SLSGetWindowBounds(cid, a.wid, &real) != kCGErrorSuccess) return NULL; // window gone
         double x = (now_ms() - start) / a.ms;
         if (x >= 1) break;
@@ -114,6 +122,46 @@ static void *animate(void *arg)
     return NULL;
 }
 
+struct fade { uint32_t wid; uint64_t gen; float to, from; int has_from; double ms, x1, y1, x2, y2; };
+
+static void *fade(void *arg)
+{
+    struct fade f = *(struct fade *) arg;
+    free(arg);
+    int cid = SLSMainConnectionID();
+    float from = f.from;
+    if (!f.has_from) SLSGetWindowAlpha(cid, f.wid, &from);
+    double start = now_ms();
+    CGRect bounds;
+    for (;;) {
+        if (!anim_current(&alpha_anims, f.wid, f.gen)) return NULL; // a newer alpha owns the window
+        if (SLSGetWindowBounds(cid, f.wid, &bounds) != kCGErrorSuccess) return NULL; // window gone
+        double x = (now_ms() - start) / f.ms;
+        if (x >= 1) break;
+        SLSSetWindowAlpha(cid, f.wid, from + (f.to - from) * (float) bezier_ease(x, f.x1, f.y1, f.x2, f.y2));
+        usleep(8000);
+    }
+    SLSSetWindowAlpha(cid, f.wid, f.to);
+    return NULL;
+}
+
+static const char *start_fade(uint32_t wid, double *args, int argc)
+{
+    if (args[0] < 0 || args[0] > 1 || args[1] <= 0) return "err bad alpha or duration\n";
+    if (argc == 7 && (args[6] < 0 || args[6] > 1)) return "err bad start alpha\n";
+    struct fade *f = malloc(sizeof(*f));
+    if (!f) return "err oom\n";
+    *f = (struct fade) {
+        .wid = wid, .gen = anim_claim(&alpha_anims, wid), .to = (float) args[0],
+        .ms = args[1], .x1 = args[2], .y1 = args[3], .x2 = args[4], .y2 = args[5],
+        .has_from = argc == 7, .from = argc == 7 ? (float) args[6] : 1,
+    };
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, fade, f) != 0) { free(f); return "err thread\n"; }
+    pthread_detach(thread);
+    return "ok\n";
+}
+
 static const char *start_animation(uint32_t wid, double *args, int argc)
 {
     if (args[2] < 1 || args[3] < 1 || args[4] <= 0) return "err bad rect or duration\n";
@@ -121,7 +169,7 @@ static const char *start_animation(uint32_t wid, double *args, int argc)
     struct animation *a = malloc(sizeof(*a));
     if (!a) return "err oom\n";
     *a = (struct animation) {
-        .wid = wid, .gen = anim_claim(wid), .from = CGRectMake(args[0], args[1], args[2], args[3]),
+        .wid = wid, .gen = anim_claim(&frame_anims, wid), .from = CGRectMake(args[0], args[1], args[2], args[3]),
         .ms = args[4], .x1 = args[5], .y1 = args[6], .x2 = args[7], .y2 = args[8],
         .has_to = argc == 13, .to = argc == 13 ? CGRectMake(args[9], args[10], args[11], args[12]) : CGRectZero,
     };
@@ -136,7 +184,7 @@ static const char *handle(char *line)
     char *save = NULL;
     char *cmd = strtok_r(line, " \n", &save);
     if (!cmd) return "err empty\n";
-    if (strcmp(cmd, "ping") == 0) return "ok\n";
+    if (strcmp(cmd, "ping") == 0) return "ok fade\n";
 
     char *wid_str = strtok_r(NULL, " \n", &save);
     if (!wid_str) return "err missing wid\n";
@@ -146,6 +194,9 @@ static const char *handle(char *line)
     int argc = 0;
     for (char *tok; argc < 16 && (tok = strtok_r(NULL, " \n", &save));) args[argc++] = strtod(tok, NULL);
 
+    if (strcmp(cmd, "fade") == 0) {
+        return argc == 6 || argc == 7 ? start_fade(wid, args, argc) : "err bad argument count\n";
+    }
     if (strcmp(cmd, "animate") == 0) {
         return argc == 9 || argc == 13 ? start_animation(wid, args, argc) : "err bad argument count\n";
     }
@@ -160,6 +211,7 @@ static const char *handle(char *line)
     } else if (strcmp(cmd, "uncorner") == 0 && argc == 0) {
         SLSTransactionClearWindowCornerRadius(t, wid);
     } else if (strcmp(cmd, "alpha") == 0 && argc == 1) {
+        anim_claim(&alpha_anims, wid); // stops a running fade
         SLSTransactionSetWindowAlpha(t, wid, (float) args[0]);
     } else {
         reply = "err bad command or argument count\n";

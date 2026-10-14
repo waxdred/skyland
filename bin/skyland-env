@@ -84,7 +84,7 @@ case "${1:-status}" in
         open "$APP"
         ;;
     work)
-        # SIGTERM lets AeroSpace restore hidden windows before exit
+        # SIGTERM: the app intercepts it to restore hidden windows and their alpha
         pkill -x AeroSpaceApp 2>/dev/null || true
         relink "$WORK"
         yabai --start-service 2>/dev/null || true

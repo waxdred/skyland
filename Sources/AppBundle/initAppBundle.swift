@@ -5,6 +5,9 @@ import Foundation
 @MainActor public func initAppBundle() {
     Task.startUnstructured {
         initTerminationHandler()
+        // skyland: `skyland-env work` stops the app with SIGTERM; without this it dies
+        // without putting hidden windows back (and, with fades, back to alpha 1).
+        interceptTermination(SIGTERM)
         unsafe _isCli = false
         initServerArgs()
         await waitForAccessibilityPermission_nonCancellable()

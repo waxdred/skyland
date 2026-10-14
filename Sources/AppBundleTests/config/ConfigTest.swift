@@ -499,6 +499,7 @@ final class ConfigTest: XCTestCase {
                 windows-ms = 500
                 windows-bezier = '0.05, 0.9, 0.1, 1.0'
                 workspaces-ms = 600
+                fade-ms = 400
             """,
         )
         assertEquals(result.errors, [])
@@ -508,6 +509,8 @@ final class ConfigTest: XCTestCase {
             windowsBezier: Bezier(x1: 0.05, y1: 0.9, x2: 0.1, y2: 1.0),
             workspacesMs: 600,
             workspacesBezier: .linear,
+            fadeMs: 400,
+            fadeBezier: .linear,
         ))
         let bad = parseConfig(
             """

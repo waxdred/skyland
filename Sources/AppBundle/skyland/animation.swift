@@ -10,6 +10,8 @@ import Common
 // windows-bezier = '0.05, 0.9, 0.1, 1.0'    # Hyprland `bezier = name, x1, y1, x2, y2`
 // workspaces-ms = 600
 // workspaces-bezier = '0.0, 0.75, 0.15, 1.0'
+// fade-ms = 400                             # opacity changes (see decoration.swift)
+// fade-bezier = '0.0, 0.75, 0.15, 1.0'
 //
 // windows: moves/resizes slide from the previous tile, new windows pop in from 80%.
 // workspaces: Hyprland `slidevert`. Going to a higher workspace, the new one comes
@@ -20,6 +22,8 @@ struct Animations: ConvenienceMutable, Equatable, Sendable {
     var windowsBezier: Bezier = .linear
     var workspacesMs: Int = 0
     var workspacesBezier: Bezier = .linear
+    var fadeMs: Int = 0
+    var fadeBezier: Bezier = .linear
 }
 
 struct Bezier: Equatable, Sendable {
@@ -34,6 +38,8 @@ private let animationsParser: [String: any ParserProtocol<Animations>] = [
     "windows-bezier": Parser(\.windowsBezier, parseBezier),
     "workspaces-ms": Parser(\.workspacesMs, parseInt),
     "workspaces-bezier": Parser(\.workspacesBezier, parseBezier),
+    "fade-ms": Parser(\.fadeMs, parseInt),
+    "fade-bezier": Parser(\.fadeBezier, parseBezier),
 ]
 
 func parseAnimations(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> Animations {
