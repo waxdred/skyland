@@ -2,8 +2,8 @@
 # SUPER is split: cmd for navigation (macOS muscle memory), alt where cmd
 # would shadow a system shortcut (cmd-t, cmd-q, cmd-f, cmd-space).
 #
-# Not portable yet (skyland roadmap): blur, shadow,
-# bezier easeOut (0.05, 0.9, 0.1, 1.0) window/workspace animations.
+# Not portable yet (skyland roadmap): blur, shadow, fade (fade crashed
+# WindowServer, see osax/payload.m), workspace slide-out of the old workspace.
 
 config-version = 2
 start-at-login = false
@@ -46,6 +46,16 @@ gaps.outer.left = 8
 rounding = 8
 active-opacity = 100
 inactive-opacity = 85
+
+# 43PR: bezier easeOut 0.05,0.9,0.1,1.0; windows speed 5 (500 ms), workspaces
+# speed 6 (600 ms) with the "default" curve, style slidefadevert (no fade here).
+# Hyprland speed is in ds (1 = 100 ms). Needs the payload: skyland-sa build/load.
+[animations]
+enabled = true
+windows-ms = 500
+windows-bezier = '0.05, 0.9, 0.1, 1.0'
+workspaces-ms = 600
+workspaces-bezier = '0.0, 0.75, 0.15, 1.0'
 
 [mode.main.binding]
 # programs

@@ -8,13 +8,16 @@
 //   corner <wid> <radius>
 //   uncorner <wid>                     (back to the system radius)
 //   alpha <wid> <alpha>
-//   transform <wid> <m11> ... <m44>    (CATransform3D, 16 values, row major)
+//   animate <wid> <x> <y> <w> <h> <ms> <x1> <y1> <x2> <y2>
+//       show the window at rect (x,y,w,h) then move it to its real frame over
+//       <ms> following the cubic bezier (x1,y1,x2,y2). Stepped here with
+//       SLSSetWindowTransform, never with a WindowServer-side animation.
 //
 // Signatures from REA decompilation of SkyLight on macOS 15.6.1 (24G90),
 // see vault note "SkyLight private API recon".
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <QuartzCore/QuartzCore.h>
+#include <CoreGraphics/CoreGraphics.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +25,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include "bezier.h"
 
 extern int SLSMainConnectionID(void);
 extern CFTypeRef SLSTransactionCreate(int cid);
@@ -32,7 +36,95 @@ extern void SLSTransactionClearWindowCornerRadius(CFTypeRef t, uint32_t wid);
 // window closes makes the next alpha change crash WindowServer in
 // CGXWindow::fade_finish (seen 2026-10-14, logs the user out).
 extern void SLSTransactionSetWindowAlpha(CFTypeRef t, uint32_t wid, float alpha);
-extern void SLSTransactionSetWindowTransform3D(CFTypeRef t, uint32_t wid, CATransform3D *transform);
+extern CGError SLSGetWindowBounds(int cid, uint32_t wid, CGRect *frame);
+extern CGError SLSSetWindowTransform(int cid, uint32_t wid, CGAffineTransform t);
+
+// Latest animation generation per window: a newer `animate` on the same window
+// takes over and the older stepping thread stops without touching it.
+// ponytail: fixed table, slot reuse by hash; collisions only cancel early.
+#define ANIM_SLOTS 512
+static pthread_mutex_t anim_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct { uint32_t wid; uint64_t gen; } anim_slots[ANIM_SLOTS];
+static uint64_t anim_counter;
+
+static uint64_t anim_claim(uint32_t wid)
+{
+    pthread_mutex_lock(&anim_lock);
+    uint64_t gen = ++anim_counter;
+    anim_slots[wid % ANIM_SLOTS].wid = wid;
+    anim_slots[wid % ANIM_SLOTS].gen = gen;
+    pthread_mutex_unlock(&anim_lock);
+    return gen;
+}
+
+static int anim_current(uint32_t wid, uint64_t gen)
+{
+    pthread_mutex_lock(&anim_lock);
+    int current = anim_slots[wid % ANIM_SLOTS].wid == wid && anim_slots[wid % ANIM_SLOTS].gen == gen;
+    pthread_mutex_unlock(&anim_lock);
+    return current;
+}
+
+// The window transform maps screen points to window points; at rest it is a
+// translation by -origin. Showing a window of real frame `real` at `visual`:
+// p -> (p - visual.origin) * real.size / visual.size.
+static void show_at(int cid, uint32_t wid, CGRect real, CGRect visual)
+{
+    CGAffineTransform t = CGAffineTransformConcat(
+        CGAffineTransformMakeTranslation(-visual.origin.x, -visual.origin.y),
+        CGAffineTransformMakeScale(real.size.width / visual.size.width, real.size.height / visual.size.height));
+    SLSSetWindowTransform(cid, wid, t);
+}
+
+struct animation { uint32_t wid; uint64_t gen; CGRect from; double ms, x1, y1, x2, y2; };
+
+static double now_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
+}
+
+static void *animate(void *arg)
+{
+    struct animation a = *(struct animation *) arg;
+    free(arg);
+    int cid = SLSMainConnectionID();
+    double start = now_ms();
+    CGRect real;
+    for (;;) {
+        if (!anim_current(a.wid, a.gen)) return NULL; // a newer animation owns the window
+        if (SLSGetWindowBounds(cid, a.wid, &real) != kCGErrorSuccess) return NULL; // window gone
+        double x = (now_ms() - start) / a.ms;
+        if (x >= 1) break;
+        // the target is read every frame: the app may apply the new frame late
+        double p = bezier_ease(x, a.x1, a.y1, a.x2, a.y2);
+        CGRect v = CGRectMake(
+            a.from.origin.x + (real.origin.x - a.from.origin.x) * p,
+            a.from.origin.y + (real.origin.y - a.from.origin.y) * p,
+            a.from.size.width + (real.size.width - a.from.size.width) * p,
+            a.from.size.height + (real.size.height - a.from.size.height) * p);
+        if (v.size.width >= 1 && v.size.height >= 1) show_at(cid, a.wid, real, v);
+        usleep(8000); // ~120 Hz
+    }
+    SLSSetWindowTransform(cid, a.wid, CGAffineTransformMakeTranslation(-real.origin.x, -real.origin.y));
+    return NULL;
+}
+
+static const char *start_animation(uint32_t wid, double *args)
+{
+    if (args[2] < 1 || args[3] < 1 || args[4] <= 0) return "err bad rect or duration\n";
+    struct animation *a = malloc(sizeof(*a));
+    if (!a) return "err oom\n";
+    *a = (struct animation) {
+        .wid = wid, .gen = anim_claim(wid), .from = CGRectMake(args[0], args[1], args[2], args[3]),
+        .ms = args[4], .x1 = args[5], .y1 = args[6], .x2 = args[7], .y2 = args[8],
+    };
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, animate, a) != 0) { free(a); return "err thread\n"; }
+    pthread_detach(thread);
+    return "ok\n";
+}
 
 static const char *handle(char *line)
 {
@@ -49,6 +141,8 @@ static const char *handle(char *line)
     int argc = 0;
     for (char *tok; argc < 16 && (tok = strtok_r(NULL, " \n", &save));) args[argc++] = strtod(tok, NULL);
 
+    if (strcmp(cmd, "animate") == 0) return argc == 9 ? start_animation(wid, args) : "err bad argument count\n";
+
     int cid = SLSMainConnectionID();
     CFTypeRef t = SLSTransactionCreate(cid);
     if (!t) return "err transaction\n";
@@ -60,10 +154,6 @@ static const char *handle(char *line)
         SLSTransactionClearWindowCornerRadius(t, wid);
     } else if (strcmp(cmd, "alpha") == 0 && argc == 1) {
         SLSTransactionSetWindowAlpha(t, wid, (float) args[0]);
-    } else if (strcmp(cmd, "transform") == 0 && argc == 16) {
-        CATransform3D m;
-        memcpy(&m, args, sizeof(m)); // CATransform3D is 16 CGFloat (double) fields
-        SLSTransactionSetWindowTransform3D(t, wid, &m);
     } else {
         reply = "err bad command or argument count\n";
     }

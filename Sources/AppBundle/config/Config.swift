@@ -60,6 +60,7 @@ struct Config: ConvenienceMutable {
 
     var gaps: Gaps = .zero
     var decoration: Decoration = Decoration()
+    var animations: Animations = Animations()
     var workspaceToMonitorForceAssignment: [String: [MonitorDescription]] = [:]
     var modes: [String: Mode] = [:]
     var onWindowDetected: [WindowDetectedCallback] = []

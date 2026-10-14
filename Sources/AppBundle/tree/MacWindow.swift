@@ -159,6 +159,7 @@ final class MacWindow: Window {
         guard let prevUnhiddenProportionalPositionInsideWorkspaceRect else { return }
         guard let nodeWorkspace else { return } // hiding only makes sense for workspace windows
         guard let parent else { return }
+        markUnhiddenForAnimation(windowId)
 
         switch getChildParentRelation(child: self, parent: parent) {
             // Just a small optimization to avoid unnecessary AX calls for non floating windows

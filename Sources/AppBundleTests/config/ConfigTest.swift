@@ -491,6 +491,33 @@ final class ConfigTest: XCTestCase {
         assertEquals(parseConfig("").config.decoration.isEnabled, false)
     }
 
+    func testParseAnimations() {
+        let result = parseConfig(
+            """
+            [animations]
+                enabled = true
+                windows-ms = 500
+                windows-bezier = '0.05, 0.9, 0.1, 1.0'
+                workspaces-ms = 600
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.config.animations, Animations(
+            enabled: true,
+            windowsMs: 500,
+            windowsBezier: Bezier(x1: 0.05, y1: 0.9, x2: 0.1, y2: 1.0),
+            workspacesMs: 600,
+            workspacesBezier: .linear,
+        ))
+        let bad = parseConfig(
+            """
+            [animations]
+                windows-bezier = '1.5, 0, 0.5'
+            """,
+        )
+        assertEquals(bad.errors.count, 1)
+    }
+
     func testParseGaps() {
         let result1 = parseConfig(
             """

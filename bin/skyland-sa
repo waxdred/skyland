@@ -22,9 +22,10 @@ case "${1:-}" in
         # v0 (USR00) and the kernel refuses cross-ABI thread injection, so force v0.
         abi=-Wl,-no_mac_public_arm64e
         xcrun clang osax/payload.m -shared -fPIC -O2 -arch arm64e -mmacosx-version-min=13.0 $abi \
-            -F/System/Library/PrivateFrameworks -framework SkyLight -framework QuartzCore -framework CoreFoundation \
+            -F/System/Library/PrivateFrameworks -framework SkyLight -framework CoreGraphics -framework CoreFoundation \
             -o "$OUT/payload"
         xcrun clang osax/loader.m -O2 -arch arm64e -mmacosx-version-min=13.0 -framework Cocoa $abi -o "$OUT/loader"
+        xcrun clang osax/bezier_test.c -o "$OUT/bezier_test" && "$OUT/bezier_test"
         otool -hv "$OUT/payload" "$OUT/loader" | awk '/ARM64/ {print "abi:", $4}'
         echo "built $OUT/payload $OUT/loader"
         ;;

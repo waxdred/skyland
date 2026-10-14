@@ -35,9 +35,11 @@ extension TreeNode {
                         lastAppliedLayoutPhysicalRect = nil
                         window.layoutFullscreen(context)
                     } else {
+                        let previousRect = lastAppliedLayoutPhysicalRect
                         lastAppliedLayoutPhysicalRect = physicalRect
                         window.isFullscreen = false
                         window.setAxFrame(point, CGSize(width: width, height: height))
+                        animateLayoutChange(window, from: previousRect, to: physicalRect)
                     }
                 }
             case .tilingContainer(let container):
