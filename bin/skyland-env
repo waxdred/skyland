@@ -10,7 +10,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 HYPR="$REPO/profiles/hypr/.config"
 WORK="${SKYLAND_WORK_CONFIG:-$HOME/tools/dotfiles/.config}"
-APP="${SKYLAND_APP:-$REPO/.build/debug/AeroSpaceApp}"
+APP="${SKYLAND_APP:-$REPO/.build/Skyland.app}"
 STATE="$HOME/.config/.skyland-profile"
 
 # Only touch symlinks or missing paths, never a real file or dir.
@@ -42,11 +42,11 @@ case "${1:-status}" in
         skhd --stop-service 2>/dev/null || true
         pkill -x borders 2>/dev/null || true
         relink "$HYPR"
-        nohup "$APP" >/dev/null 2>&1 &
+        open "$APP"
         ;;
     work)
         # SIGTERM lets AeroSpace restore hidden windows before exit
-        pkill -x "$(basename "$APP")" 2>/dev/null || true
+        pkill -x AeroSpaceApp 2>/dev/null || true
         relink "$WORK"
         yabai --start-service 2>/dev/null || true
         skhd --start-service 2>/dev/null || true
