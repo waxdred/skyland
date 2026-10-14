@@ -72,6 +72,10 @@ struct LayoutCommand: Command {
                         return .succ // Nothing to do
                     case .floatingWindowsContainer(let container):
                         window.lastFloatingSize = (try? await window.getAxSize(.nonCancellable)) ?? window.lastFloatingSize
+                        // skyland: the next layout animates the window from where it floats to its tile
+                        if config.animations.enabled, let floatRect = try? await window.getAxRect(.nonCancellable) {
+                            window.lastAppliedLayoutPhysicalRect = floatRect
+                        }
                         guard let workspace = container.nodeWorkspace else { return .fail(io.err(bugPrompt())) }
                         do {
                             try await window.relayoutWindow(on: workspace, .nonCancellable, forceTile: true)
@@ -83,8 +87,16 @@ struct LayoutCommand: Command {
             case .floating:
                 guard let window = target.windowOrNil else { return .fail(io.err(noWindowIsFocused)) }
                 let workspace = target.workspace
+                let tileRect = window.lastAppliedLayoutPhysicalRect // nil unless it was a laid out tile
                 window.bindAsFloatingWindow(to: workspace)
-                if let size = window.lastFloatingSize { window.setAxFrame(nil, size) }
+                if config.floatingCenterPercent > 0, let tileRect {
+                    // skyland, 43PR SUPER+Space: a tile made floating is resized to N% of the monitor and centered
+                    let rect = centeredRect(in: workspace.workspaceMonitor.visibleRect, percent: config.floatingCenterPercent)
+                    window.setAxFrame(rect.topLeftCorner, CGSize(width: rect.width, height: rect.height))
+                    animateLayoutChange(window, from: tileRect, to: rect)
+                } else if let size = window.lastFloatingSize {
+                    window.setAxFrame(nil, size)
+                }
                 return .succ
         }
     }

@@ -57,6 +57,12 @@ func parseBezier(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfi
     }
 }
 
+/// `percent` of `area`, centered in it (floating toggle, see floating-center-percent).
+func centeredRect(in area: Rect, percent: Int) -> Rect {
+    let w = area.width * CGFloat(percent) / 100, h = area.height * CGFloat(percent) / 100
+    return Rect(topLeftX: area.topLeftX + (area.width - w) / 2, topLeftY: area.topLeftY + (area.height - h) / 2, width: w, height: h)
+}
+
 /// Windows that were hidden in a corner because their workspace was not visible,
 /// and were just brought back: their next layout is a workspace switch.
 @MainActor private var unhiddenWindows: Set<UInt32> = []
@@ -123,9 +129,7 @@ func animateLayoutChange(_ window: Window, from previous: Rect?, to target: Rect
         from = previous
         (ms, bezier) = (anim.windowsMs, anim.windowsBezier)
     } else {
-        // Hyprland `popin 80%`
-        let w = target.width * 0.8, h = target.height * 0.8
-        from = Rect(topLeftX: target.topLeftX + (target.width - w) / 2, topLeftY: target.topLeftY + (target.height - h) / 2, width: w, height: h)
+        from = centeredRect(in: target, percent: 80) // Hyprland `popin 80%`
         (ms, bezier) = (anim.windowsMs, anim.windowsBezier)
     }
     if ms <= 0 { return }

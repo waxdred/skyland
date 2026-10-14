@@ -42,6 +42,7 @@ struct Config: ConvenienceMutable {
     var defaultRootContainerLayout: Layout = .tiles
     var dwindle: Bool = false // skyland: Hyprland dwindle placement for new windows
     var dwindleSmartSplit: Bool = false // skyland: Hyprland dwindle:smart_split, split side follows the cursor
+    var floatingCenterPercent: Int = 0 // skyland: 'layout floating' on a tile resizes it to N% of the monitor, centered
     var defaultRootContainerOrientation: DefaultContainerOrientation = .auto
     var startAtLogin: Bool = false
     var autoReloadConfig: Bool = false

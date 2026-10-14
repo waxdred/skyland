@@ -50,3 +50,16 @@ final class WorkspaceSlideTest: XCTestCase {
         assertEquals(workspaceSlideSign(from: "B", to: "A"), -1)
     }
 }
+
+final class FloatingCenterTest: XCTestCase {
+    func testCenteredRect() {
+        let r = centeredRect(in: Rect(topLeftX: 0, topLeftY: 32, width: 1000, height: 600), percent: 70)
+        assertEquals([r.topLeftX, r.topLeftY, r.width, r.height], [150, 122, 700, 420])
+    }
+
+    @MainActor
+    func testParse() {
+        assertEquals(parseConfig("floating-center-percent = 70").config.floatingCenterPercent, 70)
+        assertEquals(parseConfig("").config.floatingCenterPercent, 0)
+    }
+}
