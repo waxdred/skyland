@@ -28,4 +28,15 @@ final class DwindleTest: XCTestCase {
             .v_tiles([.window(2), .h_tiles([.window(3), .window(4)])]),
         ]))
     }
+
+    func testSmartSplitFollowsCursor() {
+        let rect = Rect(topLeftX: 0, topLeftY: 0, width: 800, height: 600)
+        assertEquals(dwindleSplit(rect, mouse: nil, fallback: .v) == (.h, false), true) // longest side
+        assertEquals(dwindleSplit(rect, mouse: CGPoint(x: 50, y: 300), fallback: .v) == (.h, true), true) // left
+        assertEquals(dwindleSplit(rect, mouse: CGPoint(x: 750, y: 300), fallback: .v) == (.h, false), true) // right
+        assertEquals(dwindleSplit(rect, mouse: CGPoint(x: 400, y: 40), fallback: .v) == (.v, true), true) // top
+        assertEquals(dwindleSplit(rect, mouse: CGPoint(x: 400, y: 560), fallback: .v) == (.v, false), true) // bottom
+        assertEquals(dwindleSplit(rect, mouse: CGPoint(x: 900, y: 300), fallback: .v) == (.h, false), true) // outside
+        assertEquals(dwindleSplit(nil, mouse: nil, fallback: .v) == (.v, false), true)
+    }
 }

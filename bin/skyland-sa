@@ -2,16 +2,18 @@
 # Build, install and inject the skyland scripting addition into Dock.
 # usage: skyland-sa build | load | send <command...>
 #   build  compile payload + loader into .build/osax
-#   load   (sudo) install into /Library/Application Support/skyland, inject into Dock
+#   load   (sudo) install into /Library/ScriptingAdditions/skyland.osax, inject into Dock
 #   send   send one command to the payload, e.g. `skyland-sa send corner 414 12`
 # Requires SIP partially disabled and boot-arg -arm64e_preview_abi (same as yabai).
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")/.."
 
 OUT=.build/osax
-# Not under /Library/ScriptingAdditions: osascript warns about any bundle there
-# without an OSAXHandlers Info.plist. Must match payload_path in osax/loader.m.
-DEST="/Library/Application Support/skyland"
+# Dock can only load code from /Library/ScriptingAdditions (it ignored the
+# payload from /Library/Application Support). A real osax bundle with an
+# OSAXHandlers Info.plist keeps osascript from warning. Must match payload_path
+# in osax/loader.m.
+DEST=/Library/ScriptingAdditions/skyland.osax
 
 case "${1:-}" in
     build)
@@ -28,10 +30,23 @@ case "${1:-}" in
         ;;
     load)
         [[ $EUID -eq 0 ]] || exec sudo "$0" load
-        rm -rf /Library/ScriptingAdditions/skyland.osax # old location
-        mkdir -p "$DEST"
-        cp "$OUT/payload" "$OUT/loader" "$DEST/"
-        "$DEST/loader"
+        rm -rf "/Library/Application Support/skyland" "$DEST" # old layouts
+        mkdir -p "$DEST/Contents/MacOS" "$DEST/Contents/Resources"
+        cp "$OUT/loader" "$DEST/Contents/MacOS/"
+        cp "$OUT/payload" "$DEST/Contents/Resources/"
+        cat > "$DEST/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key><string>com.waxdred.skyland-osax</string>
+    <key>CFBundleExecutable</key><string>loader</string>
+    <key>CFBundlePackageType</key><string>osax</string>
+    <key>OSAXHandlers</key><dict/>
+</dict>
+</plist>
+PLIST
+        "$DEST/Contents/MacOS/loader"
         echo "injected into Dock"
         ;;
     send)

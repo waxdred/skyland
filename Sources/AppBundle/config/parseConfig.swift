@@ -141,6 +141,7 @@ private let configParser: [String: any ParserProtocol<Config>] = [
 
     "default-root-container-layout": Parser(\.defaultRootContainerLayout, parseLayout),
     "dwindle": Parser(\.dwindle, parseBool),
+    "dwindle-smart-split": Parser(\.dwindleSmartSplit, parseBool),
     "default-root-container-orientation": Parser(\.defaultRootContainerOrientation, parseDefaultContainerOrientation),
 
     "start-at-login": Parser(\.startAtLogin, parseBool),
