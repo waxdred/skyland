@@ -42,4 +42,5 @@ args+=(--add item skyland left
     --subscribe skyland skyland_update front_app_switched
     --set window_title script="$UPDATE $CLI" update_freq=0)
 sketchybar "${args[@]}"
-sketchybar --trigger skyland_update
+# recolors the whole bar with the current [theme] file, then triggers skyland_update
+"$DIR/../../../bin/skyland-theme" apply || sketchybar --trigger skyland_update

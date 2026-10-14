@@ -62,6 +62,12 @@ workspaces-bezier = '0.0, 0.75, 0.15, 1.0'
 fade-ms = 400
 fade-bezier = '0.0, 0.75, 0.15, 1.0'
 
+# 43PR themes as GTK colors.css files (`@define-color key #rrggbb;`), applied
+# to sketchybar and Ghostty by bin/skyland-theme. Copy one to customize.
+[theme]
+dark = '~/.config/skyland/themes/43pr-default.css'
+light = '~/.config/skyland/themes/43pr-white.css'
+
 [mode.main.binding]
 # programs
 alt-t = 'exec-and-forget open -n -a Ghostty'
@@ -74,6 +80,7 @@ alt-q = 'close'
 alt-f = 'fullscreen --no-outer-gaps' # 43PR: fullscreen mode 0
 alt-space = 'layout floating tiling' # 43PR SUPER+Space: float at 70%, centered
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
+alt-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme toggle' # 43PR SUPER+L light/dark
 
 # focus / move / resize (h j k l)
 cmd-h = 'focus left'

@@ -521,6 +521,18 @@ final class ConfigTest: XCTestCase {
         assertEquals(bad.errors.count, 1)
     }
 
+    func testParseTheme() {
+        let result = parseConfig(
+            """
+            [theme]
+                dark = '~/a.css'
+                light = '~/b.css'
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.config.theme, ThemeConfig(dark: "~/a.css", light: "~/b.css"))
+    }
+
     func testParseGaps() {
         let result1 = parseConfig(
             """

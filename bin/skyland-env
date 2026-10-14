@@ -87,6 +87,7 @@ case "${1:-status}" in
         # SIGTERM: the app intercepts it to restore hidden windows and their alpha
         pkill -x AeroSpaceApp 2>/dev/null || true
         relink "$WORK"
+        "$REPO/bin/skyland-theme" off # Ghostty back to its own theme
         yabai --start-service 2>/dev/null || true
         skhd --start-service 2>/dev/null || true
         # recreate the work Spaces that the hypr profile collapsed

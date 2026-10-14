@@ -3,10 +3,10 @@
 # focused), highlight the focused one, and set the focused window title.
 # usage: update.sh <path to the skyland CLI>
 CLI="$1"
-SUBTEXT0=0xffa5adcb
-MAUVE=0xffc6a0f6
-SURFACE0=0xff363a4f
-SURFACE2=0xff5b6078
+# Catppuccin like the work bar, unless skyland-theme wrote theme colors
+TEXT_DIM=0xffa5adcb ACCENT=0xffc6a0f6 ITEM_BG=0xff363a4f ITEM_BG_ACTIVE=0xff5b6078 BORDER=0xff5b6078 BORDER_ACTIVE=0xffc6a0f6
+# shellcheck source=/dev/null
+[[ -r "$HOME/.cache/skyland/theme.env" ]] && source "$HOME/.cache/skyland/theme.env"
 
 existing=" $("$CLI" list-workspaces --monitor all 2>/dev/null | tr '\n' ' ') "
 focused="$("$CLI" list-workspaces --focused 2>/dev/null)"
@@ -15,9 +15,9 @@ focused="$("$CLI" list-workspaces --focused 2>/dev/null)"
 args=()
 for i in $(seq 1 10); do
     if [[ "$i" == "$focused" ]]; then
-        args+=(--set "workspace.$i" drawing=on icon.color=$MAUVE background.color=$SURFACE2 background.border_color=$MAUVE)
+        args+=(--set "workspace.$i" drawing=on icon.color=$ACCENT background.color=$ITEM_BG_ACTIVE background.border_color=$BORDER_ACTIVE)
     elif [[ "$existing" == *" $i "* ]]; then
-        args+=(--set "workspace.$i" drawing=on icon.color=$SUBTEXT0 background.color=$SURFACE0 background.border_color=$SURFACE2)
+        args+=(--set "workspace.$i" drawing=on icon.color=$TEXT_DIM background.color=$ITEM_BG background.border_color=$BORDER)
     else
         args+=(--set "workspace.$i" drawing=off)
     fi
