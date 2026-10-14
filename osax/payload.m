@@ -1,4 +1,4 @@
-// Skyland scripting addition payload, injected into Dock.app by loader.m.
+// Skyland payload, injected into Dock.app by loader.m.
 // Dock owns the universal SkyLight connection, so window changes issued from
 // here apply to every app's windows (from any other process they are ignored).
 //
@@ -7,7 +7,7 @@
 //   ping
 //   corner <wid> <radius>
 //   uncorner <wid>                     (back to the system radius)
-//   alpha <wid> <alpha> <duration>
+//   alpha <wid> <alpha>
 //   transform <wid> <m11> ... <m44>    (CATransform3D, 16 values, row major)
 //
 // Signatures from REA decompilation of SkyLight on macOS 15.6.1 (24G90),
@@ -28,7 +28,10 @@ extern CFTypeRef SLSTransactionCreate(int cid);
 extern int SLSTransactionCommit(CFTypeRef t, int sync);
 extern void SLSTransactionSetWindowCornerRadius(CFTypeRef t, uint32_t wid, double radius);
 extern void SLSTransactionClearWindowCornerRadius(CFTypeRef t, uint32_t wid);
-extern void SLSTransactionSetWindowAlphaAnimated(CFTypeRef t, uint32_t wid, float alpha, float duration);
+// Never use SLSTransactionSetWindowAlphaAnimated: a fade still running when its
+// window closes makes the next alpha change crash WindowServer in
+// CGXWindow::fade_finish (seen 2026-10-14, logs the user out).
+extern void SLSTransactionSetWindowAlpha(CFTypeRef t, uint32_t wid, float alpha);
 extern void SLSTransactionSetWindowTransform3D(CFTypeRef t, uint32_t wid, CATransform3D *transform);
 
 static const char *handle(char *line)
@@ -55,8 +58,8 @@ static const char *handle(char *line)
         SLSTransactionSetWindowCornerRadius(t, wid, args[0]);
     } else if (strcmp(cmd, "uncorner") == 0 && argc == 0) {
         SLSTransactionClearWindowCornerRadius(t, wid);
-    } else if (strcmp(cmd, "alpha") == 0 && argc == 2) {
-        SLSTransactionSetWindowAlphaAnimated(t, wid, (float) args[0], (float) args[1]);
+    } else if (strcmp(cmd, "alpha") == 0 && argc == 1) {
+        SLSTransactionSetWindowAlpha(t, wid, (float) args[0]);
     } else if (strcmp(cmd, "transform") == 0 && argc == 16) {
         CATransform3D m;
         memcpy(&m, args, sizeof(m)); // CATransform3D is 16 CGFloat (double) fields

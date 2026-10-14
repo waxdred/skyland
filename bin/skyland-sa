@@ -2,14 +2,16 @@
 # Build, install and inject the skyland scripting addition into Dock.
 # usage: skyland-sa build | load | send <command...>
 #   build  compile payload + loader into .build/osax
-#   load   (sudo) install into /Library/ScriptingAdditions/skyland.osax, inject into Dock
+#   load   (sudo) install into /Library/Application Support/skyland, inject into Dock
 #   send   send one command to the payload, e.g. `skyland-sa send corner 414 12`
 # Requires SIP partially disabled and boot-arg -arm64e_preview_abi (same as yabai).
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")/.."
 
 OUT=.build/osax
-DEST=/Library/ScriptingAdditions/skyland.osax
+# Not under /Library/ScriptingAdditions: osascript warns about any bundle there
+# without an OSAXHandlers Info.plist. Must match payload_path in osax/loader.m.
+DEST="/Library/Application Support/skyland"
 
 case "${1:-}" in
     build)
@@ -26,6 +28,7 @@ case "${1:-}" in
         ;;
     load)
         [[ $EUID -eq 0 ]] || exec sudo "$0" load
+        rm -rf /Library/ScriptingAdditions/skyland.osax # old location
         mkdir -p "$DEST"
         cp "$OUT/payload" "$OUT/loader" "$DEST/"
         "$DEST/loader"

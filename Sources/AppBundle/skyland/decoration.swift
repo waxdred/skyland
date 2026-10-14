@@ -4,18 +4,16 @@ import Foundation
 // Hyprland-like window decoration (rounding, active/inactive opacity), applied
 // through the skyland scripting addition injected into Dock (see osax/payload.m).
 // TOML has no float support in this config parser, so opacity is in percent
-// and durations in milliseconds.
+// (no fade: WindowServer animated alpha can crash, see osax/payload.m).
 //
 // [decoration]
 // rounding = 8
 // active-opacity = 100
 // inactive-opacity = 90
-// fade-ms = 200
 struct Decoration: ConvenienceMutable, Equatable, Sendable {
     var rounding: Int = 0
     var activeOpacity: Int = 100
     var inactiveOpacity: Int = 100
-    var fadeMs: Int = 0
 
     var isEnabled: Bool { rounding > 0 || activeOpacity != 100 || inactiveOpacity != 100 }
 }
@@ -24,7 +22,6 @@ private let decorationParser: [String: any ParserProtocol<Decoration>] = [
     "rounding": Parser(\.rounding, parseInt),
     "active-opacity": Parser(\.activeOpacity, parseInt),
     "inactive-opacity": Parser(\.inactiveOpacity, parseInt),
-    "fade-ms": Parser(\.fadeMs, parseInt),
 ]
 
 func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> Decoration {
@@ -50,14 +47,13 @@ func applyDecorations() {
         sentRounding = [:]
     }
     let focusedId = focus.windowOrNil?.windowId
-    let fade = Double(deco.fadeMs) / 1000
     var alive = Set<UInt32>()
     for windowId in MacWindow.allWindowsMap.keys {
         alive.insert(windowId)
         let opacity = windowId == focusedId ? deco.activeOpacity : deco.inactiveOpacity
         if sentOpacity[windowId, default: 100] != opacity {
             sentOpacity[windowId] = opacity
-            skylandSa("alpha \(windowId) \(Double(opacity) / 100) \(fade)")
+            skylandSa("alpha \(windowId) \(Double(opacity) / 100)")
         }
         if sentRounding[windowId, default: 0] != deco.rounding {
             sentRounding[windowId] = deco.rounding
@@ -71,7 +67,7 @@ func applyDecorations() {
 /// Put every window back to stock macOS look, called before quitting.
 @MainActor
 func restoreDecorations() {
-    for windowId in sentOpacity.keys { skylandSa("alpha \(windowId) 1 0", wait: true) }
+    for windowId in sentOpacity.keys { skylandSa("alpha \(windowId) 1", wait: true) }
     for windowId in sentRounding.keys { skylandSa("uncorner \(windowId)", wait: true) }
     sentOpacity = [:]
     sentRounding = [:]

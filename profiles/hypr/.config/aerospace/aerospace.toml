@@ -9,11 +9,13 @@ config-version = 2
 start-at-login = false
 auto-reload-config = true
 
-# dwindle not implemented yet, tiles is the closest
+# 43PR: layout = "dwindle" (new window splits the focused one along its longest side)
+dwindle = true
 default-root-container-layout = 'tiles'
 default-root-container-orientation = 'auto'
 enable-normalization-flatten-containers = true
-enable-normalization-opposite-orientation-for-nested-containers = true
+# off: dwindle picks orientation from the window aspect, don't flip it
+enable-normalization-opposite-orientation-for-nested-containers = false
 
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 focus-follows-mouse.enabled = true # 43PR: follow_mouse = 1
@@ -38,7 +40,6 @@ gaps.outer.left = 8
 rounding = 8
 active-opacity = 100
 inactive-opacity = 85
-fade-ms = 200
 
 [mode.main.binding]
 # programs
