@@ -40,6 +40,7 @@ struct Config: ConvenienceMutable {
     var enableNormalizationFlattenContainers: Bool = true
     var _nonEmptyWorkspacesRootContainersLayoutOnStartup: Void = ()
     var defaultRootContainerLayout: Layout = .tiles
+    var dwindle: Bool = false // skyland: Hyprland dwindle placement for new windows
     var defaultRootContainerOrientation: DefaultContainerOrientation = .auto
     var startAtLogin: Bool = false
     var autoReloadConfig: Bool = false
