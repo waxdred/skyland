@@ -26,6 +26,7 @@ func initTerminationHandler() {
 private struct AppServerTerminationHandler: TerminationHandler {
     @MainActor
     func beforeTermination() {
+        saveWorkspaceMemory()
         restoreDecorations()
         // Make all windows fullscreen before Quit
         for window in MacWindow.allWindowsMap.values {

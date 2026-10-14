@@ -23,7 +23,8 @@ final class MacWindow: Window {
             windowId,
             macApp,
             isStartup
-                ? (rect?.center.monitorApproximation ?? mainMonitorInfo).activeWorkspace
+                ? rememberedWorkspace(windowId: windowId, appId: macApp.rawAppBundleId) // skyland
+                    ?? (rect?.center.monitorApproximation ?? mainMonitorInfo).activeWorkspace
                 : focus.workspace,
             window: nil,
             .cancellable,
