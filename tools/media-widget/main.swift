@@ -49,6 +49,7 @@ final class Progress: NSView {
 
 final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let size = NSSize(width: 380, height: 116)
+    let radius: CGFloat = 18
     var panel: NSPanel!
     var tint: NSView!
     let artwork = NSImageView()
@@ -80,13 +81,13 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
         glass.material = .hudWindow
         glass.state = .active
-        glass.wantsLayer = true
-        glass.layer?.cornerRadius = 18
-        glass.layer?.masksToBounds = true
-        glass.layer?.borderWidth = 1
+        // A mask image (not layer.cornerRadius) also shapes the window border and
+        // shadow: with cornerRadius macOS kept drawing a 1 px rectangular outline.
+        glass.maskImage = roundedMask(radius: radius)
         panel.contentView = glass
         tint = NSView(frame: glass.bounds)
         tint.wantsLayer = true
+        tint.layer?.cornerRadius = radius
         glass.addSubview(tint)
 
         artwork.frame = NSRect(x: 14, y: 14, width: 88, height: 88)
@@ -144,7 +145,6 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let c = themeColors()
         let fg = c["fg"] ?? .white, dim = c["fg_dim"] ?? .lightGray
         tint.layer?.backgroundColor = (c["bg_card"] ?? .black).withAlphaComponent(0.55).cgColor
-        panel.contentView?.layer?.borderColor = fg.withAlphaComponent(0.15).cgColor
         title.textColor = fg
         artist.textColor = dim
         source.textColor = (c["accent"] ?? fg).withAlphaComponent(0.9)
@@ -224,6 +224,19 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         stream?.terminationHandler = nil
         stream?.terminate()
     }
+}
+
+/// Resizable rounded rect mask for NSVisualEffectView.maskImage.
+func roundedMask(radius: CGFloat) -> NSImage {
+    let edge = radius * 2 + 1
+    let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
+        NSColor.black.setFill()
+        NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+        return true
+    }
+    image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+    image.resizingMode = .stretch
+    return image
 }
 
 // SIGTERM (bin/skyland-media toggle) quits cleanly so the perl stream stops too
