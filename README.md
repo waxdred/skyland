@@ -4,6 +4,8 @@ A Hyprland-like tiling window manager for macOS, built as a fork of
 [AeroSpace](https://github.com/nikitabobko/AeroSpace), with the look and
 workflow of the [43PR Hyprland dotfiles](https://github.com/43PR/dotfiles).
 
+![skyland desktop: dwindle layout, rounded corners, inactive opacity, colors from the wallpaper](docs/screenshots/desktop.jpg)
+
 skyland keeps everything AeroSpace does (virtual workspaces, tree layouts, CLI,
 config file) and adds what makes Hyprland feel like Hyprland:
 
@@ -14,6 +16,20 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget**
 - windows **keep their workspace** across restarts
 - a switch between this setup and a regular yabai/skhd setup (`skyland-env work|hypr`)
+
+<table>
+<tr>
+<td><img src="docs/screenshots/wallpaper-picker.jpg" alt="Wallpaper picker with collections and search"></td>
+<td><img src="docs/screenshots/lock-screen.jpg" alt="hyprlock-like lock screen with a glassy clock"></td>
+</tr>
+<tr>
+<td align="center">Wallpaper picker (<code>alt-w</code>)</td>
+<td align="center">Lock screen (<code>alt-tab</code>)</td>
+</tr>
+</table>
+
+Screenshots are framed with `tools/frame-screenshot.swift`
+(`swiftc -O tools/frame-screenshot.swift -o .build/frame-screenshot`).
 
 > This is a personal setup. Paths like `~/code/hyperland/skyland` are hard-coded in
 > the `hypr` profile bindings; adjust them if you clone elsewhere.
