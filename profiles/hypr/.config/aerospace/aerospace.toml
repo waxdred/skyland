@@ -88,6 +88,10 @@ scheme = 'auto' # monochrome for grayscale wallpapers, else content (any matugen
 name = 'Waxcoin'
 blur = 4 # wallpaper blur radius, 0 = sharp
 
+# Floating media widget (alt-m, bin/skyland-media)
+[media]
+opacity = 92 # percent
+
 [mode.main.binding]
 # programs
 alt-t = 'exec-and-forget open -n -a Ghostty'

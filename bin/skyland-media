@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # Floating media widget (tools/media-widget), on every workspace, drag it with the mouse.
 # usage: skyland-media toggle | open | close
+#
+# [media]
+# opacity = 92          # percent, whole widget
 set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 WIDGET="$REPO/.build/skyland-media"
 
 open_widget() {
     [[ -x "$WIDGET" ]] || { echo "skyland-media: not built, run bin/skyland-build" >&2; exit 1; }
-    nohup "$WIDGET" >/dev/null 2>&1 &
+    opacity="$("$REPO/bin/skyland-config" media opacity)"
+    nohup "$WIDGET" --opacity "${opacity:-92}" >/dev/null 2>&1 &
 }
 
 case "${1:-toggle}" in

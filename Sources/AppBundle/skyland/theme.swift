@@ -59,6 +59,21 @@ func parseLock(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout Conf
     parseTable(raw, LockConfig(), lockParser, backtrace, &c)
 }
 
+/// Read by bin/skyland-media; parsed here so the config validates.
+// [media]
+// opacity = 92
+struct MediaConfig: ConvenienceMutable, Equatable, Sendable {
+    var opacity: Int = 0
+}
+
+private let mediaParser: [String: any ParserProtocol<MediaConfig>] = [
+    "opacity": Parser(\.opacity, parseInt),
+]
+
+func parseMedia(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> MediaConfig {
+    parseTable(raw, MediaConfig(), mediaParser, backtrace, &c)
+}
+
 func parseTheme(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> ThemeConfig {
     parseTable(raw, ThemeConfig(), themeParser, backtrace, &c)
 }

@@ -11,6 +11,10 @@ let adapterScript = repo.appending(path: "third_party/mediaremote-adapter/bin/me
 let adapterFramework = repo.appending(path: ".build/mediaremote/MediaRemoteAdapter.framework").path
 let themeFile = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/theme.css")
 let defaults = UserDefaults(suiteName: "com.waxdred.skyland-media")!
+// --opacity <percent>, from [media] opacity (bin/skyland-media)
+let opacity = CommandLine.arguments.firstIndex(of: "--opacity")
+    .flatMap { CommandLine.arguments.indices.contains($0 + 1) ? Double(CommandLine.arguments[$0 + 1]) : nil }
+    .map { max(10, min(100, $0)) / 100 } ?? 1
 
 func adapter(_ args: [String]) -> Process {
     let p = Process()
@@ -70,6 +74,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
+        panel.alphaValue = opacity
         panel.delegate = self
 
         let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
