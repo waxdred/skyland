@@ -31,6 +31,7 @@ func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inou
 // Last value sent per window, so a refresh only sends what changed.
 @MainActor private var sentOpacity: [UInt32: Int] = [:]
 @MainActor private var sentRounding: [UInt32: Int] = [:]
+@MainActor private var seenWindows: Set<UInt32> = []
 // The payload recreates its socket on every injection; a Dock restart drops
 // what it applied, so a new socket inode means everything must be resent.
 @MainActor private var payloadSocketInode: ino_t = 0
@@ -48,8 +49,10 @@ func applyDecorations() {
     }
     let focusedId = focus.windowOrNil?.windowId
     var alive = Set<UInt32>()
+    var newWindows: [UInt32] = []
     for windowId in MacWindow.allWindowsMap.keys {
         alive.insert(windowId)
+        if seenWindows.insert(windowId).inserted { newWindows.append(windowId) }
         let opacity = windowId == focusedId ? deco.activeOpacity : deco.inactiveOpacity
         if sentOpacity[windowId, default: 100] != opacity {
             sentOpacity[windowId] = opacity
@@ -62,6 +65,21 @@ func applyDecorations() {
     }
     sentOpacity = sentOpacity.filter { alive.contains($0.key) }
     sentRounding = sentRounding.filter { alive.contains($0.key) }
+    seenWindows = seenWindows.intersection(alive)
+    if !newWindows.isEmpty { resendLater(newWindows) }
+}
+
+// macOS animates a window in when it opens and resets its alpha to 1 at the
+// end, overwriting what we just sent; resend once the animation is over.
+@MainActor private func resendLater(_ windowIds: [UInt32]) {
+    Task { @MainActor in
+        try? await Task.sleep(for: .milliseconds(500))
+        for windowId in windowIds {
+            sentOpacity[windowId] = nil
+            sentRounding[windowId] = nil
+        }
+        applyDecorations()
+    }
 }
 
 /// Put every window back to stock macOS look, called before quitting.

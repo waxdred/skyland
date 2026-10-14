@@ -21,6 +21,10 @@ enable-normalization-opposite-orientation-for-nested-containers = false
 
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 focus-follows-mouse.enabled = true # 43PR: follow_mouse = 1
+# Hyprland warps the cursor to a window focused from the keyboard (cursor:no_warps
+# = false); without it the cursor stays over the old window and focus-follows-mouse
+# gives focus back to it on the next mouse move. 'lazy': no warp if already inside.
+on-focus-changed = ['move-mouse window-lazy-center']
 
 # 43PR: workspaces 1-4 persistent
 persistent-workspaces = ["1", "2", "3", "4"]
