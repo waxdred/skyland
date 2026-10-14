@@ -24,10 +24,10 @@ persistent-workspaces = ["1", "2", "3", "4"]
 key-mapping.preset = 'qwerty'
 
 # 43PR: gaps_in = 4, gaps_out = { top 5, right 8, bottom 8, left 8 }
-# top adds the 32px sketchybar
+# sketchybar (32px) overlays the macOS menu bar, which macOS already reserves
 gaps.inner.horizontal = 4
 gaps.inner.vertical = 4
-gaps.outer.top = 37
+gaps.outer.top = 5
 gaps.outer.right = 8
 gaps.outer.bottom = 8
 gaps.outer.left = 8
@@ -49,7 +49,7 @@ cmd-b = 'exec-and-forget open -a "Brave Browser"'
 
 # window
 alt-q = 'close'
-alt-f = 'fullscreen'
+alt-f = 'fullscreen --no-outer-gaps' # 43PR: fullscreen mode 0
 alt-space = 'layout floating tiling'
 
 # focus / move / resize (h j k l)
@@ -78,16 +78,16 @@ cmd-7 = 'workspace 7'
 cmd-8 = 'workspace 8'
 cmd-9 = 'workspace 9'
 cmd-0 = 'workspace 10'
-cmd-shift-1 = 'move-node-to-workspace 1'
-cmd-shift-2 = 'move-node-to-workspace 2'
-cmd-shift-3 = 'move-node-to-workspace 3'
-cmd-shift-4 = 'move-node-to-workspace 4'
-cmd-shift-5 = 'move-node-to-workspace 5'
-cmd-shift-6 = 'move-node-to-workspace 6'
-cmd-shift-7 = 'move-node-to-workspace 7'
-cmd-shift-8 = 'move-node-to-workspace 8'
-cmd-shift-9 = 'move-node-to-workspace 9'
-cmd-shift-0 = 'move-node-to-workspace 10'
+cmd-shift-1 = 'move-node-to-workspace --focus-follows-window 1'
+cmd-shift-2 = 'move-node-to-workspace --focus-follows-window 2'
+cmd-shift-3 = 'move-node-to-workspace --focus-follows-window 3'
+cmd-shift-4 = 'move-node-to-workspace --focus-follows-window 4'
+cmd-shift-5 = 'move-node-to-workspace --focus-follows-window 5'
+cmd-shift-6 = 'move-node-to-workspace --focus-follows-window 6'
+cmd-shift-7 = 'move-node-to-workspace --focus-follows-window 7'
+cmd-shift-8 = 'move-node-to-workspace --focus-follows-window 8'
+cmd-shift-9 = 'move-node-to-workspace --focus-follows-window 9'
+cmd-shift-0 = 'move-node-to-workspace --focus-follows-window 10'
 cmd-left = 'workspace prev'
 cmd-right = 'workspace next'
 
