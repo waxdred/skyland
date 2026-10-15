@@ -119,6 +119,7 @@ func refreshModel_nonCancellable() async {
     }
     applyDecorations()
     saveWorkspaceMemory()
+    refreshOverview()
 }
 
 @MainActor

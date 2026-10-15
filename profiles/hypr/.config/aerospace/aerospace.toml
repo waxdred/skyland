@@ -165,8 +165,30 @@ cmd-shift-7 = 'move-node-to-workspace --focus-follows-window 7'
 cmd-shift-8 = 'move-node-to-workspace --focus-follows-window 8'
 cmd-shift-9 = 'move-node-to-workspace --focus-follows-window 9'
 cmd-shift-0 = 'move-node-to-workspace --focus-follows-window 10'
+cmd-up = 'mode overview' # workspace overview, replaces Mission Control
 cmd-left = 'workspace prev'
 cmd-right = 'workspace next'
 
 # 43PR: SUPER+SHIFT+E exit, here back to the work profile
 cmd-shift-e = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-env work'
+
+# Workspace overview (Sources/AppBundle/skyland/overview.swift): shown while this
+# mode is active. Arrows move between workspaces, a digit or a click goes there.
+[mode.overview.binding]
+esc = 'mode main'
+enter = 'mode main'
+cmd-up = 'mode main'
+left = 'workspace --wrap-around prev'
+right = 'workspace --wrap-around next'
+h = 'workspace --wrap-around prev'
+l = 'workspace --wrap-around next'
+1 = ['workspace 1', 'mode main']
+2 = ['workspace 2', 'mode main']
+3 = ['workspace 3', 'mode main']
+4 = ['workspace 4', 'mode main']
+5 = ['workspace 5', 'mode main']
+6 = ['workspace 6', 'mode main']
+7 = ['workspace 7', 'mode main']
+8 = ['workspace 8', 'mode main']
+9 = ['workspace 9', 'mode main']
+0 = ['workspace 10', 'mode main']

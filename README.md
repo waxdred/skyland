@@ -15,6 +15,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
 - **43PR themes** as CSS files, light/dark toggle, **colors generated from the wallpaper**
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget**
+- **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
 - windows **keep their workspace** across restarts
 - a switch between this setup and a regular yabai/skhd setup (`skyland-env work|hypr`)
 
@@ -168,6 +169,7 @@ right, falling back left when fewer screens are plugged).
 | `cmd-alt-h/j/k/l`, `cmd-alt-e` | resize, balance | `Super+Ctrl+H/J/K/L` |
 | `cmd-1..0`, `cmd-shift-1..0` | workspace 1-10 (on its screen), move window there | `Super+1..0` |
 | `cmd-left` / `cmd-right` | previous / next workspace | |
+| `cmd-up` | workspace overview (arrows, digits, click, esc) | hyprexpo |
 | `alt-l` | light / dark theme | `Super+L` |
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |

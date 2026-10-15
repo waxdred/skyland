@@ -49,6 +49,7 @@ extension HotKey {
     }
     let oldMode = activeMode
     activeMode = targetMode
+    overviewModeChanged(targetMode) // skyland
     if oldMode != targetMode {
         broadcastEvent(.modeChanged(mode: targetMode))
         _ = await config.onModeChanged.run(.defaultEnv, .emptyStdin)
