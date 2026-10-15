@@ -2,7 +2,7 @@ import AppKit
 import Common
 import SwiftUI
 
-// skyland settings window (`settings` command, alt-comma): the visual settings of
+// skyland settings window (`settings` command, alt-i): the visual settings of
 // the config as sliders, switches and pickers. Every change is checked with the
 // config parser, written to its own line of the config file (comments kept, see
 // tomlLines.swift) and applied at once: config reload, plus the skyland script
