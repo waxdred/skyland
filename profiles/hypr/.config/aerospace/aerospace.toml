@@ -199,7 +199,7 @@ alt-w = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-wallpaper pick' # 
 alt-o = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-opacity' # inactive opacity 100/90/80/70 (43PR SUPER+O)
 alt-p = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-shot area' # screenshot area, space for a window (43PR Shift+Delete)
 alt-shift-p = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-shot screen' # screenshot every display (43PR Delete)
-alt-d = 'exec-and-forget open -a Raycast' # launcher (43PR SUPER+D)
+alt-d = 'exec-and-forget ~/code/hyperland/skyland-cyberdeck/.build/release/skyland-cyberdeck launcher' # apps launcher, cyberdeck (43PR SUPER+D)
 alt-tab = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-lock now' # lock screen (43PR SUPER+Tab, hyprlock)
 alt-m = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-media toggle' # floating media widget
 

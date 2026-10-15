@@ -209,7 +209,7 @@ right, falling back left when fewer screens are plugged).
 | `alt-r` | window management off / on (stock macOS windows while off), HUD with the state | |
 | `alt-o` | inactive window opacity 100 / 90 / 80 / 70 | `Super+O` |
 | `alt-p`, `alt-shift-p` | screenshot area (space: window), every display; to ~/Pictures/Screenshots + clipboard | `Shift+Delete`, `Delete` |
-| `alt-d` | launcher (Raycast) | `Super+D` |
+| `alt-d` | apps launcher ([skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)) | `Super+D` |
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |
 | `alt-m` | media widget | |
