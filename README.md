@@ -172,6 +172,7 @@ right, falling back left when fewer screens are plugged).
 | `cmd-up` | workspace overview (arrows, digits, click, esc) | hyprexpo |
 | `alt-l` | light / dark theme | `Super+L` |
 | `alt-shift-l` | theme picker (43PR themes + wallpaper colors) | |
+| `alt-shift-h` | shortcut list (read from the config) | |
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |
 | `alt-m` | media widget | |

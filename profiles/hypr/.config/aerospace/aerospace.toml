@@ -126,6 +126,7 @@ alt-space = 'layout floating tiling' # 43PR SUPER+Space: float at 70%, centered
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
 alt-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme toggle' # 43PR SUPER+L light/dark
 alt-shift-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme pick' # theme picker
+alt-shift-h = 'exec-and-forget pkill -x skyland-keys || ~/code/hyperland/skyland/.build/skyland-keys' # this shortcut list
 alt-w = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-wallpaper pick' # 43PR SUPER+W
 alt-tab = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-lock now' # 43PR SUPER+Tab (hyprlock)
 alt-m = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-media toggle' # floating media widget
@@ -167,12 +168,13 @@ cmd-shift-8 = 'move-node-to-workspace --focus-follows-window 8'
 cmd-shift-9 = 'move-node-to-workspace --focus-follows-window 9'
 cmd-shift-0 = 'move-node-to-workspace --focus-follows-window 10'
 cmd-up = 'mode overview' # workspace overview, replaces Mission Control
-ctrl-up = 'mode overview' # the macOS Mission Control shortcut
-ctrl-left = 'workspace prev' # macOS: move a Space left
+ctrl-up = 'mode overview' # workspace overview (the macOS Mission Control key)
+ctrl-left = 'workspace prev' # workspace prev (macOS: move a Space left)
 ctrl-right = 'workspace next'
 cmd-left = 'workspace prev'
 cmd-right = 'workspace next'
 
+# session
 # 43PR: SUPER+SHIFT+E exit, here back to the work profile
 cmd-shift-e = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-env work'
 

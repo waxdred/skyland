@@ -10,6 +10,7 @@ cd "$(dirname "$(readlink -f "$0")")/.."
 swiftly run swift build --product AeroSpaceApp
 swiftly run swift build --product aerospace
 swiftc -O tools/wallpaper-picker.swift -o .build/skyland-wallpaper-picker
+swiftc -O tools/keys-help.swift -o .build/skyland-keys
 # media widget + its now playing backend (git submodule, BSD-3)
 [[ -f third_party/mediaremote-adapter/CMakeLists.txt ]] || git submodule update --init third_party/mediaremote-adapter
 cmake -S third_party/mediaremote-adapter -B .build/mediaremote >/dev/null
