@@ -1,0 +1,24 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Swift (swiftly)
+        run: |
+          brew install swiftly
+          swiftly init --assume-yes --skip-install --quiet-shell-followup
+          . ~/.swiftly/env.sh
+          swiftly install "$(cat .swift-version)"
+          echo "$HOME/.swiftly/bin" >> "$GITHUB_PATH"
+      - name: Build and test
+        run: |
+          swiftly run swift build --build-tests
+          swiftly run swift test

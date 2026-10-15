@@ -1,0 +1,42 @@
+# On a v* tag: build skyland on macOS and publish the repo with its binaries, so
+# `bin/skyland-install` skips the Swift toolchain and the build (.build/PREBUILT).
+# The Dock payload (arm64e, SIP off only) is still built on the user's Mac.
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Tools
+        run: |
+          brew install swiftly cmake jq
+          swiftly init --assume-yes --skip-install --quiet-shell-followup
+          . ~/.swiftly/env.sh
+          swiftly install "$(cat .swift-version)"
+          echo "$HOME/.swiftly/bin" >> "$GITHUB_PATH"
+      - name: Build (ad-hoc signed, skyland install re-signs it locally)
+        run: |
+          bin/skyland-build
+          echo "${GITHUB_REF_NAME}" > .build/PREBUILT
+      - name: Package
+        run: |
+          name="skyland-${GITHUB_REF_NAME}"
+          mkdir -p "dist/$name/.build/debug"
+          git ls-files --recurse-submodules | grep -v '^docs/screenshots/' | tar -cf - -T - | tar -xf - -C "dist/$name"
+          cp -R .build/Skyland.app .build/PREBUILT .build/skyland-* "dist/$name/.build/"
+          cp .build/debug/aerospace "dist/$name/.build/debug/"
+          cp -R .build/mediaremote "dist/$name/.build/"
+          (cd dist && zip -qry "$name.zip" "$name")
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/skyland-${{ github.ref_name }}.zip
+          generate_release_notes: true

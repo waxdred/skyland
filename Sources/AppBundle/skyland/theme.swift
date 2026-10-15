@@ -80,3 +80,17 @@ func parseMedia(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout Con
 func parseTheme(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> ThemeConfig {
     parseTable(raw, ThemeConfig(), themeParser, backtrace, &c)
 }
+
+/// [terminal] app = 'Ghostty' | 'iTerm' | 'kitty' | 'WezTerm' | any app name: what
+/// bin/skyland-term opens a new window of (alt-t). Read by the scripts.
+struct TerminalConfig: ConvenienceMutable, Equatable, Sendable {
+    var app: String = ""
+}
+
+private let terminalParser: [String: any ParserProtocol<TerminalConfig>] = [
+    "app": Parser(\.app, parseString),
+]
+
+func parseTerminal(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> TerminalConfig {
+    parseTable(raw, TerminalConfig(), terminalParser, backtrace, &c)
+}

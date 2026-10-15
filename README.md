@@ -100,38 +100,70 @@ app's windows. The payload (`osax/payload.m`) listens on
   Without it everything else works: tiling, groups, master, scratchpads, overview,
   themes, wallpapers, settings
 
-## Build and install
+## Install
+
+### Quick start (SIP on, nothing to disable)
 
 ```sh
 git clone --recurse-submodules https://github.com/waxdred/skyland.git
 cd skyland
-bin/skyland-install                  # dependencies, Swift, signing identity, build, `skyland` CLI, start
+bin/skyland-install   # dependencies, Swift, signing identity, build, `skyland` CLI, start
+skyland doctor        # what works, what is missing, how to fix it
 ```
 
-It runs again safely (each step skips what is there). Then, optional:
+Or, without building anything (no Swift toolchain): download `skyland-<version>.zip`
+from [Releases](https://github.com/waxdred/skyland/releases), unzip it, then
+`bin/skyland-install` in it.
+
+`skyland install` runs again safely (each step skips what is there). Then allow
+**Skyland** in System Settings > Privacy & Security > **Accessibility** (and Screen
+Recording for the overview thumbnails and the media widget bars). Always start the
+app with `open` or `skyland env`: launched from a terminal, macOS gives the request to
+the terminal and the app resets its own permission.
+
+With SIP on you get everything but the window effects:
+
+| works with SIP on | needs the Dock payload (SIP off) |
+|---|---|
+| dwindle / master / groups / scratchpads, window rules | rounded corners |
+| alt + mouse move and resize | active / inactive opacity, `alt-o` |
+| workspaces per screen, overview with live thumbnails | window and workspace animations, fades |
+| themes, theme picker, wallpaper picker and colors, light / dark | floating windows kept on top |
+| sketchybar, focused window border (JankyBorders), Ghostty blur | |
+| settings window, cheat sheet, lock screen saver, media widget, cyberdeck | |
+
+### Full effects (SIP partially off)
+
+Like [yabai's scripting addition](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection):
+from recovery mode `csrutil enable --without fs --without debug --without nvram`,
+then `sudo nvram boot-args=-arm64e_preview_abi` and reboot. Then:
 
 ```sh
-skyland sa build && skyland sa load  # window effects: scripting addition into Dock (SIP, sudo)
-skyland lock install                 # hyprlock-like lock screen saver
+skyland sa build && skyland sa load   # build and inject the payload into Dock (sudo)
+skyland doctor                        # "payload loaded in Dock"
+```
+
+After a reboot or `killall Dock` the payload is gone: `skyland sa load` again, or
+let the LaunchAgent do it (see [autostart](#autostart)).
+
+### Optional
+
+```sh
+skyland lock install    # hyprlock-like lock screen saver
+skyland uninstall       # remove everything but the repo (asks first)
 ```
 
 Everything goes through the `skyland` CLI (`~/.local/bin/skyland`): `skyland theme pick`,
 `skyland scratch toggle`, and any window manager command (`skyland workspace 3`,
 `skyland list-windows --all`, `skyland reload-config`).
 
-Grant **Accessibility** to `Skyland` (System Settings > Privacy & Security), and
-only to the app: never to the scripts. Always start the app with `open` (or
-`skyland-env`); launched from a terminal, macOS attributes the request to the
-terminal and the app resets its own permission.
-
-After `killall Dock` or a reboot the payload is gone: run `skyland-sa load` again
-(see [autostart](#autostart) to automate it).
-
 ## Scripts
 
 | Script | What it does |
 |---|---|
 | `skyland install` | first install / update: dependencies, Swift, build, CLI, start |
+| `skyland doctor` | check the install (permissions, SIP, payload, sudoers, bar, border...) and say what to fix |
+| `skyland uninstall` | remove skyland but the repo (asks first) |
 | `skyland-env [hypr]\|status` | set up skyland: link the hypr profile into `~/.config`, start the app, sketchybar with skyland workspaces (run at login) |
 | `skyland-build` | build everything with swiftly, sign `Skyland.app` |
 | `skyland-sa build\|load\|send` | build / install and inject / talk to the Dock payload |
@@ -343,6 +375,9 @@ launchctl bootout gui/$(id -u)/com.waxdred.skyland                              
 ```
 
 ## Troubleshooting
+
+Start with `skyland doctor`: it checks the whole install and prints the fix for
+each problem.
 
 - **A window is invisible**: `killall Dock` resets alpha and transforms set by the
   payload; `skyland enable off` brings windows hidden in the corner back.

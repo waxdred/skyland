@@ -116,6 +116,10 @@ name = 'Waxcoin'
 blur = 4 # wallpaper blur radius, 0 = sharp
 
 # Floating media widget (alt-m, bin/skyland-media)
+# New terminal window on alt-t (bin/skyland-term): Ghostty, iTerm, WezTerm, kitty or any app
+[terminal]
+app = 'Ghostty'
+
 [media]
 opacity = 92 # percent
 

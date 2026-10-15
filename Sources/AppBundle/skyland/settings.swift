@@ -83,6 +83,9 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
         SettingField(section: "wallpaper", key: "scheme", label: "Color scheme", kind: .choice(["auto", "scheme-content", "scheme-tonal-spot", "scheme-vibrant", "scheme-expressive", "scheme-fidelity", "scheme-monochrome", "scheme-neutral", "scheme-rainbow", "scheme-fruit-salad"])),
         SettingField(section: "wallpaper", key: "dir", label: "Folder", kind: .text),
     ]),
+    ("Terminal", [
+        SettingField(section: "terminal", key: "app", label: "Terminal app (alt-t)", kind: .choice(["Ghostty", "iTerm", "WezTerm", "kitty", "Terminal", "Alacritty"])),
+    ]),
     ("Media widget and lock screen", [
         SettingField(section: "media", key: "opacity", label: "Media widget opacity", kind: .int(10 ... 100, step: 1, unit: "%"), after: ["skyland-media", "restart"]),
         SettingField(section: "lock", key: "blur", label: "Lock wallpaper blur", kind: .int(0 ... 20, step: 1, unit: ""), after: ["skyland-lock", "refresh"]),

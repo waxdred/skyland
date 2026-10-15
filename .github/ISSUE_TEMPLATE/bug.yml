@@ -1,0 +1,21 @@
+name: Bug
+description: Something in skyland does not work
+body:
+  - type: textarea
+    attributes:
+      label: What happens, what you expected
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+  - type: textarea
+    attributes:
+      label: skyland doctor
+      description: Output of `skyland doctor`
+      render: text
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: macOS version and Mac model

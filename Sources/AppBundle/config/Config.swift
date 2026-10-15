@@ -71,6 +71,7 @@ struct Config: ConvenienceMutable {
     var wallpaper: WallpaperConfig = WallpaperConfig()
     var lock: LockConfig = LockConfig()
     var media: MediaConfig = MediaConfig()
+    var terminal = TerminalConfig() // skyland: [terminal] app (bin/skyland-term)
     var workspaceToMonitorForceAssignment: [String: [MonitorDescription]] = [:]
     var modes: [String: Mode] = [:]
     var onWindowDetected: [WindowDetectedCallback] = []
