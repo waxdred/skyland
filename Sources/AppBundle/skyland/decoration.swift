@@ -12,10 +12,15 @@ import Foundation
 // rounding = 8
 // active-opacity = 100
 // inactive-opacity = 90
+// border-width = 2     # focused window border in the theme accent (JankyBorders), 0 = none
+// blur = 5             # Ghostty background blur behind its translucent background, 0 = none
+// border-width and blur are applied by bin/skyland-theme; parsed here so the config validates.
 struct Decoration: ConvenienceMutable, Equatable, Sendable {
     var rounding: Int = 0
     var activeOpacity: Int = 100
     var inactiveOpacity: Int = 100
+    var borderWidth: Int = 0
+    var blur: Int = 0
 
     var isEnabled: Bool { rounding > 0 || activeOpacity != 100 || inactiveOpacity != 100 }
 }
@@ -24,6 +29,8 @@ private let decorationParser: [String: any ParserProtocol<Decoration>] = [
     "rounding": Parser(\.rounding, parseInt),
     "active-opacity": Parser(\.activeOpacity, parseInt),
     "inactive-opacity": Parser(\.inactiveOpacity, parseInt),
+    "border-width": Parser(\.borderWidth, parseInt),
+    "blur": Parser(\.blur, parseInt),
 ]
 
 func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> Decoration {

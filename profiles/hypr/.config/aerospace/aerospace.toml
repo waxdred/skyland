@@ -72,7 +72,9 @@ gaps.outer.left = 8
 [decoration]
 rounding = 8
 active-opacity = 100
-inactive-opacity = 85
+inactive-opacity = 90
+border-width = 2 # focused window border, theme accent gradient (JankyBorders)
+blur = 5 # Ghostty background blur (43PR blur size 5)
 
 # 43PR: bezier easeOut 0.05,0.9,0.1,1.0; windows speed 5 (500 ms), workspaces
 # speed 6 (600 ms) with the "default" curve, style slidefadevert; fade speed 4.
