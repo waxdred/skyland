@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# New Ghostty window in the running Ghostty (AppleScript, Ghostty 1.3+), so closed
+# windows don't leave one Ghostty per `open -n` in the Dock. Starts Ghostty when
+# it is not running (its initial window is the new one).
+if pgrep -xq ghostty; then
+    osascript -e 'tell application "Ghostty" to new window' >/dev/null
+else
+    open -a Ghostty
+fi

@@ -114,8 +114,8 @@ opacity = 92 # percent
 
 [mode.main.binding]
 # programs
-alt-t = 'exec-and-forget open -n -a Ghostty'
-alt-enter = 'exec-and-forget open -n -a Ghostty'
+alt-t = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-term' # new Ghostty window
+alt-enter = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-term' # new Ghostty window
 cmd-e = 'exec-and-forget open -a Finder'
 cmd-b = 'exec-and-forget open -a "Brave Browser"'
 
