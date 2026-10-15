@@ -28,6 +28,7 @@ private struct AppServerTerminationHandler: TerminationHandler {
     func beforeTermination() {
         saveWorkspaceMemory()
         restoreDecorations()
+        stopMenuBarPeek() // skyland: sketchybar back if the menu bar was down
         // Make all windows fullscreen before Quit
         for window in MacWindow.allWindowsMap.values {
             // makeAllWindowsVisibleAndRestoreSize may be invoked when something went wrong (e.g. some windows are unbound)

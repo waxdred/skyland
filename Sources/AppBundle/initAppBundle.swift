@@ -25,6 +25,7 @@ import Foundation
         startMouseDragTap() // skyland
         observeInputSourceChanges() // skyland
         startArrowKeyTap() // skyland
+        startMenuBarPeek() // skyland
         Workspace.garbageCollectUnusedWorkspaces() // init workspaces
         _ = Workspace.all.first?.focusWorkspace()
         await runHeavyCompleteRefreshSession(
