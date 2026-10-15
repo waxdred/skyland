@@ -83,7 +83,7 @@ case "${1:-status}" in
         # yabai / skhd label (old koekeishiya and new asmvik ones), not only the
         # one --stop-service knows, else a second yabai keeps fighting skyland
         for agent in ~/Library/LaunchAgents/com.*.yabai.plist ~/Library/LaunchAgents/com.*.skhd.plist; do
-            [[ -f "$agent" ]] && launchctl bootout "gui/$(id -u)/$(basename "$agent" .plist)" 2>/dev/null
+            [[ -f "$agent" ]] && launchctl bootout "gui/$(id -u)/$(basename "$agent" .plist)" 2>/dev/null || true # not loaded: fine
         done
         pkill -x borders 2>/dev/null || true
         relink "$HYPR"
