@@ -185,6 +185,7 @@ cmd-b = 'exec-and-forget open -a "Brave Browser"'
 
 # window
 alt-q = 'close'
+alt-r = 'enable toggle' # window management off / on (stays bound while off)
 alt-f = 'fullscreen --no-outer-gaps' # fullscreen (43PR fullscreen mode 0)
 alt-space = 'layout floating tiling' # float at 70%, centered (43PR SUPER+Space)
 alt-s = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch toggle' # scratchpad (Hyprland special workspace)

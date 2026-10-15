@@ -27,7 +27,7 @@ extension HotKey {
 
 @MainActor var activeMode: String? = mainModeId
 @MainActor func activateMode_nonCancellable(_ targetMode: String?) async {
-    let targetBindings = targetMode.flatMap { config.modes[$0] }?.bindings ?? [:]
+    let targetBindings = targetMode.flatMap { config.modes[$0] }?.bindings ?? enableBindings() // skyland: alt-r turns it back on
     // skyland: arrow key bindings never fired as Carbon hotkeys, arrowKeys.swift handles them
     for binding in targetBindings.values where !hotkeys.keys.contains(binding.descriptionWithKeyCode) && !isArrowKey(binding.keyCode) {
         hotkeys[binding.descriptionWithKeyCode] = HotKey(key: binding.keyCode, modifiers: binding.modifiers, keyDownHandler: {
@@ -40,6 +40,10 @@ extension HotKey {
                     try await runLightSession(.hotkeyBinding, .checkServerIsEnabledOrDie()) { () throws in
                         _ = await config.modes[activeMode]?.bindings[binding.descriptionWithKeyCode]?.commands
                             .run(.defaultEnv, .emptyStdin)
+                    }
+                } else if let enableBinding = enableBindings()[binding.descriptionWithKeyCode] { // skyland: disabled, alt-r
+                    try await runLightSession(.hotkeyBinding, .forceRun) { () throws in
+                        _ = await enableBinding.commands.run(.defaultEnv, .emptyStdin)
                     }
                 }
             }

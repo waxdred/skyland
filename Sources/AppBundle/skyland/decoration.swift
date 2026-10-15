@@ -56,6 +56,7 @@ func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inou
 
 @MainActor
 func applyDecorations() {
+    guard TrayMenuModel.shared.isEnabled else { return } // disabled: stock macOS look (restoreDecorations)
     let deco = config.decoration
     let anim = config.animations
     let wantsFades = anim.enabled && anim.fadeMs > 0

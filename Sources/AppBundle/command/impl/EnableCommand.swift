@@ -34,6 +34,7 @@ struct EnableCommand: Command {
         } else {
             await activateMode_nonCancellable(nil)
         }
+        skylandEnabledChanged(newState)
         return .succ
     }
 }
