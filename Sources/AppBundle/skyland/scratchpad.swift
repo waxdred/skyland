@@ -1,9 +1,10 @@
 // skyland: Hyprland-like scratchpad (special workspace), driven by bin/skyland-scratch.
-// Its windows live on the hidden workspace "scratch", which workspace prev/next
-// and the overview skip.
+// Its windows live on the hidden workspaces "scratch" / "scratch-<name>", which
+// workspace prev/next, the overview and the Rules tab skip.
 
 let scratchpadWorkspaceName = "scratch"
 
 extension Workspace {
-    var isScratchpad: Bool { name == scratchpadWorkspaceName }
+    /// "scratch" and the named scratchpads "scratch-<name>"
+    var isScratchpad: Bool { name == scratchpadWorkspaceName || name.hasPrefix(scratchpadWorkspaceName + "-") }
 }

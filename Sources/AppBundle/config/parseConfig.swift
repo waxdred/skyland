@@ -144,6 +144,9 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     "dwindle-smart-split": Parser(\.dwindleSmartSplit, parseBool),
     "master-workspaces": Parser(\.masterWorkspaces, parseArrayOfStrings),
     "master-ratio": Parser(\.masterRatio, parseInt),
+    "master-orientation": Parser(\.masterOrientation, { raw, backtrace in
+        parseString(raw, backtrace).flatMap { ["left", "center", "auto"].contains($0) ? .success($0) : .failure(.init(backtrace, "Expected left, center or auto")) }
+    }),
     "floating-center-percent": Parser(\.floatingCenterPercent, parseInt),
     "bar-height": Parser(\.barHeight, parseInt),
     "mouse-modifier": Parser(\.mouseModifier, { raw, backtrace in

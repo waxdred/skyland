@@ -17,9 +17,9 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars
 - **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
 - **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, plus **Keys** (record a key, edit command and description, duplicates and macOS shortcuts flagged) and **Rules** (float / tile / workspace per app, from the running apps) tabs; applied live and written to the config with its comments kept
-- **master layout** per workspace (`alt-shift-t`): one big window and a stack on the side, `alt-shift-enter` swaps with the master (Hyprland `master`, `swapwithmaster`)
+- **master layout** per workspace (`alt-shift-t`): one big window and a stack on the side (master in the middle on ultrawide screens), `alt-shift-enter` swaps with the master (Hyprland `master`, `swapwithmaster`)
 - **groups** (`alt-g`): a container becomes tabs with a tabs bar, `alt-n` cycles, `alt-ctrl-h/j/k/l` groups with a neighbour (Hyprland `togglegroup`, `changegroupactive`, `moveintogroup`)
-- **scratchpad** (`alt-s`), **window rules** (floating utilities, apps sent to a workspace)
+- **scratchpads** (`alt-s`, named ones like `alt-a` = Spotify), **window rules** (floating utilities, apps sent to a workspace)
 - **window management on/off** (`alt-r`) with a HUD, windows back to stock macOS while off
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config
 - windows **keep their workspace** across restarts
@@ -163,6 +163,7 @@ work ([AeroSpace guide](https://nikitabobko.github.io/AeroSpace/guide)); skyland
 dwindle = true                    # new window splits the focused one along its longest side
 dwindle-smart-split = true
 master-ratio = 55                 # master layout (alt-shift-t): master width in percent, Hyprland mfact
+master-orientation = 'auto'       # left | center | auto (center on ultrawide screens)
 master-workspaces = []            # workspaces in the master layout at the very first start        # ...on the side of the cursor (Hyprland smart_split)
 floating-center-percent = 70      # 'layout floating' on a tile: N% of the monitor, centered
 mouse-modifier = 'alt'            # alt + left drag moves, alt + right drag resizes (anywhere on a window)
@@ -236,6 +237,7 @@ right, falling back left when fewer screens are plugged).
 | `alt-shift-l` | theme picker (43PR themes + wallpaper colors) | |
 | `alt-shift-h` | shortcut list (read from the config) | |
 | `alt-s` / `alt-shift-s` | scratchpad: show / hide it here, send the window to it (`alt-space` on a shown one takes it out) | Hyprland `togglespecialworkspace` |
+| `alt-a` | named scratchpad `music`: Spotify, started if needed (`skyland-scratch toggle <name> --app <bundle id>`) | `special:music` |
 | `alt-g` | group: the container becomes tabs (tabs bar on top), again: tiles | `togglegroup` |
 | `alt-shift-t` | master layout on / off for this workspace (remembered) | `layout master` |
 | `alt-shift-enter` | swap the focused window with the master | `swapwithmaster` |

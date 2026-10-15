@@ -13,6 +13,7 @@ dwindle = true
 # 43PR/Hyprland dwindle:smart_split: the new window goes on the side of the cursor
 dwindle-smart-split = true
 master-ratio = 55 # Hyprland master:mfact, master layout per workspace (alt-shift-t)
+master-orientation = 'auto' # left | center | auto: master in the middle on ultrawide screens
 master-workspaces = [] # workspaces in the master layout at the very first start
 # 43PR SUPER+Space: a tile made floating is resized to 70% of the monitor and centered
 floating-center-percent = 70
@@ -194,6 +195,7 @@ alt-f = 'fullscreen --no-outer-gaps' # fullscreen (43PR fullscreen mode 0)
 alt-space = 'layout floating tiling' # float at 70%, centered (43PR SUPER+Space)
 alt-s = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch toggle' # scratchpad (Hyprland special workspace)
 alt-shift-s = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch move' # send window to the scratchpad
+alt-a = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch toggle music --app com.spotify.client' # named scratchpad: Spotify (special:music)
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
 alt-g = 'layout accordion tiles' # togglegroup: the window's container becomes a group of tabs, or tiles again
 alt-shift-t = 'master toggle' # master layout for this workspace (one big window, a stack on the side)

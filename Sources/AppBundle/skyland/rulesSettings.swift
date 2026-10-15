@@ -162,7 +162,7 @@ private struct RuleRow: View {
     private var workspaceNames: [String] {
         let names = config.persistentWorkspaces.isEmpty ? Workspace.all.map(\.name) : Array(config.persistentWorkspaces)
         return Set(names + (rule.workspace.isEmpty ? [] : [rule.workspace]))
-            .filter { !$0.isEmpty && $0 != scratchpadWorkspaceName }
+            .filter { !$0.isEmpty && !$0.hasPrefix(scratchpadWorkspaceName) }
             .sorted { (Int($0) ?? .max, $0) < (Int($1) ?? .max, $1) }
     }
 
