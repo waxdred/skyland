@@ -4,6 +4,7 @@
 # usage: skyland-scratch toggle | move
 #   toggle  scratchpad windows shown here: hide them; else bring them here, floating
 #   move    send the focused window to the scratchpad (hides it)
+# A shown scratchpad window made tiling (alt-space) leaves the scratchpad.
 set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 SHOWN="$HOME/.cache/skyland/scratch-shown" # ids of scratchpad windows out on a workspace
@@ -11,8 +12,8 @@ A() { "$REPO/.build/debug/aerospace" "$@" </dev/null; }
 mkdir -p "$(dirname "$SHOWN")"
 touch "$SHOWN"
 
-# keep only shown windows that still exist
-alive="$(A list-windows --all --format '%{window-id}')"
+# keep only shown windows that still exist and float (tiled = taken out of the scratchpad)
+alive="$(A list-windows --all --format '%{window-id} %{window-layout}' | awk '$2 == "floating" { print $1 }')"
 grep -Fxf <(echo "$alive") "$SHOWN" > "$SHOWN.tmp" || true
 mv "$SHOWN.tmp" "$SHOWN"
 
