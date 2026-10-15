@@ -267,9 +267,6 @@ ctrl-right = 'workspace next'
 cmd-left = 'workspace prev'
 cmd-right = 'workspace next'
 
-# session
-# 43PR: SUPER+SHIFT+E exit, here back to the work profile
-cmd-shift-e = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-env work'
 
 # Workspace overview (Sources/AppBundle/skyland/overview.swift): shown while this
 # mode is active. Arrows move between workspaces, a digit or a click goes there.

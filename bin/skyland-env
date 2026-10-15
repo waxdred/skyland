@@ -1,120 +1,38 @@
 #!/usr/bin/env bash
-# Switch between the work setup (yabai + skhd) and the skyland setup.
-# usage: skyland-env work|hypr|status
+# Set up skyland: link the hypr profile into ~/.config, start Skyland.app, reload
+# sketchybar with the skyland workspaces. Run at login by the LaunchAgent.
+# usage: skyland-env [hypr] | status
 #
-# Profile "hypr" is an overlay: each entry of profiles/hypr/.config is linked
-# into ~/.config. Switching back to "work" relinks those entries to the work
-# dotfiles (or removes them when work has no such entry).
+# Each entry of profiles/hypr/.config is linked into ~/.config (only symlinks or
+# missing paths are touched, never a real file or dir). skyland workspaces replace
+# macOS Spaces: keep one Space per display (Mission Control).
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 HYPR="$REPO/profiles/hypr/.config"
-WORK="${SKYLAND_WORK_CONFIG:-$HOME/tools/dotfiles/.config}"
 APP="${SKYLAND_APP:-$REPO/.build/Skyland.app}"
-STATE="$HOME/.config/.skyland-profile"
+STATE="$HOME/.config/.skyland-profile" # read by the sketchybarrc hook (profiles/hypr/sketchybar/skyland.sh)
 
-# Only touch symlinks or missing paths, never a real file or dir.
-link() { # src dest
-    if [[ -e "$2" && ! -L "$2" ]]; then
-        echo "skip $2: real file, move it away first" >&2
-        return
-    fi
-    ln -sfn "$1" "$2"
-}
-
-relink() { # profile_dir
-    for entry in "$HYPR"/* "$HYPR"/.[!.]*; do
-        [[ -e "$entry" ]] || continue
-        local name dest
-        name="$(basename "$entry")"
-        dest="$HOME/.config/$name"
-        if [[ -e "$1/$name" ]]; then
-            link "$1/$name" "$dest"
-        elif [[ -L "$dest" && "$(readlink "$dest")" == "$HYPR"/* ]]; then
-            rm "$dest"
-        fi
-    done
-}
-
-# skyland workspaces replace macOS Spaces and expect one Space per display.
-# Offers to destroy the others through the running yabai (and its scripting
-# addition); macOS moves their windows to a remaining Space, nothing is closed.
-# Native fullscreen Spaces stay. Asks first, skips without a terminal.
-collapse_spaces() {
-    # yabai may have just been started by `skyland-env work`: give it time to answer
-    local tries=0
-    until yabai -m query --spaces >/dev/null 2>&1; do
-        if ! pgrep -xq yabai || (( ++tries > 20 )); then
-            echo "yabai not available: extra macOS Spaces not checked (run skyland-env work first)" >&2
-            return 0
-        fi
-        sleep 0.5
-    done
-    local spaces extra
-    spaces=$(yabai -m query --spaces)
-    extra=$(jq -r 'group_by(.display) | map(sort_by(.index) | .[1:][]
-        | select(."is-native-fullscreen" | not) | .index) | flatten | sort | reverse | .[]' <<<"$spaces")
-    [[ -n "$extra" ]] || return 0
-    echo "skyland uses one macOS Space per display. These Spaces would be removed"
-    echo "(their windows move to a remaining Space, nothing is closed):"
-    for index in $extra; do
-        jq -r --argjson i "$index" '.[] | select(.index == $i)
-            | "  Space \(.index) \(if .label != "" then "(\(.label))" else "" end) on display \(.display): \(.windows | length) window(s)"' <<<"$spaces"
-    done
-    if [[ ! -r /dev/tty ]] || ! { exec 3</dev/tty; } 2>/dev/null; then
-        echo "no terminal to confirm, Spaces kept (windows on other Spaces may tile together)" >&2
-        return 0
-    fi
-    local answer
-    read -r -u 3 -p "Remove them? [y/N] " answer || answer= # EOF = no
-    exec 3<&-
-    [[ "$answer" == [yY]* ]] || { echo "Spaces kept"; return 0; }
-    for index in $extra; do
-        yabai -m space --destroy "$index" || true # highest first, lower indices stay valid
-    done
-}
-
-case "${1:-status}" in
-    hypr)
-        collapse_spaces
-        yabai --stop-service 2>/dev/null || true
-        skhd --stop-service 2>/dev/null || true
-        # launchd loads every agent of ~/Library/LaunchAgents at login: stop each
-        # yabai / skhd label (old koekeishiya and new asmvik ones), not only the
-        # one --stop-service knows, else a second yabai keeps fighting skyland
-        for agent in ~/Library/LaunchAgents/com.*.yabai.plist ~/Library/LaunchAgents/com.*.skhd.plist; do
-            [[ -f "$agent" ]] && launchctl bootout "gui/$(id -u)/$(basename "$agent" .plist)" 2>/dev/null || true # not loaded: fine
-        done
-        pkill -x borders 2>/dev/null || true
-        relink "$HYPR"
-        open "$APP"
-        ;;
-    work)
-        # SIGTERM: the app intercepts it to restore hidden windows and their alpha
-        pkill -x AeroSpaceApp 2>/dev/null || true
-        relink "$WORK"
-        "$REPO/bin/skyland-theme" off # Ghostty back to its own theme
-        yabai --start-service 2>/dev/null || true
-        skhd --start-service 2>/dev/null || true
-        # recreate the work Spaces that the hypr profile collapsed
-        spaces="$WORK/yabai/script/generate-workspace.sh"
-        [[ -x "$spaces" ]] && { sleep 2; "$spaces"; } >/dev/null 2>&1 &
-        ;;
-    status)
-        cat "$STATE" 2>/dev/null || echo work
-        exit 0
-        ;;
-    *)
-        echo "usage: skyland-env work|hypr|status" >&2
-        exit 1
-        ;;
+case "${1:-hypr}" in
+    hypr) ;;
+    status) echo hypr; exit 0 ;;
+    *) echo "usage: skyland-env [hypr] | status" >&2; exit 1 ;;
 esac
 
-echo "$1" > "$STATE"
+for entry in "$HYPR"/* "$HYPR"/.[!.]*; do
+    [[ -e "$entry" ]] || continue
+    dest="$HOME/.config/$(basename "$entry")"
+    if [[ -e "$dest" && ! -L "$dest" ]]; then
+        echo "skip $dest: real file, move it away first" >&2
+        continue
+    fi
+    ln -sfn "$entry" "$dest"
+done
+
+echo hypr > "$STATE"
+open "$APP"
 sketchybar --reload 2>/dev/null || true
-if [[ "$1" == hypr ]]; then
-    # ponytail: --reload runs the work config asynchronously, give it time before
-    # replacing its yabai Spaces by skyland workspaces
-    { sleep 1.5; "$REPO/profiles/hypr/sketchybar/skyland.sh"; } >/dev/null 2>&1 &
-fi
-echo "profile: $1"
+# ponytail: --reload runs sketchybarrc asynchronously, give it time before
+# replacing its Spaces by skyland workspaces (the rc hook does it too)
+{ sleep 1.5; "$REPO/profiles/hypr/sketchybar/skyland.sh"; } >/dev/null 2>&1 &
+echo "profile: hypr"

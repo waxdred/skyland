@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Turn the work sketchybar (yabai Spaces) into a skyland bar: run at the end of
-# the work sketchybarrc when ~/.config/.skyland-profile is hypr (every load, also
-# a sketchybar restart), and by `skyland-env hypr` after `sketchybar --reload`.
+# Turn your sketchybar (its space.* items for macOS Spaces) into a skyland bar: run
+# at the end of the sketchybarrc when ~/.config/.skyland-profile is hypr (every
+# load, also a sketchybar restart), and by `skyland-env` after `sketchybar --reload`.
 # Replaces the space.* items by skyland workspaces 1-12 and points window_title
-# at skyland. `skyland-env work` reloads the work config, which undoes all this.
+# at skyland.
 # Updates come from skyland: see on-focus-changed / exec-on-workspace-change in
 # profiles/hypr/.config/aerospace/aerospace.toml.
 set -euo pipefail
@@ -11,14 +11,14 @@ DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 UPDATE="$DIR/update.sh"
 CLI="$(cd "$DIR/../../.." && pwd)/.build/debug/aerospace"
 
-# Same icons and Catppuccin colors as the work sketchybarrc / plugins/space.sh
+# Same icons and Catppuccin colors as the sketchybarrc / plugins/space.sh
 ICONS=("󰇧" "󰭻" "󰩃" "󰚩" "" "󰝚" "󰉋" "󰆼" "" "󰘙" "󰀵" "󰆺")
 SUBTEXT0=0xffa5adcb
 MAUVE=0xffc6a0f6
 SURFACE0=0xff363a4f
 SURFACE2=0xff5b6078
 
-# idempotent (runs from the work sketchybarrc and from skyland-env hypr): the
+# idempotent (runs from the sketchybarrc and from skyland-env): the
 # space regex also matches the workspace.N items of a previous run
 # topmost=on: above the auto-hidden macOS menu bar, which else slides in over the
 # bar on hover and takes the clicks meant for the workspace icons

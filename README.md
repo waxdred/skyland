@@ -23,7 +23,6 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **window management on/off** (`alt-r`) with a HUD, windows back to stock macOS while off
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config
 - windows **keep their workspace** across restarts
-- a switch between this setup and a regular yabai/skhd setup (`skyland-env work|hypr`)
 - companion **[skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)**: cyberpunk apps launcher (`alt-d`) and messages panel (`alt-shift-m`) with a scripting API, notifications from mail and herdr agents
 
 ![skyland demo: tiling, theme picker, themes, wallpaper picker and wallpaper colors, workspace switch, overview, cheat sheet, lock screen](docs/screenshots/demo.gif)
@@ -94,7 +93,7 @@ app's windows. The payload (`osax/payload.m`) listens on
 - **SIP partially disabled** and the `-arm64e_preview_abi` boot-arg, exactly like
   [yabai's scripting addition](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection)
 - Swift 6.4 through [swiftly](https://github.com/swiftlang/swiftly) (`swiftly install 6.4.0`)
-- Homebrew: `cmake`, `jq`, `sketchybar`; optional `yabai` + `skhd` for the work profile
+- Homebrew: `cmake`, `jq`, `sketchybar`
 - `matugen` for wallpaper colors: `cargo install matugen`
 
 ## Build and install
@@ -122,7 +121,7 @@ After `killall Dock` or a reboot the payload is gone: run `skyland-sa load` agai
 
 | Script | What it does |
 |---|---|
-| `skyland-env work\|hypr\|status` | switch between yabai/skhd and skyland (config overlay, services, bar, theme, one macOS Space per display with confirmation) |
+| `skyland-env [hypr]\|status` | set up skyland: link the hypr profile into `~/.config`, start the app, sketchybar with skyland workspaces (run at login) |
 | `skyland-build` | build everything with swiftly, sign `Skyland.app` |
 | `skyland-sa build\|load\|send` | build / install and inject / talk to the Dock payload |
 | `skyland-theme dark\|light\|toggle\|apply\|pick\|set <file>\|off` | apply a CSS theme to sketchybar and Ghostty; `pick` chooses one from color previews |
@@ -253,14 +252,13 @@ right, falling back left when fewer screens are plugged).
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |
 | `alt-m` | media widget | |
-| `cmd-shift-e` | back to the work profile | `Super+Shift+E` |
 
 ### SketchyBar
 
-The hypr profile reuses the work sketchybar config and swaps its yabai Spaces for
-skyland workspaces (`profiles/hypr/sketchybar/skyland.sh`). `skyland-env hypr` runs
-it once; to keep it after a sketchybar restart (login, `brew services restart`),
-end your `sketchybarrc` with:
+skyland uses your own `sketchybarrc` and swaps its macOS Spaces items for skyland
+workspaces (`profiles/hypr/sketchybar/skyland.sh`). `skyland-env` runs it once; to
+keep it after a sketchybar restart (login, `brew services restart`), end your
+`sketchybarrc` with:
 
 ```sh
 if [[ "$(cat "$HOME/.config/.skyland-profile" 2>/dev/null)" == hypr ]]; then
@@ -327,8 +325,8 @@ launchctl bootout gui/$(id -u)/com.waxdred.skyland                              
   (`skyland-sa send ping` must answer `ok fade`): `skyland-sa load`.
 - **Shortcuts do nothing**: check the Accessibility permission of `Skyland`.
 - **Two windows share a workspace after clicking another app**: several macOS
-  Spaces exist; skyland expects one per display (`skyland-env hypr` offers to
-  remove the others).
+  Spaces exist; skyland expects one per display: remove the others in Mission
+  Control.
 
 ## Credits and licenses
 
