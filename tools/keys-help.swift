@@ -63,6 +63,7 @@ for raw in text.components(separatedBy: "\n") {
     let key = String(match.1), command = describe(String(match.2))
     // "43PR SUPER+L light/dark" -> "light/dark": the 43PR origin is for the config reader
     let comment = (match.3.map(String.init) ?? "").replacingOccurrences(of: #"^43PR:?\s*(SUPER\S*:?\s*)?"#, with: "", options: .regularExpression)
+        .replacingOccurrences(of: #"\s*\(43PR[^)]*\)"#, with: "", options: .regularExpression)
     let desc = comment.isEmpty || comment.hasPrefix("(") ? command : comment
     let pattern = digitsToN(key) + "=" + digitsToN(desc)
     let last = sections.count - 1
@@ -78,6 +79,12 @@ for raw in text.components(separatedBy: "\n") {
     }
 }
 sections.removeAll { $0.lines.isEmpty }
+// mouse-modifier (Hyprland bindm) is not a binding: shown as its own section
+if let match = text.firstMatch(of: #/(?m)^mouse-modifier\s*=\s*'([\w-]+)'/#) {
+    let modifier = pretty(String(match.1))
+    sections.append(("mouse", [Line(keys: "\(modifier) + drag", desc: "move window (tiles swap on drop)", pattern: ""),
+                               Line(keys: "\(modifier) + right drag", desc: "resize window", pattern: "")]))
+}
 
 /// accent of the current skyland theme (~/.cache/skyland/theme.css, `@define-color accent #rrggbb;`)
 let accent: NSColor = {

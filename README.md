@@ -177,6 +177,9 @@ right, falling back left when fewer screens are plugged).
 | `alt-shift-l` | theme picker (43PR themes + wallpaper colors) | |
 | `alt-shift-h` | shortcut list (read from the config) | |
 | `alt-s` / `alt-shift-s` | scratchpad: show / hide it here, send the window to it | Hyprland `togglespecialworkspace` |
+| `alt-o` | inactive window opacity 100 / 90 / 80 / 70 | `Super+O` |
+| `alt-p`, `alt-shift-p` | screenshot area (space: window), every display; to ~/Pictures/Screenshots + clipboard | `Shift+Delete`, `Delete` |
+| `alt-d` | launcher (Raycast) | `Super+D` |
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |
 | `alt-m` | media widget | |

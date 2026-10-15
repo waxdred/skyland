@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Cycle the opacity of inactive windows, like 43PR SUPER+O: 100 -> 90 -> 80 -> 70 -> 100.
+# Edits [decoration] inactive-opacity in the config and reloads it.
+set -euo pipefail
+CONFIG="$(readlink -f "${SKYLAND_CONFIG:-$HOME/.config/aerospace/aerospace.toml}")"
+REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+current="$("$REPO/bin/skyland-config" decoration inactive-opacity)"
+case "${current:-100}" in
+    100) next=90 ;; 9*) next=80 ;; 8*) next=70 ;; *) next=100 ;;
+esac
+sed -i '' -E "s/^(inactive-opacity[[:space:]]*=[[:space:]]*)[0-9]+/\1$next/" "$CONFIG"
+"$REPO/.build/debug/aerospace" reload-config </dev/null
+osascript -e "display notification \"inactive windows $next%\" with title \"Opacity\"" >/dev/null

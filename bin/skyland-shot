@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Screenshots like 43PR (Delete / Shift+Delete): saved to ~/Pictures/Screenshots,
+# copied to the clipboard, notified.
+# usage: skyland-shot area | screen
+#   area    select an area (space switches to a window, esc cancels)
+#   screen  every display, one file each (clipboard: the first)
+set -euo pipefail
+dir="$HOME/Pictures/Screenshots"
+mkdir -p "$dir"
+base="$dir/$(date +%Y-%m-%d_%H-%M-%S)"
+case "${1:-area}" in
+    area) files=("$base.png"); screencapture -i "${files[0]}" ;;
+    screen)
+        files=()
+        for i in $(seq 1 "$(system_profiler SPDisplaysDataType | grep -c Resolution)"); do files+=("$base-$i.png"); done
+        screencapture -x "${files[@]}"
+        ;;
+    *) echo "usage: skyland-shot area | screen" >&2; exit 1 ;;
+esac
+[[ -f "${files[0]}" ]] || exit 0 # cancelled
+osascript -e "set the clipboard to (read (POSIX file \"${files[0]}\") as «class PNGf»)" \
+    -e "display notification \"${files[0]##*/}\" with title \"Screenshot\"" >/dev/null
