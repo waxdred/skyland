@@ -13,11 +13,14 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **move and resize with the mouse** anywhere on a window (`alt` + drag), tiles swap on drop
 - **window decoration**: rounded corners, active/inactive opacity
 - **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
-- **43PR themes** as CSS files, light/dark toggle, **colors generated from the wallpaper**
+- **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget**
 - **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
+- **shortcut cheat sheet** (`alt-shift-h`) read from the config
 - windows **keep their workspace** across restarts
 - a switch between this setup and a regular yabai/skhd setup (`skyland-env work|hypr`)
+
+![skyland demo: tiling, theme picker, themes, wallpaper picker and wallpaper colors, workspace switch, overview, cheat sheet, lock screen](docs/screenshots/demo.gif)
 
 <table>
 <tr>
