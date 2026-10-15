@@ -1,0 +1,31 @@
+= aerospace-group-focus(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-group-focus
+// tag::purpose[]
+:manpurpose: Focus the next or previous tab of the group of the focused window
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace group-focus [-h|--help] (next|prev)
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}, wrapping around (Hyprland changegroupactive). A group is an accordion
+container while `[decoration] group-bar-height` is set.
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+// end::body[]
+
+// =========================================================== Footer
+include::util/man-footer.adoc[]

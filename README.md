@@ -17,6 +17,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars
 - **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
 - **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, plus **Keys** (record a key, edit command and description, duplicates and macOS shortcuts flagged) and **Rules** (float / tile / workspace per app, from the running apps) tabs; applied live and written to the config with its comments kept
+- **groups** (`alt-g`): a container becomes tabs with a tabs bar, `alt-n` cycles, `alt-ctrl-h/j/k/l` groups with a neighbour (Hyprland `togglegroup`, `changegroupactive`, `moveintogroup`)
 - **scratchpad** (`alt-s`), **window rules** (floating utilities, apps sent to a workspace)
 - **window management on/off** (`alt-r`) with a HUD, windows back to stock macOS while off
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config
@@ -171,6 +172,7 @@ active-opacity = 100              # percent
 inactive-opacity = 85
 border-width = 2                  # focused window border, theme accent gradient (JankyBorders), 0 = none
 blur = 5                          # Ghostty background blur, 0 = none
+group-bar-height = 22             # accordion containers become groups with a tabs bar, 0 = AeroSpace accordion
 
 [animations]                      # Hyprland speed is in ds: speed 5 = 500 ms
 enabled = true
@@ -231,6 +233,9 @@ right, falling back left when fewer screens are plugged).
 | `alt-shift-l` | theme picker (43PR themes + wallpaper colors) | |
 | `alt-shift-h` | shortcut list (read from the config) | |
 | `alt-s` / `alt-shift-s` | scratchpad: show / hide it here, send the window to it (`alt-space` on a shown one takes it out) | Hyprland `togglespecialworkspace` |
+| `alt-g` | group: the container becomes tabs (tabs bar on top), again: tiles | `togglegroup` |
+| `alt-n`, `alt-shift-n` | next / previous tab of the group (`group-focus`) | `changegroupactive` |
+| `alt-ctrl-h/j/k/l` | group with the window in that direction | `moveintogroup` |
 | `alt-i` | settings window: gaps, decoration, animations, wallpaper, media, lock (applied live, comments kept) | `Super+I` |
 | `alt-r` | window management off / on (stock macOS windows while off), HUD with the state | |
 | `alt-o` | inactive window opacity 100 / 90 / 80 / 70 | `Super+O` |

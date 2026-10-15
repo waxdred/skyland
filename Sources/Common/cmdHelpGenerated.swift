@@ -186,3 +186,6 @@ let workspace_help_generated = """
 let settings_help_generated = """
     USAGE: settings [-h|--help]
     """
+let group_focus_help_generated = """
+    USAGE: group-focus [-h|--help] (next|prev)
+    """

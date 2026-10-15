@@ -75,6 +75,7 @@ active-opacity = 100
 inactive-opacity = 90
 border-width = 2 # focused window border, theme accent gradient (JankyBorders)
 blur = 5 # Ghostty background blur (43PR blur size 5)
+group-bar-height = 22 # Hyprland groups: accordion containers get a tabs bar (alt-g)
 
 # 43PR: bezier easeOut 0.05,0.9,0.1,1.0; windows speed 5 (500 ms), workspaces
 # speed 6 (600 ms) with the "default" curve, style slidefadevert; fade speed 4.
@@ -192,6 +193,13 @@ alt-space = 'layout floating tiling' # float at 70%, centered (43PR SUPER+Space)
 alt-s = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch toggle' # scratchpad (Hyprland special workspace)
 alt-shift-s = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch move' # send window to the scratchpad
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
+alt-g = 'layout accordion tiles' # togglegroup: the window's container becomes a group of tabs, or tiles again
+alt-n = 'group-focus next' # next tab of the group (changegroupactive f)
+alt-shift-n = 'group-focus prev' # previous tab of the group
+alt-ctrl-h = ['join-with left', 'layout accordion'] # moveintogroup: group with the window on the left
+alt-ctrl-j = ['join-with down', 'layout accordion'] # group with the window below
+alt-ctrl-k = ['join-with up', 'layout accordion'] # group with the window above
+alt-ctrl-l = ['join-with right', 'layout accordion'] # group with the window on the right
 alt-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme toggle' # light / dark theme (43PR SUPER+L)
 alt-shift-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme pick' # theme picker
 alt-shift-h = 'exec-and-forget pkill -x skyland-keys || ~/code/hyperland/skyland/.build/skyland-keys' # this shortcut list

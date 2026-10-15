@@ -145,6 +145,14 @@ extension TilingContainer {
     @MainActor
     fileprivate func layoutAccordion(_ point: CGPoint, width: CGFloat, height: CGFloat, virtual: Rect, _ context: LayoutContext) async throws {
         guard let mruIndex: Int = mostRecentChild?.ownIndex else { return }
+        // skyland: Hyprland group, every tab in the whole slot under the tabs bar
+        let bar = CGFloat(config.decoration.groupBarHeight)
+        if bar > 0 {
+            for child in children {
+                try await child.layoutRecursive(point + CGPoint(x: 0, y: bar), width: width, height: max(1, height - bar), virtual: virtual, context)
+            }
+            return
+        }
         for (index, child) in children.enumerated() {
             let padding = CGFloat(config.accordionPadding)
             let (lPadding, rPadding): (CGFloat, CGFloat) = switch index {

@@ -325,7 +325,7 @@ private final class OverviewCards: NSView {
 
     @MainActor
     private func drawStrip() {
-        let theme = overviewThemeColors()
+        let theme = skylandThemeColors()
         let fg = theme["fg"] ?? .white, accent = theme["accent"] ?? .systemBlue
         // Theme tint over the blur, then the strip border (Hyprspace panelBorderColor)
         let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: radius, yRadius: radius)
@@ -474,7 +474,7 @@ extension Rect {
 }
 
 /// `@define-color key #rrggbb;` of the current skyland theme (~/.cache/skyland/theme.css).
-private func overviewThemeColors() -> [String: NSColor] {
+func skylandThemeColors() -> [String: NSColor] {
     let url = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/theme.css")
     guard let css = try? String(contentsOf: url, encoding: .utf8) else { return [:] }
     var result: [String: NSColor] = [:]

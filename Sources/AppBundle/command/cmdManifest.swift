@@ -12,6 +12,8 @@ extension CmdArgs {
                 command = BalanceSizesCommand(args: self as! BalanceSizesCmdArgs)
             case .settings:
                 command = SettingsCommand(args: self as! SettingsCmdArgs)
+            case .groupFocus:
+                command = GroupFocusCommand(args: self as! GroupFocusCmdArgs)
             case .close:
                 command = CloseCommand(args: self as! CloseCmdArgs)
             case .closeAllWindowsButCurrent:

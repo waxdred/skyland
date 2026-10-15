@@ -15,6 +15,7 @@ import Common
 // inactive-opacity = 90
 // border-width = 2     # focused window border in the theme accent (JankyBorders), 0 = none
 // blur = 5             # Ghostty background blur behind its translucent background, 0 = none
+// group-bar-height = 22 # accordion containers become Hyprland groups: tabs bar on top, one window shown (0 = AeroSpace accordion)
 // border-width and blur are applied by bin/skyland-theme; parsed here so the config validates.
 struct Decoration: ConvenienceMutable, Equatable, Sendable {
     var rounding: Int = 0
@@ -22,6 +23,7 @@ struct Decoration: ConvenienceMutable, Equatable, Sendable {
     var inactiveOpacity: Int = 100
     var borderWidth: Int = 0
     var blur: Int = 0
+    var groupBarHeight: Int = 0
 
     var isEnabled: Bool { rounding > 0 || activeOpacity != 100 || inactiveOpacity != 100 }
 }
@@ -32,6 +34,7 @@ private let decorationParser: [String: any ParserProtocol<Decoration>] = [
     "inactive-opacity": Parser(\.inactiveOpacity, parseInt),
     "border-width": Parser(\.borderWidth, parseInt),
     "blur": Parser(\.blur, parseInt),
+    "group-bar-height": Parser(\.groupBarHeight, parseInt),
 ]
 
 func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> Decoration {
@@ -93,7 +96,7 @@ func applyDecorations() {
             fadeIn = fades && !startingUp // Hyprland fadeIn
         }
         // Hidden in a corner = workspace switched away: fade out while it slides out
-        let opacity = fades && window.isHiddenInCorner ? 0
+        let opacity = (fades && window.isHiddenInCorner) || isHiddenGroupTab(window) ? 0
             : windowId == focusedId ? deco.activeOpacity : deco.inactiveOpacity
         if fadeIn || sentOpacity[windowId, default: 100] != opacity {
             sentOpacity[windowId] = opacity
@@ -176,4 +179,17 @@ func skylandSa(_ line: String, wait: Bool = false) -> String? {
     if wait { return skylandSaQueue.sync(execute: send) }
     skylandSaQueue.async { _ = send() }
     return nil
+}
+
+/// A window of a group (accordion with group-bar-height) that is not the shown tab:
+/// fully transparent behind the shown one.
+@MainActor
+func isHiddenGroupTab(_ window: Window) -> Bool {
+    guard config.decoration.groupBarHeight > 0 else { return false }
+    var node: TreeNode = window
+    while let parent = node.parent as? TilingContainer {
+        if parent.layout == .accordion && parent.mostRecentChild !== node { return true }
+        node = parent
+    }
+    return false
 }
