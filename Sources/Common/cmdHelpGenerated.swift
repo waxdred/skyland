@@ -183,3 +183,6 @@ let workspace_help_generated = """
     USAGE: workspace [-h|--help] [--auto-back-and-forth] [--fail-if-noop] [--] <workspace-name>
        OR: workspace [-h|--help] [--wrap-around] [--stdin|--no-stdin] (next|prev)
     """
+let settings_help_generated = """
+    USAGE: settings [-h|--help]
+    """

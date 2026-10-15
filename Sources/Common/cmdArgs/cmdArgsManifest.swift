@@ -36,6 +36,7 @@ public enum CmdKind: String, CaseIterable, Equatable, Sendable {
     case moveWorkspaceToMonitor = "move-workspace-to-monitor"
     case reloadConfig = "reload-config"
     case resize
+    case settings // skyland
     case runCallback = "run-callback"
     case split
     case subscribe
@@ -58,6 +59,8 @@ func initSubcommands() -> [String: any SubCommandParserProtocol] {
         switch kind {
             case .balanceSizes:
                 result[kind.rawValue] = SubCommandParser(BalanceSizesCmdArgs.init)
+            case .settings:
+                result[kind.rawValue] = SubCommandParser(SettingsCmdArgs.init)
             case .close:
                 result[kind.rawValue] = SubCommandParser(CloseCmdArgs.init)
             case .closeAllWindowsButCurrent:

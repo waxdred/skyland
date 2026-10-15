@@ -1,0 +1,31 @@
+= aerospace-settings(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-settings
+// tag::purpose[]
+:manpurpose: Open the skyland settings window
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace settings [-h|--help]
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}: gaps, decoration, animations, wallpaper, media widget and lock screen,
+written to the config file (comments kept) and applied at once.
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+// end::body[]
+
+// =========================================================== Footer
+include::util/man-footer.adoc[]

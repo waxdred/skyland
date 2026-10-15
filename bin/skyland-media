@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Floating media widget (tools/media-widget), on every workspace, drag it with the mouse.
-# usage: skyland-media toggle | open | close
+# usage: skyland-media toggle | open | close | restart (only if open, e.g. new opacity)
 #
 # [media]
 # opacity = 92          # percent, whole widget
@@ -18,5 +18,6 @@ case "${1:-toggle}" in
     toggle) pkill -x skyland-media || open_widget ;;
     open) pgrep -xq skyland-media || open_widget ;;
     close) pkill -x skyland-media || true ;;
-    *) echo "usage: skyland-media toggle | open | close" >&2; exit 1 ;;
+    restart) pkill -x skyland-media && sleep 0.3 && open_widget || true ;;
+    *) echo "usage: skyland-media toggle | open | close | restart" >&2; exit 1 ;;
 esac

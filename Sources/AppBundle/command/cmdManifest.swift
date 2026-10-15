@@ -10,6 +10,8 @@ extension CmdArgs {
                 command = TrueCommand(args: self as! TrueCmdArgs)
             case .balanceSizes:
                 command = BalanceSizesCommand(args: self as! BalanceSizesCmdArgs)
+            case .settings:
+                command = SettingsCommand(args: self as! SettingsCmdArgs)
             case .close:
                 command = CloseCommand(args: self as! CloseCmdArgs)
             case .closeAllWindowsButCurrent:

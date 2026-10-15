@@ -27,13 +27,14 @@ func enableBindings() -> [String: HotkeyBinding] {
 func skylandEnabledChanged(_ enabled: Bool) {
     if !enabled { restoreDecorations() }
     // The JankyBorders border follows the theme script: started by `skyland-theme apply`
-    let repo = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent() // <repo>/.build/Skyland.app
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: enabled ? repo.appending(path: "bin/skyland-theme").path : "/usr/bin/pkill")
-    process.arguments = enabled ? ["apply"] : ["-x", "borders"]
-    process.standardOutput = FileHandle.nullDevice
-    process.standardError = FileHandle.nullDevice
-    try? process.run()
+    if enabled {
+        runSkylandScript(["skyland-theme", "apply"])
+    } else {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
+        process.arguments = ["-x", "borders"]
+        try? process.run()
+    }
     showStateHud(enabled)
 }
 
