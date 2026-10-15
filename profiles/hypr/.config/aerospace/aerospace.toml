@@ -32,23 +32,40 @@ on-focus-changed = ['move-mouse window-lazy-center', 'exec-and-forget sketchybar
 # sketchybar workspaces + window title (profiles/hypr/sketchybar/)
 exec-on-workspace-change = ['/bin/bash', '-c', 'sketchybar --trigger skyland_update']
 
-# 43PR: workspaces 1-4 persistent
-persistent-workspaces = ["1", "2", "3", "4"]
+# 4 workspaces per screen, screens numbered left to right: 1-4 on screen 1,
+# 5-8 on screen 2, 9-12 on screen 3; with fewer screens they fall back left.
+persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
 
-key-mapping.preset = 'qwerty'
-# French AZERTY keyboard: AeroSpace reads keys by their QWERTY position, so
-# letters that move are remapped to their AZERTY label (physical keys, so it
-# also holds when the input layout is switched to QWERTY).
-key-mapping.key-notation-to-key-code = { a = 'q', q = 'a', z = 'w', w = 'z', m = 'semicolon' }
+
+# Letters follow the active keyboard layout (French AZERTY, English QWERTY...):
+# alt-m is the key that types "m" right now. Digits keep their physical position.
+key-mapping.preset = 'input-source'
 
 # 43PR: gaps_in = 4, gaps_out = { top 5, right 8, bottom 8, left 8 }
-# sketchybar (32px) overlays the macOS menu bar, which macOS already reserves
+# sketchybar (32px) overlays the macOS menu bar; bar-height keeps windows below it
+# on screens whose menu bar is thinner (external displays, ~24px)
+bar-height = 32
 gaps.inner.horizontal = 4
 gaps.inner.vertical = 4
 gaps.outer.top = 5
 gaps.outer.right = 8
 gaps.outer.bottom = 8
 gaps.outer.left = 8
+
+[workspace-to-monitor-force-assignment]
+1 = 1
+2 = 1
+3 = 1
+4 = 1
+5 = [2, 1]
+6 = [2, 1]
+7 = [2, 1]
+8 = [2, 1]
+9 = [3, 2, 1]
+10 = [3, 2, 1]
+11 = [3, 2, 1]
+12 = [3, 2, 1]
+
 
 # 43PR: rounding = 8, opacity 1.0 override (inactive dimmed here to test the
 # scripting addition, set 100 for the exact 43PR look). Needs `skyland-sa load`.

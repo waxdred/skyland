@@ -66,6 +66,30 @@ final class MouseModifierTest: XCTestCase {
     }
 }
 
+final class InputSourceKeysTest: XCTestCase {
+    func testEveryLetterHasAKeyInTheActiveLayout() {
+        let keys = inputSourceLetterKeys()
+        assertEquals(keys.count, 26)
+        assertEquals(Set(keys.values.map(\.carbonKeyCode)).count, 26) // one physical key per letter
+    }
+
+    @MainActor
+    func testPreset() {
+        let result = parseConfig("key-mapping.preset = 'input-source'")
+        assertEquals(result.errors, [])
+        assertEquals(result.config.keyMapping.followsInputSource, true)
+    }
+}
+
+final class BarHeightTest: XCTestCase {
+    func testOverlap() {
+        assertEquals(barOverlap(barHeight: 32, menuBarHeight: 32), 0) // notched built-in display
+        assertEquals(barOverlap(barHeight: 32, menuBarHeight: 24), 8) // external display
+        assertEquals(barOverlap(barHeight: 32, menuBarHeight: 0), 32) // auto-hidden menu bar
+        assertEquals(barOverlap(barHeight: 0, menuBarHeight: 24), 0) // option off
+    }
+}
+
 final class FloatingCenterTest: XCTestCase {
     func testCenteredRect() {
         let r = centeredRect(in: Rect(topLeftX: 0, topLeftY: 32, width: 1000, height: 600), percent: 70)

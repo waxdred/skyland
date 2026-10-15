@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Turn the work sketchybar (yabai Spaces) into a skyland bar: run by
 # `skyland-env hypr` after `sketchybar --reload` loaded the work config.
-# Replaces the space.* items by skyland workspaces 1-10 and points window_title
+# Replaces the space.* items by skyland workspaces 1-12 and points window_title
 # at skyland. `skyland-env work` reloads the work config, which undoes all this.
 # Updates come from skyland: see on-focus-changed / exec-on-workspace-change in
 # profiles/hypr/.config/aerospace/aerospace.toml.
@@ -11,14 +11,14 @@ UPDATE="$DIR/update.sh"
 CLI="$(cd "$DIR/../../.." && pwd)/.build/debug/aerospace"
 
 # Same icons and Catppuccin colors as the work sketchybarrc / plugins/space.sh
-ICONS=("󰇧" "󰭻" "󰩃" "󰚩" "" "󰝚" "󰉋" "󰆼" "" "󰘙")
+ICONS=("󰇧" "󰭻" "󰩃" "󰚩" "" "󰝚" "󰉋" "󰆼" "" "󰘙" "󰀵" "󰆺")
 SUBTEXT0=0xffa5adcb
 MAUVE=0xffc6a0f6
 SURFACE0=0xff363a4f
 SURFACE2=0xff5b6078
 
 args=(--remove '/space\..*/' --add event skyland_update)
-for i in $(seq 1 10); do
+for i in $(seq 1 12); do
     # after space_separator's left neighbour: insert before the separator
     args+=(--add item "workspace.$i" left
         --set "workspace.$i" icon="${ICONS[$((i - 1))]}"

@@ -106,6 +106,8 @@ dwindle = true                    # new window splits the focused one along its 
 dwindle-smart-split = true        # ...on the side of the cursor (Hyprland smart_split)
 floating-center-percent = 70      # 'layout floating' on a tile: N% of the monitor, centered
 mouse-modifier = 'alt'            # alt + left drag moves, alt + right drag resizes (anywhere on a window)
+bar-height = 32                   # keep windows below sketchybar on every screen (thinner external menu bars)
+key-mapping.preset = 'input-source'  # letters follow the active keyboard layout (FR AZERTY / EN QWERTY)
 
 [decoration]
 rounding = 8
@@ -143,8 +145,12 @@ The 18 43PR themes are in `profiles/hypr/.config/skyland/themes/`: copy one and
 edit the colors to make your own. `wallpaper-colors.json` maps Material roles to
 theme keys (43PR's `semantic.json`).
 
-The profile also remaps `a/q/z/w/m` for a **French AZERTY** keyboard; remove
-`key-mapping.key-notation-to-key-code` on QWERTY.
+`key-mapping.preset = 'input-source'` makes letters in bindings follow the active
+keyboard layout (switching between French AZERTY and English QWERTY keeps
+`alt-m` on the key that types "m"); digits keep their physical position.
+
+The profile assigns **4 workspaces per screen** (1-4, 5-8, 9-12, screens left to
+right, falling back left when fewer screens are plugged).
 
 ## Keybindings (hypr profile)
 
@@ -160,7 +166,7 @@ The profile also remaps `a/q/z/w/m` for a **French AZERTY** keyboard; remove
 | `cmd-h/j/k/l` | focus | `Super+H/J/K/L` |
 | `cmd-shift-h/j/k/l` | move window | `Super+Shift+H/J/K/L` |
 | `cmd-alt-h/j/k/l`, `cmd-alt-e` | resize, balance | `Super+Ctrl+H/J/K/L` |
-| `cmd-1..0`, `cmd-shift-1..0` | workspace, move window there | `Super+1..0` |
+| `cmd-1..0`, `cmd-shift-1..0` | workspace 1-10 (on its screen), move window there | `Super+1..0` |
 | `cmd-left` / `cmd-right` | previous / next workspace | |
 | `alt-l` | light / dark theme | `Super+L` |
 | `alt-w` | wallpaper picker | `Super+W` |

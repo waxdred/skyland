@@ -43,6 +43,7 @@ struct Config: ConvenienceMutable {
     var dwindle: Bool = false // skyland: Hyprland dwindle placement for new windows
     var dwindleSmartSplit: Bool = false // skyland: Hyprland dwindle:smart_split, split side follows the cursor
     var mouseModifier: String = "" // skyland: modifier for move (left drag) / resize (right drag) anywhere on a window
+    var barHeight: Int = 0 // skyland: height of a bar drawn over the menu bar, windows stay below it on every monitor
     var floatingCenterPercent: Int = 0 // skyland: 'layout floating' on a tile resizes it to N% of the monitor, centered
     var defaultRootContainerOrientation: DefaultContainerOrientation = .auto
     var startAtLogin: Bool = false

@@ -9,7 +9,10 @@ private let keyMappingParser: [String: any ParserProtocol<KeyMapping>] = [
 struct KeyMapping: ConvenienceMutable, Equatable, Sendable {
     enum Preset: String, CaseIterable, Sendable {
         case qwerty, dvorak, colemak
+        case inputSource = "input-source" // skyland: letters follow the active keyboard layout
     }
+
+    var followsInputSource: Bool { preset == .inputSource }
 
     init(
         preset: Preset = .qwerty,

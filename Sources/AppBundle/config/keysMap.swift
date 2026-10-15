@@ -48,6 +48,7 @@ func getKeysPreset(_ layout: KeyMapping.Preset) -> [String: Key] {
         case .qwerty: keyNotationToKeyCode
         case .dvorak: dvorakMap
         case .colemak: colemakMap
+        case .inputSource: keyNotationToKeyCode.merging(inputSourceLetterKeys()) { _, layoutKey in layoutKey } // skyland
     }
 }
 

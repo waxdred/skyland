@@ -143,6 +143,7 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     "dwindle": Parser(\.dwindle, parseBool),
     "dwindle-smart-split": Parser(\.dwindleSmartSplit, parseBool),
     "floating-center-percent": Parser(\.floatingCenterPercent, parseInt),
+    "bar-height": Parser(\.barHeight, parseInt),
     "mouse-modifier": Parser(\.mouseModifier, { raw, backtrace in
         parseString(raw, backtrace).flatMap { value in
             value.isEmpty || parseMouseModifier(value) != nil

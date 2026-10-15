@@ -23,6 +23,7 @@ import Foundation
         startUnixSocketServer()
         GlobalObserver.initObserver()
         startMouseDragTap() // skyland
+        observeInputSourceChanges() // skyland
         Workspace.garbageCollectUnusedWorkspaces() // init workspaces
         _ = Workspace.all.first?.focusWorkspace()
         await runHeavyCompleteRefreshSession(
