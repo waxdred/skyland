@@ -22,6 +22,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config
 - windows **keep their workspace** across restarts
 - a switch between this setup and a regular yabai/skhd setup (`skyland-env work|hypr`)
+- companion **[skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)**: cyberpunk apps launcher (`alt-d`) and messages panel (`alt-shift-m`) with a scripting API, notifications from mail and herdr agents
 
 ![skyland demo: tiling, theme picker, themes, wallpaper picker and wallpaper colors, workspace switch, overview, cheat sheet, lock screen](docs/screenshots/demo.gif)
 
@@ -43,6 +44,31 @@ Screenshots are framed with `tools/frame-screenshot.swift`
 
 > This is a personal setup. Paths like `~/code/hyperland/skyland` are hard-coded in
 > the `hypr` profile bindings; adjust them if you clone elsewhere.
+
+## skyland-cyberdeck
+
+[skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck) is a separate repo
+with the cyberpunk HUD pieces, bound in the hypr profile:
+
+- **apps launcher** (`alt-d`): a see-through "eye implant" deck, curved column of
+  apps, type to search
+- **messages** (`alt-shift-m`, `alt-shift-x` dismisses all): the macOS Notification
+  Center history and script messages as neon contact cards
+- **scripting API**: `skyland-cyberdeck notify -t TITLE -b BODY`, `list --json`,
+  `dismiss`; integrations for a sketchybar mail item and
+  [herdr](https://herdr.dev) agents (finished / needs you)
+
+<table>
+<tr>
+<td><img src="https://raw.githubusercontent.com/waxdred/skyland-cyberdeck/main/docs/launcher.jpg" alt="cyberdeck apps launcher"></td>
+<td><img src="https://raw.githubusercontent.com/waxdred/skyland-cyberdeck/main/docs/messages.jpg" alt="cyberdeck messages panel"></td>
+</tr>
+</table>
+
+```sh
+git clone git@github.com:waxdred/skyland-cyberdeck.git ~/code/hyperland/skyland-cyberdeck
+cd ~/code/hyperland/skyland-cyberdeck && swift build -c release
+```
 
 ## How it works
 
