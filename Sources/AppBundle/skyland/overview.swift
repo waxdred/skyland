@@ -146,17 +146,82 @@ private func makePanel() -> NSPanel {
     return p
 }
 
-/// Light dim over the whole screen; a click on it closes the overview.
+/// Light dim over the whole screen. The zoomed out windows under it can be
+/// clicked (focus) or dragged onto a card (move), like in Hyprspace; a click
+/// anywhere else closes the overview.
 private final class OverviewBackdrop: NSView {
+    private var pressed: (windowId: UInt32, start: NSPoint, size: NSSize)? = nil
+    private var dragPoint: NSPoint? = nil
+
     override func draw(_ dirtyRect: NSRect) {
         NSColor.black.withAlphaComponent(0.15).setFill()
         bounds.fill()
+        MainActor.assumeIsolated {
+            guard let pressed, let dragPoint, let image = thumbnails[pressed.windowId] else { return }
+            let rect = NSRect(x: dragPoint.x - pressed.size.width / 2, y: dragPoint.y - pressed.size.height / 2, width: pressed.size.width, height: pressed.size.height)
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8).addClip()
+            image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 0.8)
+            NSGraphicsContext.restoreGraphicsState()
+        }
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    /// Zoomed out window under a point of this view.
+    @MainActor
+    private func zoomedWindow(at point: NSPoint) -> (windowId: UInt32, zoomed: Rect)? {
+        guard let screen = window?.screen, let main = NSScreen.screens.first else { return nil }
+        // view coordinates -> global top-left coordinates used by window rects
+        let global = CGPoint(x: screen.frame.minX + point.x, y: main.frame.maxY - (screen.frame.minY + point.y))
+        return zoomedWindows.last(where: { $0.zoomed.contains(global) }).map { ($0.windowId, $0.zoomed) }
+    }
+
     override func mouseDown(with event: NSEvent) {
-        Task { @MainActor in await activateMode_nonCancellable(mainModeId) }
+        let point = convert(event.locationInWindow, from: nil)
+        MainActor.assumeIsolated {
+            guard let hit = zoomedWindow(at: point) else {
+                pressed = nil
+                Task { @MainActor in await activateMode_nonCancellable(mainModeId) } // empty area: close
+                return
+            }
+            // dragged at the size of a card thumbnail
+            let scale = (strip?.cardScale ?? 0.15)
+            pressed = (hit.windowId, point, NSSize(width: hit.zoomed.width * scale, height: hit.zoomed.height * scale))
+        }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let pressed else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        if dragPoint == nil && hypot(point.x - pressed.start.x, point.y - pressed.start.y) < 5 { return }
+        dragPoint = point
+        needsDisplay = true
+        MainActor.assumeIsolated { strip?.highlightDrop(at: convert(point, to: strip)) }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let pressed = self.pressed, dragged = dragPoint != nil
+        self.pressed = nil
+        dragPoint = nil
+        needsDisplay = true
+        guard let pressed else { return }
+        MainActor.assumeIsolated {
+            strip?.highlightDrop(at: nil)
+            let target = strip.flatMap { $0.workspace(at: convert(point, to: $0)) }
+            Task { @MainActor in
+                if dragged {
+                    guard let target, target != MacWindow.allWindowsMap[pressed.windowId]?.nodeWorkspace?.name else { return }
+                    skylandSa("untransform \(pressed.windowId)")
+                    zoomedWindows.removeAll { $0.windowId == pressed.windowId }
+                    await runOverviewCommand("move-node-to-workspace --window-id \(pressed.windowId) \(target)")
+                } else {
+                    await runOverviewCommand("focus --window-id \(pressed.windowId)")
+                    await activateMode_nonCancellable(mainModeId)
+                }
+            }
+        }
     }
 }
 
@@ -183,6 +248,10 @@ private final class OverviewStrip: NSView {
     required init?(coder: NSCoder) { nil }
 
     func cardsNeedDisplay() { cardsView.needsDisplay = true }
+    /// Size ratio between a window and its thumbnail in a card.
+    private(set) var cardScale: CGFloat = 0.15
+    func workspace(at point: NSPoint) -> String? { cardsView.workspace(at: convert(point, to: cardsView)) }
+    func highlightDrop(at point: NSPoint?) { cardsView.externalDragPoint = point.map { convert($0, to: cardsView) } }
 
     @MainActor
     func layoutCards() {
@@ -208,6 +277,7 @@ private final class OverviewStrip: NSView {
         blur.frame = bounds
         blur.maskImage = roundedMask(radius)
         cardsView.frame = bounds
+        cardScale = cardWidth / monitorRect.width
         cardsView.configure(workspaces: workspaces, columns: columns, cardSize: NSSize(width: cardWidth, height: cardHeight),
                             padding: padding, spacing: spacing, labelHeight: labelHeight, radius: radius)
     }
@@ -234,8 +304,12 @@ private final class OverviewCards: NSView {
     // drag & drop of a window thumbnail (Hyprspace dragAlpha)
     private var pressed: (windowId: UInt32, workspace: String, offset: NSPoint, size: NSSize, start: NSPoint)? = nil
     private var dragPoint: NSPoint? = nil
+    /// Cursor while a zoomed out window is dragged from the backdrop (drop target highlight).
+    var externalDragPoint: NSPoint? = nil { didSet { needsDisplay = true } }
 
     override var isFlipped: Bool { true } // same top-left origin as window rects
+
+    func workspace(at point: NSPoint) -> String? { cards.first(where: { $0.rect.contains(point) })?.workspace }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     @MainActor
@@ -271,7 +345,7 @@ private final class OverviewCards: NSView {
                               width: cardSize.width, height: cardSize.height)
             cards.append((card, workspace.name))
             let active = workspace == focused
-            let highlighted = active || dragPoint.map(card.contains) == true // drop target while dragging
+            let highlighted = active || (dragPoint ?? externalDragPoint).map(card.contains) == true // drop target while dragging
             NSAttributedString(string: workspace.name, attributes: [
                 .font: NSFont.systemFont(ofSize: 13, weight: active ? .bold : .medium),
                 .foregroundColor: active ? accent : fg.withAlphaComponent(0.65),
@@ -351,8 +425,8 @@ private final class OverviewCards: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let pressed else { return }
         let point = convert(event.locationInWindow, from: nil)
+        guard let pressed else { return }
         if dragPoint == nil && hypot(point.x - pressed.start.x, point.y - pressed.start.y) < 5 { return }
         dragPoint = point
         needsDisplay = true
@@ -411,3 +485,4 @@ private func overviewThemeColors() -> [String: NSColor] {
     }
     return result
 }
+
