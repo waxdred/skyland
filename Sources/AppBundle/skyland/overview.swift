@@ -1,21 +1,24 @@
 import AppKit
 import Common
+import ScreenCaptureKit
 
 // skyland workspace overview, styled after the Hyprland Hyprspace plugin
 // (KDE / macOS-like): a translucent glass strip slides down from the top of
-// the focused screen with that screen's workspaces centered in it, the active
-// one with a tinted background and an accent border, the others barely
-// visible; the rest of the screen is only lightly dimmed. Shown while the
-// binding mode "overview" is active, so it is driven by config bindings
-// ([mode.overview.binding]); a click on a card goes there, outside closes.
-// Windows are drawn at their place in the layout with their app icon (live
-// previews would need Screen Recording permission, and hidden workspaces'
-// windows are at alpha 0).
+// the focused screen with that screen's workspaces, while the windows of the
+// screen zoom out below it. Each workspace card shows live window thumbnails
+// (ScreenCaptureKit, needs Screen Recording permission; app icons otherwise).
+// Drag a window onto another card to move it there, click a window to focus
+// it, click a card to go to that workspace, click outside to close.
+// Shown while the binding mode "overview" is active ([mode.overview.binding]).
 
 let overviewModeId = "overview"
 
 @MainActor private var panel: NSPanel? = nil
 @MainActor private var strip: OverviewStrip? = nil
+/// Windows zoomed out under the strip, with their real rect, to zoom back in.
+@MainActor private var zoomedWindows: [(windowId: UInt32, real: Rect, zoomed: Rect)] = []
+/// Last thumbnail of each window: hidden workspaces keep the last capture if a new one fails.
+@MainActor private var thumbnails: [UInt32: NSImage] = [:]
 
 /// Called by activateMode_nonCancellable.
 @MainActor
@@ -44,26 +47,91 @@ private func showOverview() {
     strip = newStrip
     root.addSubview(newStrip)
     newStrip.layoutCards()
+    captureThumbnails(of: newStrip.workspaces)
 
+    let anim = config.animations
+    let duration = anim.enabled ? min(0.45, Double(anim.windowsMs) / 1000) : 0
     // Slide down from above the screen with the windows animation curve
     let final = newStrip.frame
     newStrip.setFrameOrigin(NSPoint(x: final.minX, y: root.bounds.height))
     panel.alphaValue = 0
     panel.orderFrontRegardless()
-    let anim = config.animations
     NSAnimationContext.runAnimationGroup { context in
-        context.duration = anim.enabled ? min(0.45, Double(anim.windowsMs) / 1000) : 0
+        context.duration = duration
         context.timingFunction = CAMediaTimingFunction(controlPoints: Float(anim.windowsBezier.x1), Float(anim.windowsBezier.y1),
                                                        Float(anim.windowsBezier.x2), Float(anim.windowsBezier.y2))
         newStrip.animator().setFrameOrigin(final.origin)
         panel.animator().alphaValue = 1
     }
+    // Zoom the screen's windows out below the strip
+    let stripBottom = monitor.rect.topLeftY + (root.bounds.height - final.minY) + 12
+    zoomOut(focus.workspace, below: stripBottom, durationMs: Int(duration * 1000))
 }
 
 @MainActor
 private func hideOverview() {
+    guard panel?.isVisible == true else { return }
     panel?.orderOut(nil)
+    zoomIn()
 }
+
+// MARK: zoom out / in (payload transforms, like the window animations)
+
+@MainActor
+private func zoomOut(_ workspace: Workspace, below top: CGFloat, durationMs: Int) {
+    zoomedWindows = []
+    guard config.animations.enabled, payloadCapabilities.contains("close") else { return } // needs `animate ... hold`
+    let area = workspace.workspaceMonitor.visibleRectPaddedByOuterGaps
+    let available = area.topLeftY + area.height - top
+    guard available > 100 else { return }
+    let scale = min(0.9, available / area.height)
+    let ms = max(1, durationMs), bezier = config.animations.windowsBezier
+    for window in workspace.allLeafWindowsRecursive {
+        guard let real = window.lastAppliedLayoutPhysicalRect else { continue }
+        let zoomed = Rect(
+            topLeftX: area.topLeftX + area.width * (1 - scale) / 2 + (real.topLeftX - area.topLeftX) * scale,
+            topLeftY: top + (real.topLeftY - area.topLeftY) * scale,
+            width: real.width * scale, height: real.height * scale,
+        )
+        zoomedWindows.append((window.windowId, real, zoomed))
+        skylandSa("animate \(window.windowId) \(real.args) \(ms) \(bezier.args) \(zoomed.args) 1")
+    }
+}
+
+@MainActor
+private func zoomIn() {
+    let ms = max(1, config.animations.enabled ? min(450, config.animations.windowsMs) : 1)
+    for (windowId, _, zoomed) in zoomedWindows {
+        // from the zoomed rect back to the real frame, the transform is reset at the end
+        skylandSa("animate \(windowId) \(zoomed.args) \(ms) \(config.animations.windowsBezier.args)")
+    }
+    zoomedWindows = []
+}
+
+// MARK: thumbnails (ScreenCaptureKit)
+
+@MainActor
+private func captureThumbnails(of workspaces: [Workspace]) {
+    guard #available(macOS 14, *) else { return }
+    let ids = Set(workspaces.flatMap { $0.allLeafWindowsRecursive.map(\.windowId) })
+    Task { @MainActor in
+        // Asks for Screen Recording permission the first time; without it the cards keep app icons
+        guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) else { return }
+        for scWindow in content.windows where ids.contains(scWindow.windowID) {
+            let filter = SCContentFilter(desktopIndependentWindow: scWindow) // its content, wherever it is, whatever its alpha
+            let configuration = SCStreamConfiguration()
+            let scale = min(1, 640 / max(1, scWindow.frame.width))
+            configuration.width = Int(scWindow.frame.width * scale)
+            configuration.height = Int(scWindow.frame.height * scale)
+            configuration.showsCursor = false
+            guard let image = try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration) else { continue }
+            thumbnails[scWindow.windowID] = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+            strip?.cardsNeedDisplay()
+        }
+    }
+}
+
+// MARK: views
 
 @MainActor
 private func makePanel() -> NSPanel {
@@ -85,6 +153,8 @@ private final class OverviewBackdrop: NSView {
         bounds.fill()
     }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func mouseDown(with event: NSEvent) {
         Task { @MainActor in await activateMode_nonCancellable(mainModeId) }
     }
@@ -93,6 +163,7 @@ private final class OverviewBackdrop: NSView {
 /// The glass strip: blur + theme tint, holding one card per workspace.
 private final class OverviewStrip: NSView {
     let monitorRect: Rect, monitorVisible: Rect
+    private(set) var workspaces: [Workspace] = []
     private let blur = NSVisualEffectView()
     private let cardsView = OverviewCards()
     private let radius: CGFloat = 20, padding: CGFloat = 18, spacing: CGFloat = 16, labelHeight: CGFloat = 22
@@ -111,10 +182,12 @@ private final class OverviewStrip: NSView {
 
     required init?(coder: NSCoder) { nil }
 
+    func cardsNeedDisplay() { cardsView.needsDisplay = true }
+
     @MainActor
     func layoutCards() {
         guard let root = superview else { return }
-        let workspaces = Workspace.all
+        workspaces = Workspace.all
             .filter { $0.workspaceMonitor.rect.topLeftCorner == monitorRect.topLeftCorner }
             .sorted { lhs, rhs in
                 if let l = Int(lhs.name), let r = Int(rhs.name) { return l < r }
@@ -129,7 +202,8 @@ private final class OverviewStrip: NSView {
         let size = NSSize(width: 2 * padding + CGFloat(columns) * cardWidth + CGFloat(columns - 1) * spacing,
                           height: 2 * padding + CGFloat(rows) * (cardHeight + labelHeight) + CGFloat(rows - 1) * spacing)
         // Below the menu bar / sketchybar of this screen (Hyprspace reservedArea)
-        let top = (monitorVisible.topLeftY - monitorRect.topLeftY) + barOverlap(barHeight: config.barHeight, menuBarHeight: monitorVisible.topLeftY - monitorRect.topLeftY) + 10
+        let menuBar = monitorVisible.topLeftY - monitorRect.topLeftY
+        let top = menuBar + barOverlap(barHeight: config.barHeight, menuBarHeight: menuBar) + 10
         frame = NSRect(x: (root.bounds.width - size.width) / 2, y: root.bounds.height - top - size.height, width: size.width, height: size.height)
         blur.frame = bounds
         blur.maskImage = roundedMask(radius)
@@ -154,10 +228,15 @@ private final class OverviewStrip: NSView {
 private final class OverviewCards: NSView {
     private var workspaces: [Workspace] = []
     private var cards: [(rect: NSRect, workspace: String)] = []
+    private var windowRects: [(rect: NSRect, windowId: UInt32, workspace: String)] = []
     private var columns = 1, cardSize = NSSize.zero
     private var padding: CGFloat = 0, spacing: CGFloat = 0, labelHeight: CGFloat = 0, radius: CGFloat = 0
+    // drag & drop of a window thumbnail (Hyprspace dragAlpha)
+    private var pressed: (windowId: UInt32, workspace: String, offset: NSPoint, size: NSSize, start: NSPoint)? = nil
+    private var dragPoint: NSPoint? = nil
 
     override var isFlipped: Bool { true } // same top-left origin as window rects
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     @MainActor
     func configure(workspaces: [Workspace], columns: Int, cardSize: NSSize, padding: CGFloat, spacing: CGFloat, labelHeight: CGFloat, radius: CGFloat) {
@@ -183,6 +262,7 @@ private final class OverviewCards: NSView {
         outline.stroke()
 
         cards = []
+        windowRects = []
         let focused = focus.workspace
         for (index, workspace) in workspaces.enumerated() {
             let column = index % columns, row = index / columns
@@ -191,6 +271,7 @@ private final class OverviewCards: NSView {
                               width: cardSize.width, height: cardSize.height)
             cards.append((card, workspace.name))
             let active = workspace == focused
+            let highlighted = active || dragPoint.map(card.contains) == true // drop target while dragging
             NSAttributedString(string: workspace.name, attributes: [
                 .font: NSFont.systemFont(ofSize: 13, weight: active ? .bold : .medium),
                 .foregroundColor: active ? accent : fg.withAlphaComponent(0.65),
@@ -198,12 +279,17 @@ private final class OverviewCards: NSView {
 
             let path = NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12)
             // active: tinted + accent border; inactive: almost transparent (Hyprspace)
-            (active ? accent.withAlphaComponent(0.16) : fg.withAlphaComponent(0.05)).setFill()
+            (highlighted ? accent.withAlphaComponent(0.16) : fg.withAlphaComponent(0.05)).setFill()
             path.fill()
             drawWindows(of: workspace, in: card, theme: theme)
-            path.lineWidth = active ? 2.5 : 1
-            (active ? accent : fg.withAlphaComponent(0.12)).setStroke()
+            path.lineWidth = highlighted ? 2.5 : 1
+            (highlighted ? accent : fg.withAlphaComponent(0.12)).setStroke()
             path.stroke()
+        }
+        // dragged window under the cursor
+        if let pressed, let dragPoint {
+            let rect = NSRect(x: dragPoint.x - pressed.offset.x, y: dragPoint.y - pressed.offset.y, width: pressed.size.width, height: pressed.size.height)
+            drawWindow(pressed.windowId, in: rect, theme: theme, alpha: 0.8)
         }
     }
 
@@ -212,36 +298,105 @@ private final class OverviewCards: NSView {
     private func drawWindows(of workspace: Workspace, in card: NSRect, theme: [String: NSColor]) {
         let area = workspace.workspaceMonitor.visibleRect
         let scale = min(card.width / area.width, card.height / area.height)
-        let fg = theme["fg"] ?? .white
         for window in workspace.allLeafWindowsRecursive {
-            guard let r = window.lastAppliedLayoutPhysicalRect else { continue } // floating: no layout rect
-            let rect = NSRect(x: card.minX + (r.topLeftX - area.topLeftX) * scale,
+            let rect: NSRect
+            if let r = window.lastAppliedLayoutPhysicalRect {
+                rect = NSRect(x: card.minX + (r.topLeftX - area.topLeftX) * scale,
                               y: card.minY + (r.topLeftY - area.topLeftY) * scale,
                               width: r.width * scale, height: r.height * scale).insetBy(dx: 3, dy: 3)
-            guard rect.width > 8, rect.height > 8 else { continue }
-            let path = NSBezierPath(roundedRect: rect, xRadius: 7, yRadius: 7)
-            (theme["bg_hover"] ?? .gray).withAlphaComponent(0.45).setFill()
-            path.fill()
-            fg.withAlphaComponent(0.10).setStroke()
-            path.lineWidth = 1
-            path.stroke()
-            let iconSize = min(44, rect.width * 0.5, rect.height * 0.6)
-            if let icon = NSRunningApplication(processIdentifier: window.app.pid)?.icon {
-                icon.draw(in: NSRect(x: rect.midX - iconSize / 2, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize))
+            } else if let size = window.lastFloatingSize { // floating: no layout rect, centered at its size
+                let w = min(size.width * scale, card.width - 6), h = min(size.height * scale, card.height - 6)
+                rect = NSRect(x: card.midX - w / 2, y: card.midY - h / 2, width: w, height: h)
+            } else {
+                continue
             }
+            guard rect.width > 8, rect.height > 8 else { continue }
+            windowRects.append((rect, window.windowId, workspace.name))
+            if pressed?.windowId == window.windowId && dragPoint != nil { continue } // drawn under the cursor
+            drawWindow(window.windowId, in: rect, theme: theme, alpha: 1)
         }
     }
 
+    @MainActor
+    private func drawWindow(_ windowId: UInt32, in rect: NSRect, theme: [String: NSColor], alpha: CGFloat) {
+        let path = NSBezierPath(roundedRect: rect, xRadius: 7, yRadius: 7)
+        NSGraphicsContext.saveGraphicsState()
+        path.addClip()
+        if let image = thumbnails[windowId] {
+            image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: alpha)
+        } else {
+            (theme["bg_hover"] ?? .gray).withAlphaComponent(0.45 * alpha).setFill()
+            rect.fill()
+            let iconSize = min(44, rect.width * 0.5, rect.height * 0.6)
+            if let window = MacWindow.allWindowsMap[windowId], let icon = NSRunningApplication(processIdentifier: window.app.pid)?.icon {
+                icon.draw(in: NSRect(x: rect.midX - iconSize / 2, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize),
+                          from: .zero, operation: .sourceOver, fraction: alpha)
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        (theme["fg"] ?? .white).withAlphaComponent(0.12 * alpha).setStroke()
+        path.lineWidth = 1
+        path.stroke()
+    }
+
+    // MARK: mouse: click a window = focus it, click a card = go there, drag a window = move it
+
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        guard let name = cards.first(where: { $0.rect.contains(point) })?.workspace else { return } // strip background: stay open
+        if let hit = windowRects.last(where: { $0.rect.contains(point) }) {
+            pressed = (hit.windowId, hit.workspace, NSPoint(x: point.x - hit.rect.minX, y: point.y - hit.rect.minY), hit.rect.size, point)
+        } else {
+            pressed = nil
+        }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let pressed else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        if dragPoint == nil && hypot(point.x - pressed.start.x, point.y - pressed.start.y) < 5 { return }
+        dragPoint = point
+        needsDisplay = true
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let target = cards.first(where: { $0.rect.contains(point) })?.workspace
+        let pressed = self.pressed, dragged = dragPoint != nil
+        self.pressed = nil
+        dragPoint = nil
+        needsDisplay = true
         Task { @MainActor in
-            if let token: RunSessionGuard = .isServerEnabled {
-                try? await runLightSession(.hotkeyBinding, token) { _ = Workspace.get(byName: name).focusWorkspace() }
+            if let pressed, dragged {
+                // dropped on another workspace: move the window there, stay in the overview
+                guard let target, target != pressed.workspace else { return }
+                skylandSa("untransform \(pressed.windowId)") // it may be zoomed out under the strip
+                zoomedWindows.removeAll { $0.windowId == pressed.windowId }
+                await runOverviewCommand("move-node-to-workspace --window-id \(pressed.windowId) \(target)")
+                return
+            }
+            if let pressed {
+                await runOverviewCommand("focus --window-id \(pressed.windowId)")
+            } else if let target {
+                await runOverviewCommand("workspace \(target)")
+            } else {
+                return // strip background: stay open
             }
             await activateMode_nonCancellable(mainModeId)
         }
     }
+}
+
+@MainActor
+private func runOverviewCommand(_ raw: String) async {
+    guard let token: RunSessionGuard = .isServerEnabled,
+          case .cmd(let command) = parseCommand(raw, allowExecAndForget: false, allowEval: false) else { return }
+    try? await runLightSession(.hotkeyBinding, token) {
+        _ = await command.run(.defaultEnv, .emptyStdin)
+    }
+}
+
+extension Rect {
+    fileprivate var args: String { "\(topLeftX) \(topLeftY) \(width) \(height)" }
 }
 
 /// `@define-color key #rrggbb;` of the current skyland theme (~/.cache/skyland/theme.css).

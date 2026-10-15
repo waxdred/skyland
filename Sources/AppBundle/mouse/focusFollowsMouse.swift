@@ -23,6 +23,9 @@ import AppKit
         focusFollowsTask?.cancel()
         focusFollowsTask = Task.startUnstructured { @MainActor in
             guard let token: RunSessionGuard = .isServerEnabled else { return }
+            // skyland: the overview and modifier drags own the mouse; following it there
+            // focused the window under the cursor on another screen (workspace switch)
+            if activeMode == overviewModeId || skylandMouseDrag != nil { return }
             try checkCancellation()
             // Ignores macOS menubar dropdown, but, unfortunately, it doesn't ignore non-native menu-like fake windows.
             // todo: It would be cool to somehow reuse isWindowHeuristic logic here
@@ -62,3 +65,4 @@ private nonisolated func isAxWindowUnderMouse(_ location: CGPoint) async -> Bool
     guard let element else { return nil }
     return element.get(Ax.parentWindowRecursive) != nil || element.get(Ax.roleAttr) == kAXWindowRole
 }
+
