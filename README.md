@@ -117,6 +117,8 @@ key-mapping.preset = 'input-source'  # letters follow the active keyboard layout
 rounding = 8
 active-opacity = 100              # percent
 inactive-opacity = 85
+border-width = 2                  # focused window border, theme accent gradient (JankyBorders), 0 = none
+blur = 5                          # Ghostty background blur, 0 = none
 
 [animations]                      # Hyprland speed is in ds: speed 5 = 500 ms
 enabled = true
