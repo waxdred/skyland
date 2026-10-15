@@ -16,6 +16,7 @@
 # dynamic-colors = true       # theme colors from the wallpaper instead of [theme] files
 # prefer = 'saturation'       # matugen --prefer when the image has several source colors
 # scheme = 'auto'             # matugen scheme; auto = monochrome for grayscale images, else content
+# auto-mode = true            # light theme for a bright wallpaper, dark for a dark one (alt-l still toggles)
 set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 CACHE="$HOME/.cache/skyland"
@@ -82,10 +83,17 @@ case "${1:-}" in
         "$PICKER" --set "$file"
         mkdir -p "$CACHE"
         echo "$file" > "$CACHE/wallpaper"
+        mode=apply # keep the current light / dark mode
+        if [[ "$(conf auto-mode)" == true ]]; then
+            # ponytail: fixed threshold on the mean luminance, make it a setting if 0.5 picks wrong
+            mode="$(awk -v l="$("$PICKER" --luminance "$file")" 'BEGIN { print (l > 0.5 ? "light" : "dark") }')"
+        fi
         if [[ "$(conf dynamic-colors)" == true ]]; then
             generate_colors "$file"
             rm -f "$CACHE/theme-file" # a new wallpaper takes over a theme chosen in the picker
-            "$REPO/bin/skyland-theme" apply # also refreshes the lock screen
+            "$REPO/bin/skyland-theme" "$mode" # also refreshes the lock screen
+        elif [[ "$mode" != apply ]]; then
+            "$REPO/bin/skyland-theme" "$mode" # the [theme] dark / light files
         else
             "$REPO/bin/skyland-lock" refresh
         fi

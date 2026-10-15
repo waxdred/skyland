@@ -79,6 +79,7 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
     ]),
     ("Wallpaper", [
         SettingField(section: "wallpaper", key: "dynamic-colors", label: "Colors from the wallpaper", kind: .bool, after: ["skyland-theme", "apply"]),
+        SettingField(section: "wallpaper", key: "auto-mode", label: "Light / dark from the wallpaper", kind: .bool),
         SettingField(section: "wallpaper", key: "scheme", label: "Color scheme", kind: .choice(["auto", "scheme-content", "scheme-tonal-spot", "scheme-vibrant", "scheme-expressive", "scheme-fidelity", "scheme-monochrome", "scheme-neutral", "scheme-rainbow", "scheme-fruit-salad"])),
         SettingField(section: "wallpaper", key: "dir", label: "Folder", kind: .text),
     ]),

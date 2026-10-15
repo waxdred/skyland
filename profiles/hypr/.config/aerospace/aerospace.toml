@@ -107,6 +107,7 @@ dir = '~/Pictures/Wallpapers'
 dynamic-colors = true
 prefer = 'saturation'
 scheme = 'auto' # monochrome for grayscale wallpapers, else content (any matugen scheme-*)
+auto-mode = true # light theme for a bright wallpaper, dark for a dark one; alt-l still toggles
 
 # hyprlock-like screen saver (bin/skyland-lock): blurred wallpaper, glassy clock
 # in the current theme. alt-tab starts it (43PR SUPER+Tab); macOS asks the password.

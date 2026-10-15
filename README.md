@@ -13,7 +13,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **move and resize with the mouse** anywhere on a window (`alt` + drag), tiles swap on drop
 - **window decoration**: rounded corners, active/inactive opacity, focused window **border** in the theme accent, Ghostty blur; floating windows stay on top
 - **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
-- **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**
+- **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**, light or dark picked from the wallpaper brightness
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars
 - **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
 - **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, plus **Keys** (record a key, edit command and description, duplicates and macOS shortcuts flagged) and **Rules** (float / tile / workspace per app, from the running apps) tabs; applied live and written to the config with its comments kept
@@ -196,6 +196,7 @@ dir = '~/Pictures/Wallpapers'
 dynamic-colors = true             # theme colors from the wallpaper (matugen)
 prefer = 'saturation'
 scheme = 'auto'                   # monochrome for grayscale wallpapers, else content
+auto-mode = true                  # light theme for a bright wallpaper, dark for a dark one (alt-l still toggles)
 
 [lock]
 name = 'Waxcoin'

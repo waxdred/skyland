@@ -4,13 +4,14 @@
 //   skyland-wallpaper-picker --set <file>   set it as wallpaper on every screen
 //   skyland-wallpaper-picker --blur <in> <out.jpg> <radius>   blurred copy (lock screen)
 //   skyland-wallpaper-picker --saturation <file>   mean chroma 0..1 (0 = grayscale)
+//   skyland-wallpaper-picker --luminance <file>   mean relative luminance 0..1 (0 = black)
 // Built by bin/skyland-build; driven by bin/skyland-wallpaper and bin/skyland-lock.
 import AppKit
 import CoreImage
 import ImageIO
 
 let args = CommandLine.arguments
-if args.count == 3, args[1] == "--saturation" {
+if args.count == 3, args[1] == "--saturation" || args[1] == "--luminance" {
     // Mean chroma (max - min of r, g, b) of a 64x64 downscale, 0 = grayscale image
     guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: args[2]) as CFURL, nil),
           let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
@@ -25,7 +26,9 @@ if args.count == 3, args[1] == "--saturation" {
     var total = 0.0
     for i in 0 ..< 64 * 64 {
         let r = pixels[i * 4], g = pixels[i * 4 + 1], b = pixels[i * 4 + 2]
-        total += Double(max(r, g, b) - min(r, g, b)) / 255
+        total += args[1] == "--luminance"
+            ? (0.2126 * Double(r) + 0.7152 * Double(g) + 0.0722 * Double(b)) / 255 // Rec. 709 on the sRGB values
+            : Double(max(r, g, b) - min(r, g, b)) / 255
     }
     print(String(format: "%.3f", total / Double(64 * 64)))
     exit(0)

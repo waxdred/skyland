@@ -23,11 +23,13 @@ private let themeParser: [String: any ParserProtocol<ThemeConfig>] = [
 // dynamic-colors = true
 // prefer = 'saturation'
 // scheme = 'auto'
+// auto-mode = true   # light / dark theme from the wallpaper brightness
 struct WallpaperConfig: ConvenienceMutable, Equatable, Sendable {
     var dir: String = ""
     var dynamicColors: Bool = false
     var prefer: String = ""
     var scheme: String = ""
+    var autoMode: Bool = false
 }
 
 private let wallpaperParser: [String: any ParserProtocol<WallpaperConfig>] = [
@@ -35,6 +37,7 @@ private let wallpaperParser: [String: any ParserProtocol<WallpaperConfig>] = [
     "dynamic-colors": Parser(\.dynamicColors, parseBool),
     "prefer": Parser(\.prefer, parseString),
     "scheme": Parser(\.scheme, parseString),
+    "auto-mode": Parser(\.autoMode, parseBool),
 ]
 
 func parseWallpaper(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> WallpaperConfig {
