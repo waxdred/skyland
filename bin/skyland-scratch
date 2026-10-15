@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Hyprland-like scratchpad (togglespecialworkspace): windows parked on the hidden
+# workspace "scratch" pop up floating over the focused workspace, and go back.
+# usage: skyland-scratch toggle | move
+#   toggle  scratchpad windows shown here: hide them; else bring them here, floating
+#   move    send the focused window to the scratchpad (hides it)
+set -euo pipefail
+REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+SHOWN="$HOME/.cache/skyland/scratch-shown" # ids of scratchpad windows out on a workspace
+A() { "$REPO/.build/debug/aerospace" "$@" </dev/null; }
+mkdir -p "$(dirname "$SHOWN")"
+touch "$SHOWN"
+
+# keep only shown windows that still exist
+alive="$(A list-windows --all --format '%{window-id}')"
+grep -Fxf <(echo "$alive") "$SHOWN" > "$SHOWN.tmp" || true
+mv "$SHOWN.tmp" "$SHOWN"
+
+case "${1:-toggle}" in
+    toggle)
+        here="$(A list-windows --workspace focused --format '%{window-id}')"
+        if [[ -s "$SHOWN" ]] && grep -Fxqf "$SHOWN" <(echo "$here"); then
+            while read -r id; do A move-node-to-workspace --window-id "$id" scratch; done < "$SHOWN"
+            : > "$SHOWN"
+            exit 0
+        fi
+        workspace="$(A list-workspaces --focused)"
+        ids="$( { cat "$SHOWN"; A list-windows --workspace scratch --format '%{window-id}' 2>/dev/null || true; } | sort -u)"
+        [[ -n "$ids" ]] || exit 0
+        while read -r id; do
+            A move-node-to-workspace --window-id "$id" "$workspace"
+            A layout --window-id "$id" floating
+        done <<<"$ids"
+        echo "$ids" > "$SHOWN"
+        A focus --window-id "$(head -1 <<<"$ids")"
+        ;;
+    move)
+        id="$(A list-windows --focused --format '%{window-id}')"
+        A move-node-to-workspace --window-id "$id" scratch
+        grep -vFx "$id" "$SHOWN" > "$SHOWN.tmp" || true
+        mv "$SHOWN.tmp" "$SHOWN"
+        ;;
+    *) echo "usage: skyland-scratch toggle | move" >&2; exit 1 ;;
+esac

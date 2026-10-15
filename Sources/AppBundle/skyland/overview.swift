@@ -257,7 +257,7 @@ private final class OverviewStrip: NSView {
     func layoutCards() {
         guard let root = superview else { return }
         workspaces = Workspace.all
-            .filter { $0.workspaceMonitor.rect.topLeftCorner == monitorRect.topLeftCorner }
+            .filter { $0.workspaceMonitor.rect.topLeftCorner == monitorRect.topLeftCorner && !$0.isScratchpad }
             .sorted { lhs, rhs in
                 if let l = Int(lhs.name), let r = Int(rhs.name) { return l < r }
                 return lhs.name < rhs.name

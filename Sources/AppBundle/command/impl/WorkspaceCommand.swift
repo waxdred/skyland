@@ -50,7 +50,7 @@ struct WorkspaceCommand: Command {
         let currentMonitor = current.workspaceMonitor
         let workspaces: [Workspace] = stdin != nil
             ? stdinWorkspaces.map { Workspace.get(byName: $0.raw) }
-            : Workspace.all.filter { $0.workspaceMonitor.rect.topLeftCorner == currentMonitor.rect.topLeftCorner }
+            : Workspace.all.filter { $0.workspaceMonitor.rect.topLeftCorner == currentMonitor.rect.topLeftCorner && !$0.isScratchpad }
                 .toSet()
                 .union([current])
                 .sorted()
