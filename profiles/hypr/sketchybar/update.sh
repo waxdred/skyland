@@ -36,6 +36,6 @@ else
     (( ${#title} > 40 )) && title="${title:0:37}..."
     label="${app:+$app: }$title"
 fi
-args+=(--set window_title label="$label")
+sketchybar --query window_title >/dev/null 2>&1 && args+=(--set window_title label="$label") # optional item
 
 sketchybar "${args[@]}"

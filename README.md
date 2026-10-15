@@ -43,8 +43,8 @@ config file) and adds what makes Hyprland feel like Hyprland:
 Screenshots are framed with `tools/frame-screenshot.swift`
 (`swiftc -O tools/frame-screenshot.swift -o .build/frame-screenshot`).
 
-> This is a personal setup. Paths like `~/code/hyperland/skyland` are hard-coded in
-> the `hypr` profile bindings; adjust them if you clone elsewhere.
+> Clone it anywhere: bindings call the `skyland` CLI, and skyland puts its own
+> `bin/` (and `~/.local/bin`) on the PATH of `exec-and-forget` commands.
 
 ## skyland-cyberdeck
 
@@ -67,8 +67,8 @@ with the cyberpunk HUD pieces, bound in the hypr profile:
 </table>
 
 ```sh
-git clone git@github.com:waxdred/skyland-cyberdeck.git ~/code/hyperland/skyland-cyberdeck
-cd ~/code/hyperland/skyland-cyberdeck && swift build -c release
+git clone git@github.com:waxdred/skyland-cyberdeck.git && cd skyland-cyberdeck
+swift build -c release && ln -s "$PWD/.build/release/skyland-cyberdeck" ~/.local/bin/
 ```
 
 ## How it works
@@ -89,25 +89,35 @@ app's windows. The payload (`osax/payload.m`) listens on
 
 ## Requirements
 
-- Apple Silicon Mac, macOS 15 (tested on 15.6.1)
-- **SIP partially disabled** and the `-arm64e_preview_abi` boot-arg, exactly like
-  [yabai's scripting addition](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection)
-- Swift 6.4 through [swiftly](https://github.com/swiftlang/swiftly) (`swiftly install 6.4.0`)
-- Homebrew: `cmake`, `jq`, `sketchybar`
-- `matugen` for wallpaper colors: `cargo install matugen`
+- Apple Silicon Mac, macOS 15 (tested on 15.6.1), [Homebrew](https://brew.sh)
+- everything else comes with `skyland install`: Swift 6.4 through
+  [swiftly](https://github.com/swiftlang/swiftly), `cmake`, `jq`, `sketchybar`,
+  `borders`, Hack Nerd Font (see `Brewfile`); `matugen` for wallpaper colors
+  (`cargo install matugen`, done when `cargo` is there)
+- **optional, for window effects** (corners, opacity, animations, floating windows
+  on top): SIP partially disabled and the `-arm64e_preview_abi` boot-arg, exactly
+  like [yabai's scripting addition](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection).
+  Without it everything else works: tiling, groups, master, scratchpads, overview,
+  themes, wallpapers, settings
 
 ## Build and install
 
 ```sh
-git clone --recurse-submodules git@github.com:waxdred/skyland.git
+git clone --recurse-submodules https://github.com/waxdred/skyland.git
 cd skyland
-bin/skyland-cert                     # once: self-signed identity, keeps Accessibility across rebuilds
-bin/skyland-build                    # app, CLI, wallpaper picker, media widget
-bin/skyland-sa build && bin/skyland-sa load   # scripting addition into Dock (sudo)
-bin/skyland-lock install             # optional: lock screen saver
-ln -s "$PWD"/bin/skyland-* /opt/homebrew/bin/  # the skyland CLI is .build/debug/aerospace
-skyland-env hypr                     # switch to skyland
+bin/skyland-install                  # dependencies, Swift, signing identity, build, `skyland` CLI, start
 ```
+
+It runs again safely (each step skips what is there). Then, optional:
+
+```sh
+skyland sa build && skyland sa load  # window effects: scripting addition into Dock (SIP, sudo)
+skyland lock install                 # hyprlock-like lock screen saver
+```
+
+Everything goes through the `skyland` CLI (`~/.local/bin/skyland`): `skyland theme pick`,
+`skyland scratch toggle`, and any window manager command (`skyland workspace 3`,
+`skyland list-windows --all`, `skyland reload-config`).
 
 Grant **Accessibility** to `Skyland` (System Settings > Privacy & Security), and
 only to the app: never to the scripts. Always start the app with `open` (or
@@ -121,6 +131,7 @@ After `killall Dock` or a reboot the payload is gone: run `skyland-sa load` agai
 
 | Script | What it does |
 |---|---|
+| `skyland install` | first install / update: dependencies, Swift, build, CLI, start |
 | `skyland-env [hypr]\|status` | set up skyland: link the hypr profile into `~/.config`, start the app, sketchybar with skyland workspaces (run at login) |
 | `skyland-build` | build everything with swiftly, sign `Skyland.app` |
 | `skyland-sa build\|load\|send` | build / install and inject / talk to the Dock payload |
@@ -255,16 +266,31 @@ right, falling back left when fewer screens are plugged).
 
 ### SketchyBar
 
-skyland uses your own `sketchybarrc` and swaps its macOS Spaces items for skyland
-workspaces (`profiles/hypr/sketchybar/skyland.sh`). `skyland-env` runs it once; to
-keep it after a sketchybar restart (login, `brew services restart`), end your
-`sketchybarrc` with:
+skyland does not ship a bar config: keep your own `sketchybarrc`, and connect it
+with one line at its end:
 
 ```sh
-if [[ "$(cat "$HOME/.config/.skyland-profile" 2>/dev/null)" == hypr ]]; then
-    "$HOME/code/hyperland/skyland/profiles/hypr/sketchybar/skyland.sh" >/dev/null 2>&1 &
-fi
+command -v skyland >/dev/null && skyland bar &
 ```
+
+`skyland bar` (`profiles/hypr/sketchybar/skyland.sh`) then:
+
+- removes the `space.*` items (macOS Spaces) and adds `workspace.1` to `workspace.12`:
+  each one is drawn on the screen of its workspace, only when the workspace exists,
+  the focused one highlighted, a click goes there
+- puts them before an item named **`space_separator`** if your config has one (else
+  at the end of the left side)
+- writes the focused window as `App: title` into an item named **`window_title`**,
+  if there is one
+- sets `topmost=on`, so the workspace icons get the clicks; skyland hides the bar
+  while the auto-hidden macOS menu bar slides in
+- recolors the bar with the current theme (`skyland theme apply`; the colors are also
+  in `~/.cache/skyland/theme.env` for your own plugins: `BAR_BG`, `TEXT`, `ACCENT`...)
+
+skyland fires the `skyland_update` event on focus and workspace changes
+(`on-focus-changed`, `exec-on-workspace-change` in the config): subscribe your own
+items to it. For anything else, query the CLI, e.g.
+`skyland list-workspaces --focused` or `skyland list-windows --focused --format '%{app-name}'`.
 
 ## Autostart
 
@@ -304,7 +330,7 @@ rm /tmp/skyland.sudoers
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>sleep 5; L=/Library/ScriptingAdditions/skyland.osax/Contents/MacOS/loader; sudo -n "$L" "$(pgrep -x Dock)"; S="$HOME/code/hyperland/skyland/bin/skyland-env"; "$S" "$("$S" status)"</string>
+        <string>sleep 5; L=/Library/ScriptingAdditions/skyland.osax/Contents/MacOS/loader; sudo -n "$L" "$(pgrep -x Dock)"; S="$HOME/.local/bin/skyland"; "$S" env</string>
     </array>
     <key>StandardErrorPath</key><string>/tmp/skyland-login.log</string>
 </dict>
@@ -319,7 +345,7 @@ launchctl bootout gui/$(id -u)/com.waxdred.skyland                              
 ## Troubleshooting
 
 - **A window is invisible**: `killall Dock` resets alpha and transforms set by the
-  payload; `.build/debug/aerospace enable off` brings windows hidden in the corner back.
+  payload; `skyland enable off` brings windows hidden in the corner back.
   skyland restores both on quit and on SIGTERM, not on SIGKILL.
 - **No rounding / opacity / animations**: the payload is not loaded
   (`skyland-sa send ping` must answer `ok fade`): `skyland-sa load`.

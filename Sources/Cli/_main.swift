@@ -74,7 +74,7 @@ struct Main {
             case .customError(let msg):
                 exit(failExitCode, err: msg)
             case .nwError(let e):
-                exit(failExitCode, err: "Can't connect to AeroSpace server. Is AeroSpace.app running?\n\(e.localizedDescription)")
+                exit(failExitCode, err: "Can't connect to the skyland server. Is Skyland.app running?\n\(e.localizedDescription)")
         }
 
         var stdin = ""

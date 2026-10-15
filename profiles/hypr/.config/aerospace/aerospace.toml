@@ -183,8 +183,8 @@ run = 'move-node-to-workspace 8'
 
 [mode.main.binding]
 # programs
-alt-t = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-term' # new Ghostty window
-alt-enter = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-term' # new Ghostty window
+alt-t = 'exec-and-forget skyland term' # new Ghostty window
+alt-enter = 'exec-and-forget skyland term' # new Ghostty window
 cmd-e = 'exec-and-forget open -a Finder'
 cmd-b = 'exec-and-forget open -a "Brave Browser"'
 
@@ -194,9 +194,9 @@ alt-i = 'settings' # skyland settings window (43PR SUPER+I)
 alt-r = 'enable toggle' # window management off / on (stays bound while off)
 alt-f = 'fullscreen --no-outer-gaps' # fullscreen (43PR fullscreen mode 0)
 alt-space = 'layout floating tiling' # float at 70%, centered (43PR SUPER+Space)
-alt-s = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch toggle' # scratchpad (Hyprland special workspace)
-alt-shift-s = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch move' # send window to the scratchpad
-alt-a = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch toggle music --app com.spotify.client' # named scratchpad: Spotify (special:music)
+alt-s = 'exec-and-forget skyland scratch toggle' # scratchpad (Hyprland special workspace)
+alt-shift-s = 'exec-and-forget skyland scratch move' # send window to the scratchpad
+alt-a = 'exec-and-forget skyland scratch toggle music --app com.spotify.client' # named scratchpad: Spotify (special:music)
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
 alt-g = 'layout accordion tiles' # togglegroup: the window's container becomes a group of tabs, or tiles again
 alt-shift-t = 'master toggle' # master layout for this workspace (one big window, a stack on the side)
@@ -211,18 +211,18 @@ alt-ctrl-left = ['join-with left', 'layout accordion'] # same with arrows: the k
 alt-ctrl-down = ['join-with down', 'layout accordion']
 alt-ctrl-up = ['join-with up', 'layout accordion']
 alt-ctrl-right = ['join-with right', 'layout accordion']
-alt-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme toggle' # light / dark theme (43PR SUPER+L)
-alt-shift-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme pick' # theme picker
-alt-shift-h = 'exec-and-forget pkill -x skyland-keys || ~/code/hyperland/skyland/.build/skyland-keys' # this shortcut list
-alt-w = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-wallpaper pick' # wallpaper picker (43PR SUPER+W)
-alt-o = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-opacity' # inactive opacity 100/90/80/70 (43PR SUPER+O)
-alt-p = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-shot area' # screenshot area, space for a window (43PR Shift+Delete)
-alt-shift-p = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-shot screen' # screenshot every display (43PR Delete)
-alt-d = 'exec-and-forget ~/code/hyperland/skyland-cyberdeck/.build/release/skyland-cyberdeck launcher' # apps launcher, cyberdeck (43PR SUPER+D)
-alt-shift-m = 'exec-and-forget ~/code/hyperland/skyland-cyberdeck/.build/release/skyland-cyberdeck messages' # messages panel, cyberdeck
-alt-shift-x = 'exec-and-forget ~/code/hyperland/skyland-cyberdeck/.build/release/skyland-cyberdeck dismiss --all' # dismiss all messages
-alt-tab = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-lock now' # lock screen (43PR SUPER+Tab, hyprlock)
-alt-m = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-media toggle' # floating media widget
+alt-l = 'exec-and-forget skyland theme toggle' # light / dark theme (43PR SUPER+L)
+alt-shift-l = 'exec-and-forget skyland theme pick' # theme picker
+alt-shift-h = 'exec-and-forget skyland keys' # this shortcut list
+alt-w = 'exec-and-forget skyland wallpaper pick' # wallpaper picker (43PR SUPER+W)
+alt-o = 'exec-and-forget skyland opacity' # inactive opacity 100/90/80/70 (43PR SUPER+O)
+alt-p = 'exec-and-forget skyland shot area' # screenshot area, space for a window (43PR Shift+Delete)
+alt-shift-p = 'exec-and-forget skyland shot screen' # screenshot every display (43PR Delete)
+alt-d = 'exec-and-forget skyland-cyberdeck launcher' # apps launcher, cyberdeck (43PR SUPER+D)
+alt-shift-m = 'exec-and-forget skyland-cyberdeck messages' # messages panel, cyberdeck
+alt-shift-x = 'exec-and-forget skyland-cyberdeck dismiss --all' # dismiss all messages
+alt-tab = 'exec-and-forget skyland lock now' # lock screen (43PR SUPER+Tab, hyprlock)
+alt-m = 'exec-and-forget skyland media toggle' # floating media widget
 
 # focus / move / resize (h j k l)
 cmd-h = 'focus left'

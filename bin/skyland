@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# skyland CLI: one entry point for the scripts and the window manager.
+#   skyland <script> [args]   bin/skyland-<script>: theme, wallpaper, scratch, lock, media,
+#                             shot, opacity, term, env, sa, config, build, cert, install
+#   skyland keys              toggle the shortcut cheat sheet
+#   skyland bar               (re)build the sketchybar workspace items
+#   skyland <command> [args]  any window manager command: workspace 3, layout floating,
+#                             list-windows --all, reload-config, settings, master toggle...
+# Link it into your PATH (skyland install does): ln -s <repo>/bin/skyland ~/.local/bin/skyland
+set -euo pipefail
+REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+
+case "${1:-help}" in
+    help | -h | --help)
+        sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+        echo
+        echo "scripts: $(cd "$REPO/bin" && ls skyland-* | sed 's/^skyland-//' | tr '\n' ' ')"
+        ;;
+    keys) pkill -x skyland-keys || exec "$REPO/.build/skyland-keys" ;;
+    bar) exec "$REPO/profiles/hypr/sketchybar/skyland.sh" ;;
+    *)
+        if [[ -x "$REPO/bin/skyland-$1" ]]; then
+            script="$REPO/bin/skyland-$1"
+            shift
+            exec "$script" "$@"
+        fi
+        exec "$REPO/.build/debug/aerospace" "$@"
+        ;;
+esac

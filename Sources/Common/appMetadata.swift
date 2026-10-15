@@ -1,8 +1,6 @@
+// The real AeroSpace: a running one is disabled while skyland runs (toggleReleaseServerIfDebug)
 public let stableAeroSpaceAppId: String = "bobko.aerospace"
-#if DEBUG
-    public let aeroSpaceAppId: String = "bobko.aerospace.debug"
-    public let aeroSpaceAppName: String = "AeroSpace-Debug"
-#else
-    public let aeroSpaceAppId: String = stableAeroSpaceAppId
-    public let aeroSpaceAppName: String = "AeroSpace"
-#endif
+// skyland's own id and name, so it can live next to an installed AeroSpace (own
+// socket, permissions and settings)
+public let aeroSpaceAppId: String = "com.waxdred.skyland"
+public let aeroSpaceAppName: String = "Skyland"

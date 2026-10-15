@@ -23,7 +23,11 @@ SURFACE2=0xff5b6078
 # topmost=on: above the auto-hidden macOS menu bar, which else slides in over the
 # bar on hover and takes the clicks meant for the workspace icons
 args=(--bar topmost=on --remove '/space\..*/' --remove skyland --add event skyland_update)
+# optional items of your sketchybarrc: workspaces go before `space_separator` (else
+# at the end of the left side), the focused window title goes to `window_title`
+move=()
 for i in $(seq 1 12); do
+    sketchybar --query space_separator >/dev/null 2>&1 && move=(--move "workspace.$i" before space_separator)
     # after space_separator's left neighbour: insert before the separator
     args+=(--add item "workspace.$i" left
         --set "workspace.$i" icon="${ICONS[$((i - 1))]}"
@@ -39,13 +43,13 @@ for i in $(seq 1 12); do
             label.drawing=off
             drawing=off
             click_script="$CLI workspace $i"
-        --move "workspace.$i" before space_separator)
+        "${move[@]}")
 done
 # One hidden item runs the update for all workspaces and the window title
 args+=(--add item skyland left
     --set skyland drawing=off updates=on script="$UPDATE $CLI"
-    --subscribe skyland skyland_update front_app_switched
-    --set window_title script="$UPDATE $CLI" update_freq=0)
+    --subscribe skyland skyland_update front_app_switched)
+sketchybar --query window_title >/dev/null 2>&1 && args+=(--set window_title script="$UPDATE $CLI" update_freq=0)
 sketchybar "${args[@]}"
 # recolors the whole bar with the current [theme] file, then triggers skyland_update
 "$DIR/../../../bin/skyland-theme" apply || sketchybar --trigger skyland_update

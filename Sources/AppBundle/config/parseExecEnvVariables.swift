@@ -11,7 +11,9 @@ private let rawExecConfigParser: [String: any ParserProtocol<RawExecConfig>] = [
     "env-vars": Parser(\.overriddenVars, parseEnvVariables),
 ]
 
-let defaultOverriddenEnvVars = ["PATH": "/opt/homebrew/bin:/opt/homebrew/sbin:\(env["PATH"] ?? "")"]
+// skyland: <repo>/bin (the `skyland` CLI and its scripts) and ~/.local/bin come first,
+// so bindings say `exec-and-forget skyland theme pick` with no path
+let defaultOverriddenEnvVars = ["PATH": "\(skylandRepo.path)/bin:\(NSHomeDirectory())/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:\(env["PATH"] ?? "")"]
 
 struct ExecConfig: Equatable {
     var envVariables: [String: String] = env + defaultOverriddenEnvVars
