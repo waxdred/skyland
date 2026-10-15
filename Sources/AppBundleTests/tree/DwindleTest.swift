@@ -51,6 +51,21 @@ final class WorkspaceSlideTest: XCTestCase {
     }
 }
 
+final class MouseModifierTest: XCTestCase {
+    func testParse() {
+        assertEquals(parseMouseModifier("alt"), .maskAlternate)
+        assertEquals(parseMouseModifier("ctrl-alt"), [.maskControl, .maskAlternate])
+        assertEquals(parseMouseModifier(""), nil)
+        assertEquals(parseMouseModifier("hyper"), nil)
+    }
+
+    @MainActor
+    func testConfig() {
+        assertEquals(parseConfig("mouse-modifier = 'alt'").config.mouseModifier, "alt")
+        assertEquals(parseConfig("mouse-modifier = 'super'").errors.count, 1)
+    }
+}
+
 final class FloatingCenterTest: XCTestCase {
     func testCenteredRect() {
         let r = centeredRect(in: Rect(topLeftX: 0, topLeftY: 32, width: 1000, height: 600), percent: 70)

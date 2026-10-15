@@ -10,8 +10,9 @@ skyland keeps everything AeroSpace does (virtual workspaces, tree layouts, CLI,
 config file) and adds what makes Hyprland feel like Hyprland:
 
 - **dwindle** layout, split side following the cursor (`smart_split`), `togglesplit`
+- **move and resize with the mouse** anywhere on a window (`alt` + drag), tiles swap on drop
 - **window decoration**: rounded corners, active/inactive opacity
-- **bezier animations**: tiles slide, new windows pop in, `slidefadevert` workspace switch, fades
+- **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
 - **43PR themes** as CSS files, light/dark toggle, **colors generated from the wallpaper**
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget**
 - windows **keep their workspace** across restarts
@@ -104,6 +105,7 @@ work ([AeroSpace guide](https://nikitabobko.github.io/AeroSpace/guide)); skyland
 dwindle = true                    # new window splits the focused one along its longest side
 dwindle-smart-split = true        # ...on the side of the cursor (Hyprland smart_split)
 floating-center-percent = 70      # 'layout floating' on a tile: N% of the monitor, centered
+mouse-modifier = 'alt'            # alt + left drag moves, alt + right drag resizes (anywhere on a window)
 
 [decoration]
 rounding = 8
@@ -154,6 +156,7 @@ The profile also remaps `a/q/z/w/m` for a **French AZERTY** keyboard; remove
 | `alt-f` | fullscreen | `Super+F` |
 | `alt-space` | float 70% centered / tile back | `Super+Space` |
 | `alt-j` | togglesplit | |
+| `alt` + left drag / right drag | move (swap tiles) / resize from the nearest corner | `Super` + mouse |
 | `cmd-h/j/k/l` | focus | `Super+H/J/K/L` |
 | `cmd-shift-h/j/k/l` | move window | `Super+Shift+H/J/K/L` |
 | `cmd-alt-h/j/k/l`, `cmd-alt-e` | resize, balance | `Super+Ctrl+H/J/K/L` |

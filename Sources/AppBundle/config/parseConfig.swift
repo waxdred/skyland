@@ -143,6 +143,13 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     "dwindle": Parser(\.dwindle, parseBool),
     "dwindle-smart-split": Parser(\.dwindleSmartSplit, parseBool),
     "floating-center-percent": Parser(\.floatingCenterPercent, parseInt),
+    "mouse-modifier": Parser(\.mouseModifier, { raw, backtrace in
+        parseString(raw, backtrace).flatMap { value in
+            value.isEmpty || parseMouseModifier(value) != nil
+                ? .success(value)
+                : .failure(.init(backtrace, "Expected alt, cmd, ctrl, shift or a '-' combination, got '\(value)'"))
+        }
+    }),
     "default-root-container-orientation": Parser(\.defaultRootContainerOrientation, parseDefaultContainerOrientation),
 
     "start-at-login": Parser(\.startAtLogin, parseBool),
