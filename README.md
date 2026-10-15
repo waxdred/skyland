@@ -210,6 +210,7 @@ right, falling back left when fewer screens are plugged).
 | `alt-o` | inactive window opacity 100 / 90 / 80 / 70 | `Super+O` |
 | `alt-p`, `alt-shift-p` | screenshot area (space: window), every display; to ~/Pictures/Screenshots + clipboard | `Shift+Delete`, `Delete` |
 | `alt-d` | apps launcher ([skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)) | `Super+D` |
+| `alt-shift-m`, `alt-shift-x` | messages panel (notifications + script messages), dismiss all | `Super+Shift+M`, `Super+Shift+X` |
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |
 | `alt-m` | media widget | |
