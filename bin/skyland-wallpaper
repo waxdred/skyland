@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Wallpaper picker and wallpaper-based colors, like 43PR (hyprquickpaper + matugen).
-# usage: skyland-wallpaper pick | set <file> | fetch [wallhaven-user | user/[collection-id]]
+# usage: skyland-wallpaper pick | set <file> | fetch [wallhaven-user | user/favorites/[collection-id]]
 #   pick   choose an image of [wallpaper] dir in a picker, then `set` it
 #   set    make <file> the wallpaper of every screen; with dynamic-colors, generate
 #          dark/light themes from it (matugen) and apply the current mode
 #   fetch  download the SFW uploads of a wallhaven user (default 43pr) into dir, or
 #          a public collection user/id (e.g. 43PR/1262809) into dir/<collection label>,
-#          or every public collection of a user with user/ (e.g. 43PR/).
+#          or every public collection of a user with user/ (e.g. 43PR/). The
+#          collection page path or URL works too: 43PR/favorites/1262809,
+#          https://wallhaven.cc/user/43PR/favorites/1262809, 43PR/favorites.
 #          `pick` shows those theme folders first, then the wallpapers of the chosen one
 #
 # [wallpaper]
@@ -90,6 +92,9 @@ case "${1:-}" in
         ;;
     fetch)
         src="${2:-43pr}"
+        # wallhaven page forms -> user/id: [https://wallhaven.cc/]user/<u>/favorites[/<id>]
+        src="${src#https://}"; src="${src#wallhaven.cc/}"; src="${src#user/}"
+        [[ "$src" == */favorites* ]] && { src="${src/\/favorites/}"; [[ "$src" == */* ]] || src="$src/"; }
         mkdir -p "$dir"
         if [[ "$src" != */* ]]; then
             download "https://wallhaven.cc/api/v1/search?q=@$src&purity=100&" "$dir"
@@ -106,6 +111,6 @@ case "${1:-}" in
             done
         ;;
     *)
-        die "usage: skyland-wallpaper pick | set <file> | fetch [wallhaven-user | user/[collection-id]]"
+        die "usage: skyland-wallpaper pick | set <file> | fetch [wallhaven-user | user/favorites/[collection-id]]"
         ;;
 esac

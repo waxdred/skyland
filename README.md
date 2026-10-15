@@ -98,11 +98,32 @@ After `killall Dock` or a reboot the payload is gone: run `skyland-sa load` agai
 | `skyland-build` | build everything with swiftly, sign `Skyland.app` |
 | `skyland-sa build\|load\|send` | build / install and inject / talk to the Dock payload |
 | `skyland-theme dark\|light\|toggle\|apply\|pick\|set <file>\|off` | apply a CSS theme to sketchybar and Ghostty; `pick` chooses one from color previews |
-| `skyland-wallpaper pick\|set\|fetch` | picker, set wallpaper + generate colors, download wallhaven uploads |
+| `skyland-wallpaper pick\|set\|fetch` | picker, set wallpaper + generate colors, download wallpapers from wallhaven (see below) |
 | `skyland-lock install\|refresh\|now\|preview` | hyprlock-like screen saver |
 | `skyland-media toggle\|open\|close` | floating media widget |
 | `skyland-config <section> <key>` | read a value of the config (used by the scripts) |
 | `skyland-cert` | create the `skyland-codesign` signing identity |
+
+### Wallpapers
+
+`skyland-wallpaper fetch` downloads SFW wallpapers from [wallhaven](https://wallhaven.cc)
+into `[wallpaper] dir` (default `~/Pictures/Wallpapers`), no account or API key needed.
+A collection goes into its own folder, named after its label; the picker (`alt-w`)
+shows these folders first, with a search field, then the wallpapers of the chosen one.
+
+```sh
+skyland-wallpaper fetch                       # uploads of the 43PR user, into dir
+skyland-wallpaper fetch <user>                # uploads of another user
+skyland-wallpaper fetch <user>/favorites/<id> # one public collection, into dir/<label>
+skyland-wallpaper fetch <user>/favorites      # every public collection of the user
+skyland-wallpaper fetch https://wallhaven.cc/user/43PR/favorites/1262809   # page URL works too
+```
+
+`<id>` is the number at the end of the collection page URL
+(`https://wallhaven.cc/user/<user>/favorites/<id>`). Files already there are skipped,
+so running it again only downloads what is new. Then `alt-w` or
+`skyland-wallpaper set <file>`; with `dynamic-colors = true` the theme colors are
+generated from the image (matugen).
 
 ## Configuration
 
