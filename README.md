@@ -16,7 +16,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars
 - **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
-- **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, applied live and written to the config with its comments kept
+- **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, plus a **Keys** tab (record a key, edit command and description, duplicates and macOS shortcuts flagged); applied live and written to the config with its comments kept
 - **scratchpad** (`alt-s`), **window rules** (floating utilities, apps sent to a workspace)
 - **window management on/off** (`alt-r`) with a HUD, windows back to stock macOS while off
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config

@@ -4,6 +4,17 @@ import Foundation
 import HotKey
 
 @MainActor private var hotkeys: [String: HotKey] = [:]
+/// skyland: true while the settings window records a key, so the key reaches it
+@MainActor private(set) var hotkeysSuspended = false
+
+@MainActor func setHotkeysSuspended(_ suspended: Bool) async {
+    hotkeysSuspended = suspended
+    if suspended {
+        for key in hotkeys.values { key.isEnabled = false }
+    } else {
+        await activateMode_nonCancellable(TrayMenuModel.shared.isEnabled ? activeMode ?? mainModeId : nil)
+    }
+}
 
 @MainActor func resetHotKeys() {
     // Explicitly unregister all hotkeys. We cannot always rely on destruction of the HotKey object to trigger

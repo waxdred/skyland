@@ -141,6 +141,21 @@ final class SettingsModel: ObservableObject {
 
 private struct SettingsView: View {
     @ObservedObject var model: SettingsModel
+    @ObservedObject var keys: KeysModel
+    @AppStorage("skyland.settings.tab") private var tab = "general" // reopens on the last tab
+
+    var body: some View {
+        TabView(selection: $tab) {
+            GeneralView(model: model).tabItem { Text("General") }.tag("general")
+            KeysView(model: keys).tabItem { Text("Keys") }.tag("keys")
+        }
+        .padding(.top, 8)
+        .frame(minWidth: 620, minHeight: 560)
+    }
+}
+
+private struct GeneralView: View {
+    @ObservedObject var model: SettingsModel
 
     var body: some View {
         Form {
@@ -206,14 +221,14 @@ private struct SettingsView: View {
 @MainActor
 func showSettingsWindow() {
     if settingsWindow == nil {
-        let model = SettingsModel()
-        let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
+        let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: SettingsModel(), keys: KeysModel())))
         window.title = "skyland settings"
-        window.setContentSize(NSSize(width: 560, height: 720))
+        window.setContentSize(NSSize(width: 720, height: 760))
         window.isReleasedWhenClosed = false
         settingsWindow = window
     } else if let host = settingsWindow?.contentViewController as? NSHostingController<SettingsView> {
         host.rootView.model.load() // the file may have changed by hand
+        host.rootView.keys.load()
     }
     guard let window = settingsWindow else { return }
     // on the screen under the mouse; orderFrontRegardless: a background app's activate can be ignored

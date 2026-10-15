@@ -35,7 +35,7 @@ private func handleArrowKey(_ type: CGEventType, _ keyCode: UInt32, _ flags: CGE
         if let keyTap { CGEvent.tapEnable(tap: keyTap, enable: true) }
         return false
     }
-    guard type == .keyDown, arrowKeyCodes.contains(keyCode), let mode = activeMode,
+    guard type == .keyDown, !hotkeysSuspended, arrowKeyCodes.contains(keyCode), let mode = activeMode,
           let binding = config.modes[mode]?.bindings.values.first(where: {
               $0.keyCode.carbonKeyCode == keyCode && $0.modifiers.intersection(.deviceIndependentFlagsMask).subtracting([.function, .numericPad, .capsLock]) == modifierFlags(flags)
           }) else { return false }

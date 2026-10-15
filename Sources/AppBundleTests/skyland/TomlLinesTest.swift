@@ -38,4 +38,22 @@ final class TomlLinesTest: XCTestCase {
         let newSection = tomlSet(config, section: "media", key: "opacity", value: "90")
         assertEquals(tomlValue(newSection, section: "media", key: "opacity"), "90")
     }
+
+    func testEntriesReplaceRemove() {
+        let bindings = """
+            [mode.main.binding]
+            alt-t = 'exec-and-forget open -a "Ghost#ty"' # terminal
+            cmd-1 = ['workspace 1', 'mode main']
+            """
+        assertEquals(tomlEntries(bindings, section: "mode.main.binding"), [
+            TomlEntry(key: "alt-t", value: "'exec-and-forget open -a \"Ghost#ty\"'", comment: "terminal"),
+            TomlEntry(key: "cmd-1", value: "['workspace 1', 'mode main']", comment: ""),
+        ])
+        let renamed = tomlReplace(bindings, section: "mode.main.binding", key: "alt-t",
+                                  with: TomlEntry(key: "alt-enter", value: "'close'", comment: "new"))
+        XCTAssertTrue(renamed.contains("alt-enter = 'close' # new"))
+        assertEquals(tomlValue(renamed, section: "mode.main.binding", key: "alt-t"), nil)
+        let removed = tomlReplace(bindings, section: "mode.main.binding", key: "cmd-1", with: nil)
+        assertEquals(tomlEntries(removed, section: "mode.main.binding").map(\.key), ["alt-t"])
+    }
 }
