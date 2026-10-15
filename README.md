@@ -235,7 +235,7 @@ right, falling back left when fewer screens are plugged).
 | `alt-s` / `alt-shift-s` | scratchpad: show / hide it here, send the window to it (`alt-space` on a shown one takes it out) | Hyprland `togglespecialworkspace` |
 | `alt-g` | group: the container becomes tabs (tabs bar on top), again: tiles | `togglegroup` |
 | `alt-n`, `alt-shift-n` | next / previous tab of the group (`group-focus`) | `changegroupactive` |
-| `alt-ctrl-h/j/k/l` | group with the window in that direction | `moveintogroup` |
+| `alt-ctrl-h/j/k/l` or `alt-ctrl-←↓↑→` | group with the window in that direction | `moveintogroup` |
 | `alt-i` | settings window: gaps, decoration, animations, wallpaper, media, lock (applied live, comments kept) | `Super+I` |
 | `alt-r` | window management off / on (stock macOS windows while off), HUD with the state | |
 | `alt-o` | inactive window opacity 100 / 90 / 80 / 70 | `Super+O` |
