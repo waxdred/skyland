@@ -89,7 +89,7 @@ After `killall Dock` or a reboot the payload is gone: run `skyland-sa load` agai
 | `skyland-env work\|hypr\|status` | switch between yabai/skhd and skyland (config overlay, services, bar, theme, one macOS Space per display with confirmation) |
 | `skyland-build` | build everything with swiftly, sign `Skyland.app` |
 | `skyland-sa build\|load\|send` | build / install and inject / talk to the Dock payload |
-| `skyland-theme dark\|light\|toggle\|apply\|off` | apply a CSS theme to sketchybar and Ghostty |
+| `skyland-theme dark\|light\|toggle\|apply\|pick\|set <file>\|off` | apply a CSS theme to sketchybar and Ghostty; `pick` chooses one from color previews |
 | `skyland-wallpaper pick\|set\|fetch` | picker, set wallpaper + generate colors, download wallhaven uploads |
 | `skyland-lock install\|refresh\|now\|preview` | hyprlock-like screen saver |
 | `skyland-media toggle\|open\|close` | floating media widget |
@@ -171,6 +171,7 @@ right, falling back left when fewer screens are plugged).
 | `cmd-left` / `cmd-right` | previous / next workspace | |
 | `cmd-up` | workspace overview (arrows, digits, click, esc) | hyprexpo |
 | `alt-l` | light / dark theme | `Super+L` |
+| `alt-shift-l` | theme picker (43PR themes + wallpaper colors) | |
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |
 | `alt-m` | media widget | |

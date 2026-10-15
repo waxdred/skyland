@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Apply a 43PR-style theme (GTK colors.css file) to sketchybar and Ghostty.
-# usage: skyland-theme dark | light | toggle | apply | off
+# usage: skyland-theme dark | light | toggle | apply | pick | set <file> | off
 #   dark/light/toggle  pick the [theme] file from the skyland config and apply it
+#   pick               choose a theme of the [theme] folder in the picker (alt-shift-l)
+#   set <file>         apply <file> until toggle / dark / light or a new wallpaper
 #   apply              re-apply the current mode (default dark)
 #   off                remove the generated files (work profile)
 # Theme files: `@define-color <key> #rrggbb;`, keys of the 43PR palette.
@@ -13,6 +15,8 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 CACHE="$HOME/.cache/skyland"
 MODE_FILE="$CACHE/theme-mode"
+CHOSEN_FILE="$CACHE/theme-file" # theme picked with `pick` / `set`, over [theme] and the wallpaper colors
+PICKER="${SKYLAND_PICKER:-$REPO/.build/skyland-wallpaper-picker}"
 REQUIRED="bg fg fg_dim bg_card bg_hover border border_strong accent cursor cursor_text selection_bg selection_fg
     term0 term1 term2 term3 term4 term5 term6 term7 term8 term9 term10 term11 term12 term13 term14 term15"
 
@@ -45,9 +49,22 @@ update_ghostty_conf() {
 
 mode="$(cat "$MODE_FILE" 2>/dev/null || echo dark)"
 case "${1:-apply}" in
-    dark | light) mode="$1" ;;
-    toggle) [[ "$mode" == dark ]] && mode=light || mode=dark ;;
+    dark | light) mode="$1"; rm -f "$CHOSEN_FILE" ;;
+    toggle) [[ "$mode" == dark ]] && mode=light || mode=dark; rm -f "$CHOSEN_FILE" ;;
     apply) ;;
+    pick)
+        [[ -x "$PICKER" ]] || die "picker not built: run bin/skyland-build"
+        themes=("$(dirname "$("$REPO/bin/skyland-config" theme dark)")"/*.css)
+        for wallpaper in "$CACHE/themes/wallpaper-dark.css" "$CACHE/themes/wallpaper-light.css"; do
+            [[ -r "$wallpaper" ]] && themes+=("$wallpaper")
+        done
+        file="$(SKYLAND_PICKER_SELECTED="$(cat "$CHOSEN_FILE" 2>/dev/null)" "$PICKER" --themes "${themes[@]}")" || exit 0 # cancelled
+        exec "$0" set "$file"
+        ;;
+    set)
+        [[ -r "${2:-}" ]] || die "cannot read '${2:-}'"
+        echo "$2" > "$CHOSEN_FILE"
+        ;;
     off)
         rm -f "$CACHE/theme.env"
         if [[ -f "$CACHE/ghostty.conf" ]]; then
@@ -56,13 +73,15 @@ case "${1:-apply}" in
         fi
         exit 0
         ;;
-    *) die "usage: skyland-theme dark | light | toggle | apply | off" ;;
+    *) die "usage: skyland-theme dark | light | toggle | apply | pick | set <file> | off" ;;
 esac
 
 file="$("$REPO/bin/skyland-config" theme "$mode")"
 if [[ "$("$REPO/bin/skyland-config" wallpaper dynamic-colors)" == true && -r "$CACHE/themes/wallpaper-$mode.css" ]]; then
     file="$CACHE/themes/wallpaper-$mode.css"
 fi
+chosen="$(cat "$CHOSEN_FILE" 2>/dev/null || true)"
+[[ -n "$chosen" && -r "$chosen" ]] && file="$chosen"
 [[ -n "$file" ]] || die "no '$mode' in [theme] of the config"
 [[ -r "$file" ]] || die "cannot read $file"
 
@@ -78,6 +97,9 @@ for key in $REQUIRED; do
     [[ -n "${!var:-}" ]] || missing="$missing $key"
 done
 [[ -z "$missing" ]] || die "$file is missing:$missing"
+if [[ -n "$chosen" && "$file" == "$chosen" ]]; then # mode of a chosen theme: from its background
+    (( (16#${c_bg:0:2} * 299 + 16#${c_bg:2:2} * 587 + 16#${c_bg:4:2} * 114) / 1000 < 128 )) && mode=dark || mode=light
+fi
 
 mkdir -p "$CACHE"
 echo "$mode" > "$MODE_FILE"

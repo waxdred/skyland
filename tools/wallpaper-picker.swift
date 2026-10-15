@@ -1,5 +1,6 @@
 // skyland wallpaper picker, like 43PR's quickshell hyprquickpaper.
 //   skyland-wallpaper-picker <dir>     pick an image: prints its path, exit 1 if cancelled
+//   skyland-wallpaper-picker --themes <file.css...>   pick a theme from color previews: prints its path
 //   skyland-wallpaper-picker --set <file>   set it as wallpaper on every screen
 //   skyland-wallpaper-picker --blur <in> <out.jpg> <radius>   blurred copy (lock screen)
 //   skyland-wallpaper-picker --saturation <file>   mean chroma 0..1 (0 = grayscale)
@@ -57,8 +58,9 @@ if args.count == 3, args[1] == "--set" {
     }
     exit(0)
 }
-guard args.count == 2 else {
-    FileHandle.standardError.write("usage: skyland-wallpaper-picker <dir> | --set <file>\n".data(using: .utf8)!)
+let pickingThemes = args.count > 2 && args[1] == "--themes"
+guard args.count == 2 || pickingThemes else {
+    FileHandle.standardError.write("usage: skyland-wallpaper-picker <dir> | --themes <file.css...> | --set <file>\n".data(using: .utf8)!)
     exit(2)
 }
 
@@ -70,12 +72,15 @@ func images(in dir: URL) -> [URL] {
         .map { dir.appendingPathComponent($0) }
 }
 
-// Themes: one per sub-folder of <dir> (skyland-wallpaper fetch user/), plus <dir> itself for loose images
-let root = URL(fileURLWithPath: args[1])
-let subdirs = ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])) ?? [])
+// --themes: one group of CSS themes, shown as color previews in the wallpaper strip
+// Else themes: one per sub-folder of <dir> (skyland-wallpaper fetch user/), plus <dir> itself for loose images
+let root = URL(fileURLWithPath: pickingThemes ? "/" : args[1])
+let subdirs = pickingThemes ? [] : ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])) ?? [])
     .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
     .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-let themes: [(name: String, files: [URL])] = (subdirs + [root])
+let themes: [(name: String, files: [URL])] = pickingThemes
+    ? [("themes", args.dropFirst(2).map { URL(fileURLWithPath: $0) })]
+    : (subdirs + [root])
     .map { ($0.lastPathComponent, images(in: $0)) }
     .filter { !$0.1.isEmpty }
 if themes.isEmpty {
@@ -89,6 +94,7 @@ func fold(_ text: String) -> String {
     String(text.map { smallCaps[$0] ?? $0 }).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
 }
 func thumbnail(_ url: URL, maxPixels: Int) -> NSImage? {
+    if url.pathExtension == "css" { return themePreview(url) }
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
           let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
               kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -96,6 +102,40 @@ func thumbnail(_ url: URL, maxPixels: Int) -> NSImage? {
               kCGImageSourceThumbnailMaxPixelSize: maxPixels,
           ] as CFDictionary) else { return nil }
     return NSImage(cgImage: image, size: .zero)
+}
+
+/// Color preview of a theme file (`@define-color key #rrggbb;`): a small window
+/// in the theme on its background, the terminal palette, and the theme name.
+func themePreview(_ url: URL) -> NSImage? {
+    guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+    var colors: [String: NSColor] = [:]
+    let regex = try! NSRegularExpression(pattern: "@define-color\\s+(\\w+)\\s+#([0-9A-Fa-f]{6})")
+    for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+        let key = String(text[Range(match.range(at: 1), in: text)!]), hex = Int(text[Range(match.range(at: 2), in: text)!], radix: 16)!
+        colors[key] = NSColor(srgbRed: CGFloat(hex >> 16 & 0xff) / 255, green: CGFloat(hex >> 8 & 0xff) / 255, blue: CGFloat(hex & 0xff) / 255, alpha: 1)
+    }
+    func color(_ key: String) -> NSColor { colors[key] ?? .gray }
+    let name = url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "43pr-", with: "").replacingOccurrences(of: "-", with: " ")
+    return NSImage(size: NSSize(width: 300, height: 190), flipped: true) { rect in
+        color("bg").setFill()
+        rect.fill()
+        let window = NSRect(x: 24, y: 22, width: 252, height: 104)
+        color("bg_card").setFill()
+        NSBezierPath(roundedRect: window, xRadius: 8, yRadius: 8).fill()
+        color("border_strong").setStroke()
+        let border = NSBezierPath(roundedRect: window.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8)
+        border.lineWidth = 2
+        border.stroke()
+        (name as NSString).draw(at: NSPoint(x: 40, y: 36), withAttributes: [.font: NSFont.boldSystemFont(ofSize: 18), .foregroundColor: color("fg")])
+        ("~ skyland" as NSString).draw(at: NSPoint(x: 40, y: 66), withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 13, weight: .regular), .foregroundColor: color("fg_dim")])
+        color("accent").setFill()
+        NSBezierPath(roundedRect: NSRect(x: 40, y: 96, width: 90, height: 12), xRadius: 6, yRadius: 6).fill()
+        for i in 0 ..< 8 {
+            color("term\(i + 8)").setFill()
+            NSBezierPath(ovalIn: NSRect(x: 24 + CGFloat(i) * 33, y: 146, width: 24, height: 24)).fill()
+        }
+        return true
+    }
 }
 
 final class KeyPanel: NSPanel {
@@ -249,7 +289,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         scroll.documentView = strip
         blur.addSubview(scroll)
         strip.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(clicked(_:))))
-        select(0)
+        select(files.firstIndex { $0.path == ProcessInfo.processInfo.environment["SKYLAND_PICKER_SELECTED"] } ?? 0) // current one
     }
 
     func select(_ index: Int) {

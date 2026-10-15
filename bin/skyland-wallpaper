@@ -82,6 +82,7 @@ case "${1:-}" in
         echo "$file" > "$CACHE/wallpaper"
         if [[ "$(conf dynamic-colors)" == true ]]; then
             generate_colors "$file"
+            rm -f "$CACHE/theme-file" # a new wallpaper takes over a theme chosen in the picker
             "$REPO/bin/skyland-theme" apply # also refreshes the lock screen
         else
             "$REPO/bin/skyland-lock" refresh

@@ -125,6 +125,7 @@ alt-f = 'fullscreen --no-outer-gaps' # 43PR: fullscreen mode 0
 alt-space = 'layout floating tiling' # 43PR SUPER+Space: float at 70%, centered
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
 alt-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme toggle' # 43PR SUPER+L light/dark
+alt-shift-l = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-theme pick' # theme picker
 alt-w = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-wallpaper pick' # 43PR SUPER+W
 alt-tab = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-lock now' # 43PR SUPER+Tab (hyprlock)
 alt-m = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-media toggle' # floating media widget
