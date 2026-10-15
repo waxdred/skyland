@@ -79,6 +79,12 @@ case "${1:-status}" in
         collapse_spaces
         yabai --stop-service 2>/dev/null || true
         skhd --stop-service 2>/dev/null || true
+        # launchd loads every agent of ~/Library/LaunchAgents at login: stop each
+        # yabai / skhd label (old koekeishiya and new asmvik ones), not only the
+        # one --stop-service knows, else a second yabai keeps fighting skyland
+        for agent in ~/Library/LaunchAgents/com.*.yabai.plist ~/Library/LaunchAgents/com.*.skhd.plist; do
+            [[ -f "$agent" ]] && launchctl bootout "gui/$(id -u)/$(basename "$agent" .plist)" 2>/dev/null
+        done
         pkill -x borders 2>/dev/null || true
         relink "$HYPR"
         open "$APP"
