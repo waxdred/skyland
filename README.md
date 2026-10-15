@@ -11,11 +11,14 @@ config file) and adds what makes Hyprland feel like Hyprland:
 
 - **dwindle** layout, split side following the cursor (`smart_split`), `togglesplit`
 - **move and resize with the mouse** anywhere on a window (`alt` + drag), tiles swap on drop
-- **window decoration**: rounded corners, active/inactive opacity
+- **window decoration**: rounded corners, active/inactive opacity, focused window **border** in the theme accent, Ghostty blur; floating windows stay on top
 - **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
 - **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars
 - **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
+- **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, applied live and written to the config with its comments kept
+- **scratchpad** (`alt-s`), **window rules** (floating utilities, apps sent to a workspace)
+- **window management on/off** (`alt-r`) with a HUD, windows back to stock macOS while off
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config
 - windows **keep their workspace** across restarts
 - a switch between this setup and a regular yabai/skhd setup (`skyland-env work|hypr`)
@@ -32,6 +35,8 @@ config file) and adds what makes Hyprland feel like Hyprland:
 <td align="center">Lock screen (<code>alt-tab</code>)</td>
 </tr>
 </table>
+
+<p align="center"><img src="docs/screenshots/settings.jpg" alt="Settings window: sliders and switches applied live" width="420"><br>Settings window (<code>alt-i</code>)</p>
 
 Screenshots are framed with `tools/frame-screenshot.swift`
 (`swiftc -O tools/frame-screenshot.swift -o .build/frame-screenshot`).
