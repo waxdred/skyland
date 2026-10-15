@@ -112,6 +112,68 @@ blur = 4 # wallpaper blur radius, 0 = sharp
 [media]
 opacity = 92 # percent
 
+# Window rules (Hyprland windowrule): small utility windows float at their own size,
+# chat and mail go to workspace 8. App ids: `aerospace list-apps`.
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences' # System Settings
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.calculator' # Calculator
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.archiveutility' # Archive Utility
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.1password.1password' # 1Password
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.raycast.macos' # Raycast settings
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.fortinet.FortiClient' # FortiClient
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'io.tailscale.ipn.macsys' # Tailscale
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'io.netbird.client' # NetBird
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.wireguard.macos' # WireGuard
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.philandro.anydesk' # AnyDesk
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.teamviewer.TeamViewer' # TeamViewer
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.microsoft.teams' # Teams (classic)
+run = 'move-node-to-workspace 8'
+
+[[on-window-detected]]
+if.app-id = 'com.microsoft.teams2' # Teams
+run = 'move-node-to-workspace 8'
+
+[[on-window-detected]]
+if.app-id = 'com.microsoft.Outlook' # Outlook
+run = 'move-node-to-workspace 8'
+
+[[on-window-detected]]
+if.app-id = 'com.hnc.Discord' # Discord
+run = 'move-node-to-workspace 8'
+
 [mode.main.binding]
 # programs
 alt-t = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-term' # new Ghostty window
