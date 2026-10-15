@@ -10,7 +10,8 @@ TEXT_DIM=0xffa5adcb ACCENT=0xffc6a0f6 ITEM_BG=0xff363a4f ITEM_BG_ACTIVE=0xff5b60
 
 existing=" $("$CLI" list-workspaces --monitor all 2>/dev/null | tr '\n' ' ') "
 # each workspace on the bar of its screen ("<workspace> <screen>" lines)
-screens="$("$CLI" list-workspaces --monitor all --format '%{workspace} %{monitor-appkit-nsscreen-screens-id}' 2>/dev/null)"
+# sketchybar numbers displays left to right like monitor-id (not the AppKit order)
+screens="$("$CLI" list-workspaces --monitor all --format '%{workspace} %{monitor-id}' 2>/dev/null)"
 focused="$("$CLI" list-workspaces --focused 2>/dev/null)"
 [[ -n "$focused" ]] || exit 0 # skyland not running
 

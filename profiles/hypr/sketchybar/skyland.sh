@@ -12,7 +12,7 @@ UPDATE="$DIR/update.sh"
 CLI="$(cd "$DIR/../../.." && pwd)/.build/debug/aerospace"
 
 # Same icons and Catppuccin colors as the work sketchybarrc / plugins/space.sh
-ICONS=("󰇧" "󰭻" "󰩃" "󰚩" "" "󰝚" "󰉋" "󰆼" "" "󰘙" "󰀵" "󰆺")
+ICONS=("󰇧" "󰭻" "󰩃" "󰚩" "" "󰝚" "󰉋" "󰆼" "" "󰘙" "󰀵" "󰆺")
 SUBTEXT0=0xffa5adcb
 MAUVE=0xffc6a0f6
 SURFACE0=0xff363a4f
@@ -20,7 +20,9 @@ SURFACE2=0xff5b6078
 
 # idempotent (runs from the work sketchybarrc and from skyland-env hypr): the
 # space regex also matches the workspace.N items of a previous run
-args=(--remove '/space\..*/' --remove skyland --add event skyland_update)
+# topmost=on: above the auto-hidden macOS menu bar, which else slides in over the
+# bar on hover and takes the clicks meant for the workspace icons
+args=(--bar topmost=on --remove '/space\..*/' --remove skyland --add event skyland_update)
 for i in $(seq 1 12); do
     # after space_separator's left neighbour: insert before the separator
     args+=(--add item "workspace.$i" left
