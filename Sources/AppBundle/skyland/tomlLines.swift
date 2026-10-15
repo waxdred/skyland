@@ -124,3 +124,51 @@ private func tomlCommentStart(_ text: Substring) -> Substring.Index? {
     }
     return nil
 }
+
+/// One `[[name]]` array-of-tables block: its line range (header included, trailing
+/// blank lines excluded) and its `key = value` lines.
+struct TomlBlock: Equatable {
+    var lines: Range<Int>
+    var entries: [TomlEntry]
+}
+
+func tomlBlocks(_ text: String, name: String) -> [TomlBlock] {
+    let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    var result: [TomlBlock] = []
+    var start: Int? = nil
+    func close(_ end: Int) {
+        guard let begin = start else { return }
+        var last = end
+        while last > begin + 1, lines[last - 1].trimmingCharacters(in: .whitespaces).isEmpty { last -= 1 }
+        let body = lines[(begin + 1) ..< last].joined(separator: "\n")
+        result.append(TomlBlock(lines: begin ..< last, entries: tomlEntries(body, section: "")))
+        start = nil
+    }
+    for (index, line) in lines.enumerated() where tomlHeader(Substring(line)) != nil {
+        close(index)
+        if line.trimmingCharacters(in: .whitespaces) == "[[\(name)]]" { start = index }
+    }
+    close(lines.count)
+    return result
+}
+
+/// `text` with the lines of `block` replaced by `newLines` (empty = removed, with one
+/// following blank line). `block` nil appends a new block after the last `[[name]]`
+/// one, else before the first `[mode.` table, else at the end.
+func tomlReplaceBlock(_ text: String, name: String, _ block: TomlBlock?, with newLines: [String]) -> String {
+    var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    if let block {
+        var range = block.lines
+        if newLines.isEmpty, range.upperBound < lines.count, lines[range.upperBound].trimmingCharacters(in: .whitespaces).isEmpty {
+            range = range.lowerBound ..< range.upperBound + 1
+        }
+        lines.replaceSubrange(range, with: newLines)
+    } else if let last = tomlBlocks(text, name: name).last {
+        lines.insert(contentsOf: [""] + newLines, at: last.lines.upperBound)
+    } else if let mode = lines.firstIndex(where: { $0.hasPrefix("[mode.") }) {
+        lines.insert(contentsOf: newLines + [""], at: mode)
+    } else {
+        lines += [""] + newLines
+    }
+    return lines.joined(separator: "\n")
+}

@@ -215,9 +215,9 @@ private final class OverviewBackdrop: NSView {
                     guard let target, target != MacWindow.allWindowsMap[pressed.windowId]?.nodeWorkspace?.name else { return }
                     skylandSa("untransform \(pressed.windowId)")
                     zoomedWindows.removeAll { $0.windowId == pressed.windowId }
-                    await runOverviewCommand("move-node-to-workspace --window-id \(pressed.windowId) \(target)")
+                    await runSkylandCommand("move-node-to-workspace --window-id \(pressed.windowId) \(target)")
                 } else {
-                    await runOverviewCommand("focus --window-id \(pressed.windowId)")
+                    await runSkylandCommand("focus --window-id \(pressed.windowId)")
                     await activateMode_nonCancellable(mainModeId)
                 }
             }
@@ -445,13 +445,13 @@ private final class OverviewCards: NSView {
                 guard let target, target != pressed.workspace else { return }
                 skylandSa("untransform \(pressed.windowId)") // it may be zoomed out under the strip
                 zoomedWindows.removeAll { $0.windowId == pressed.windowId }
-                await runOverviewCommand("move-node-to-workspace --window-id \(pressed.windowId) \(target)")
+                await runSkylandCommand("move-node-to-workspace --window-id \(pressed.windowId) \(target)")
                 return
             }
             if let pressed {
-                await runOverviewCommand("focus --window-id \(pressed.windowId)")
+                await runSkylandCommand("focus --window-id \(pressed.windowId)")
             } else if let target {
-                await runOverviewCommand("workspace \(target)")
+                await runSkylandCommand("workspace \(target)")
             } else {
                 return // strip background: stay open
             }
@@ -461,7 +461,7 @@ private final class OverviewCards: NSView {
 }
 
 @MainActor
-private func runOverviewCommand(_ raw: String) async {
+func runSkylandCommand(_ raw: String) async {
     guard let token: RunSessionGuard = .isServerEnabled,
           case .cmd(let command) = parseCommand(raw, allowExecAndForget: false, allowEval: false) else { return }
     try? await runLightSession(.hotkeyBinding, token) {

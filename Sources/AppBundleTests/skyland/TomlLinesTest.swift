@@ -56,4 +56,30 @@ final class TomlLinesTest: XCTestCase {
         let removed = tomlReplace(bindings, section: "mode.main.binding", key: "cmd-1", with: nil)
         assertEquals(tomlEntries(removed, section: "mode.main.binding").map(\.key), ["alt-t"])
     }
+
+    func testBlocks() {
+        let rules = """
+            a = 1
+
+            [[on-window-detected]]
+            if.app-id = 'com.apple.calculator' # Calculator
+            run = 'layout floating'
+
+            [[on-window-detected]]
+            if.app-id = 'com.hnc.Discord'
+            run = 'move-node-to-workspace 8'
+
+            [mode.main.binding]
+            alt-q = 'close'
+            """
+        let blocks = tomlBlocks(rules, name: "on-window-detected")
+        assertEquals(blocks.map(\.lines), [2 ..< 5, 6 ..< 9])
+        assertEquals(blocks[0].entries.first, TomlEntry(key: "if.app-id", value: "'com.apple.calculator'", comment: "Calculator"))
+        let removed = tomlReplaceBlock(rules, name: "on-window-detected", blocks[0], with: [])
+        assertEquals(tomlBlocks(removed, name: "on-window-detected").count, 1)
+        XCTAssertFalse(removed.contains("calculator"))
+        let added = tomlReplaceBlock(rules, name: "on-window-detected", nil, with: ["[[on-window-detected]]", "if.app-id = 'x'", "run = 'layout floating'"])
+        assertEquals(tomlBlocks(added, name: "on-window-detected").count, 3)
+        assertEquals(tomlValue(added, section: "mode.main.binding", key: "alt-q"), "'close'")
+    }
 }
