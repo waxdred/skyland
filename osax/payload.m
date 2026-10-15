@@ -47,6 +47,7 @@ extern CGError SLSGetWindowBounds(int cid, uint32_t wid, CGRect *frame);
 extern CGError SLSSetWindowAlpha(int cid, uint32_t wid, float alpha);
 extern CGError SLSGetWindowAlpha(int cid, uint32_t wid, float *alpha);
 extern CGError SLSSetWindowTransform(int cid, uint32_t wid, CGAffineTransform t);
+extern CGError SLSSetWindowLevel(int cid, uint32_t wid, int level);
 
 // Latest animation generation per window: a newer `animate` on the same window
 // takes over and the older stepping thread stops without touching it.
@@ -190,7 +191,7 @@ static const char *handle(char *line)
     char *save = NULL;
     char *cmd = strtok_r(line, " \n", &save);
     if (!cmd) return "err empty\n";
-    if (strcmp(cmd, "ping") == 0) return "ok fade close\n";
+    if (strcmp(cmd, "ping") == 0) return "ok fade close layer\n";
 
     char *wid_str = strtok_r(NULL, " \n", &save);
     if (!wid_str) return "err missing wid\n";
@@ -212,6 +213,14 @@ static const char *handle(char *line)
         if (SLSGetWindowBounds(SLSMainConnectionID(), wid, &real) != kCGErrorSuccess) return "err no window\n";
         SLSSetWindowTransform(SLSMainConnectionID(), wid, CGAffineTransformMakeTranslation(-real.origin.x, -real.origin.y));
         return "ok\n";
+    }
+
+    if (strcmp(cmd, "layer") == 0 && argc == 1) {
+        // layer <wid> 1|0: floating window level (above normal windows, like
+        // `yabai -m window --layer above`) or back to normal. Dock's universal
+        // connection may change the level of any app's window.
+        int level = CGWindowLevelForKey(args[0] != 0 ? kCGFloatingWindowLevelKey : kCGNormalWindowLevelKey);
+        return SLSSetWindowLevel(SLSMainConnectionID(), wid, level) == kCGErrorSuccess ? "ok\n" : "err no window\n";
     }
 
     int cid = SLSMainConnectionID();

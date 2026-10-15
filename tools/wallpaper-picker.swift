@@ -165,7 +165,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panel = KeyPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.level = .floating
+        panel.level = .modalPanel // above floating windows raised by skyland
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true

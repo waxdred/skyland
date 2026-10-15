@@ -33,6 +33,8 @@ func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inou
 // Last value sent per window, so a refresh only sends what changed.
 @MainActor private var sentOpacity: [UInt32: Int] = [:]
 @MainActor private var sentRounding: [UInt32: Int] = [:]
+// Floating windows stay above tiles (payload `layer`); ids currently raised.
+@MainActor private var raisedWindows: Set<UInt32> = []
 @MainActor private var seenWindows: Set<UInt32> = []
 // The payload recreates its socket on every injection; a Dock restart drops
 // what it applied, so a new socket inode means everything must be resent.
@@ -50,13 +52,15 @@ func applyDecorations() {
     let deco = config.decoration
     let anim = config.animations
     let wantsFades = anim.enabled && anim.fadeMs > 0
-    if !deco.isEnabled && !wantsFades && sentOpacity.isEmpty && sentRounding.isEmpty { return }
+    if !deco.isEnabled && !wantsFades && sentOpacity.isEmpty && sentRounding.isEmpty && raisedWindows.isEmpty
+        && !MacWindow.allWindows.contains(where: \.isFloating) { return }
     var st = stat()
     let inode = unsafe stat(skylandSaSocketPath, &st) == 0 ? st.st_ino : 0
     if inode != payloadSocketInode {
         payloadSocketInode = inode
         sentOpacity = [:]
         sentRounding = [:]
+        raisedWindows = []
         payloadCapabilities = Set((skylandSa("ping", wait: true) ?? "").split(whereSeparator: \.isWhitespace).map(String.init))
     }
     let fades = wantsFades && payloadCapabilities.contains("fade")
@@ -83,6 +87,10 @@ func applyDecorations() {
                 ? "fade \(windowId) \(Double(opacity) / 100) \(anim.fadeMs) \(anim.fadeBezier.args)\(fadeIn ? " 0" : "")"
                 : "alpha \(windowId) \(Double(opacity) / 100)")
         }
+        if payloadCapabilities.contains("layer"), window.isFloating != raisedWindows.contains(windowId) {
+            if window.isFloating { raisedWindows.insert(windowId) } else { raisedWindows.remove(windowId) }
+            skylandSa("layer \(windowId) \(window.isFloating ? 1 : 0)")
+        }
         if sentRounding[windowId, default: 0] != deco.rounding {
             sentRounding[windowId] = deco.rounding
             skylandSa(deco.rounding > 0 ? "corner \(windowId) \(deco.rounding)" : "uncorner \(windowId)")
@@ -91,6 +99,7 @@ func applyDecorations() {
     sentOpacity = sentOpacity.filter { alive.contains($0.key) }
     sentRounding = sentRounding.filter { alive.contains($0.key) }
     seenWindows = seenWindows.intersection(alive)
+    raisedWindows = raisedWindows.intersection(alive)
     if !newWindows.isEmpty { resendLater(newWindows) }
 }
 
@@ -112,6 +121,8 @@ func applyDecorations() {
 func restoreDecorations() {
     for windowId in sentOpacity.keys { skylandSa("alpha \(windowId) 1", wait: true) }
     for windowId in sentRounding.keys { skylandSa("uncorner \(windowId)", wait: true) }
+    for windowId in raisedWindows { skylandSa("layer \(windowId) 0", wait: true) }
+    raisedWindows = []
     sentOpacity = [:]
     sentRounding = [:]
 }

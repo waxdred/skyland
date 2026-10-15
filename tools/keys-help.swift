@@ -146,7 +146,7 @@ final class App: NSObject, NSApplicationDelegate {
         panel = KeyPanel(contentRect: NSRect(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.midY - size.height / 2,
                                              width: size.width, height: size.height),
                          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.level = .floating
+        panel.level = .modalPanel // above floating windows raised by skyland
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
