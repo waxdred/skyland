@@ -215,6 +215,19 @@ right, falling back left when fewer screens are plugged).
 | `alt-m` | media widget | |
 | `cmd-shift-e` | back to the work profile | `Super+Shift+E` |
 
+### SketchyBar
+
+The hypr profile reuses the work sketchybar config and swaps its yabai Spaces for
+skyland workspaces (`profiles/hypr/sketchybar/skyland.sh`). `skyland-env hypr` runs
+it once; to keep it after a sketchybar restart (login, `brew services restart`),
+end your `sketchybarrc` with:
+
+```sh
+if [[ "$(cat "$HOME/.config/.skyland-profile" 2>/dev/null)" == hypr ]]; then
+    "$HOME/code/hyperland/skyland/profiles/hypr/sketchybar/skyland.sh" >/dev/null 2>&1 &
+fi
+```
+
 ## Autostart
 
 Not installed by any script: both steps give extra privileges, so review and run

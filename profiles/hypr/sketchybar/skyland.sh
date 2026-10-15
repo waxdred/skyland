@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Turn the work sketchybar (yabai Spaces) into a skyland bar: run by
-# `skyland-env hypr` after `sketchybar --reload` loaded the work config.
+# Turn the work sketchybar (yabai Spaces) into a skyland bar: run at the end of
+# the work sketchybarrc when ~/.config/.skyland-profile is hypr (every load, also
+# a sketchybar restart), and by `skyland-env hypr` after `sketchybar --reload`.
 # Replaces the space.* items by skyland workspaces 1-12 and points window_title
 # at skyland. `skyland-env work` reloads the work config, which undoes all this.
 # Updates come from skyland: see on-focus-changed / exec-on-workspace-change in
@@ -17,7 +18,9 @@ MAUVE=0xffc6a0f6
 SURFACE0=0xff363a4f
 SURFACE2=0xff5b6078
 
-args=(--remove '/space\..*/' --add event skyland_update)
+# idempotent (runs from the work sketchybarrc and from skyland-env hypr): the
+# space regex also matches the workspace.N items of a previous run
+args=(--remove '/space\..*/' --remove skyland --add event skyland_update)
 for i in $(seq 1 12); do
     # after space_separator's left neighbour: insert before the separator
     args+=(--add item "workspace.$i" left
