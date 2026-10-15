@@ -1,17 +1,21 @@
 import AppKit
 import Common
 
-// skyland workspace overview (Hyprland hyprexpo-like, without live previews):
-// shown while the binding mode named "overview" is active, so it is opened,
-// closed and driven by ordinary config bindings ([mode.overview.binding]).
-// One card per workspace, 4 per row, windows drawn at their place in the
-// layout with their app icon, in the current theme colors. Click a card to go
-// there. Live window previews would need Screen Recording permission, and the
-// windows of hidden workspaces are at alpha 0, so they are not captured.
+// skyland workspace overview, styled after the Hyprland Hyprspace plugin
+// (KDE / macOS-like): a translucent glass strip slides down from the top of
+// the focused screen with that screen's workspaces centered in it, the active
+// one with a tinted background and an accent border, the others barely
+// visible; the rest of the screen is only lightly dimmed. Shown while the
+// binding mode "overview" is active, so it is driven by config bindings
+// ([mode.overview.binding]); a click on a card goes there, outside closes.
+// Windows are drawn at their place in the layout with their app icon (live
+// previews would need Screen Recording permission, and hidden workspaces'
+// windows are at alpha 0).
 
 let overviewModeId = "overview"
 
 @MainActor private var panel: NSPanel? = nil
+@MainActor private var strip: OverviewStrip? = nil
 
 /// Called by activateMode_nonCancellable.
 @MainActor
@@ -22,18 +26,38 @@ func overviewModeChanged(_ mode: String?) {
 /// Called after every refresh: keep the cards in sync while it is open.
 @MainActor
 func refreshOverview() {
-    panel?.contentView?.subviews.first(where: { $0 is OverviewView })?.needsDisplay = true
+    guard panel?.isVisible == true else { return }
+    strip?.layoutCards()
 }
 
 @MainActor
 private func showOverview() {
-    let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main ?? NSScreen.screens[0]
+    let monitor = focus.workspace.workspaceMonitor
+    let screen = NSScreen.screens.first { abs($0.frame.minX - monitor.rect.topLeftX) < 1 && abs($0.frame.width - monitor.rect.width) < 1 }
+        ?? NSScreen.main ?? NSScreen.screens[0]
     let panel = panel ?? makePanel()
     panel.setFrame(screen.frame, display: false)
-    panel.contentView?.frame = NSRect(origin: .zero, size: screen.frame.size)
-    for view in panel.contentView?.subviews ?? [] { view.frame = panel.contentView!.bounds }
-    refreshOverview()
+    let root = panel.contentView!
+    root.frame = NSRect(origin: .zero, size: screen.frame.size)
+    strip?.removeFromSuperview()
+    let newStrip = OverviewStrip(monitorRect: monitor.rect, monitorVisible: monitor.visibleRect)
+    strip = newStrip
+    root.addSubview(newStrip)
+    newStrip.layoutCards()
+
+    // Slide down from above the screen with the windows animation curve
+    let final = newStrip.frame
+    newStrip.setFrameOrigin(NSPoint(x: final.minX, y: root.bounds.height))
+    panel.alphaValue = 0
     panel.orderFrontRegardless()
+    let anim = config.animations
+    NSAnimationContext.runAnimationGroup { context in
+        context.duration = anim.enabled ? min(0.45, Double(anim.windowsMs) / 1000) : 0
+        context.timingFunction = CAMediaTimingFunction(controlPoints: Float(anim.windowsBezier.x1), Float(anim.windowsBezier.y1),
+                                                       Float(anim.windowsBezier.x2), Float(anim.windowsBezier.y2))
+        newStrip.animator().setFrameOrigin(final.origin)
+        panel.animator().alphaValue = 1
+    }
 }
 
 @MainActor
@@ -49,73 +73,136 @@ private func makePanel() -> NSPanel {
     p.isOpaque = false
     p.backgroundColor = .clear
     p.hasShadow = false
-    let root = NSView()
-    let blur = NSVisualEffectView()
-    blur.material = .fullScreenUI
-    blur.blendingMode = .behindWindow
-    blur.state = .active
-    blur.autoresizingMask = [.width, .height]
-    root.addSubview(blur)
-    let view = OverviewView()
-    view.autoresizingMask = [.width, .height]
-    root.addSubview(view)
-    p.contentView = root
+    p.contentView = OverviewBackdrop()
     panel = p
     return p
 }
 
-private final class OverviewView: NSView {
+/// Light dim over the whole screen; a click on it closes the overview.
+private final class OverviewBackdrop: NSView {
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.black.withAlphaComponent(0.15).setFill()
+        bounds.fill()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        Task { @MainActor in await activateMode_nonCancellable(mainModeId) }
+    }
+}
+
+/// The glass strip: blur + theme tint, holding one card per workspace.
+private final class OverviewStrip: NSView {
+    let monitorRect: Rect, monitorVisible: Rect
+    private let blur = NSVisualEffectView()
+    private let cardsView = OverviewCards()
+    private let radius: CGFloat = 20, padding: CGFloat = 18, spacing: CGFloat = 16, labelHeight: CGFloat = 22
+
+    init(monitorRect: Rect, monitorVisible: Rect) {
+        self.monitorRect = monitorRect
+        self.monitorVisible = monitorVisible
+        super.init(frame: .zero)
+        blur.material = .hudWindow
+        blur.blendingMode = .behindWindow
+        blur.state = .active
+        blur.wantsLayer = true
+        addSubview(blur)
+        addSubview(cardsView)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    @MainActor
+    func layoutCards() {
+        guard let root = superview else { return }
+        let workspaces = Workspace.all
+            .filter { $0.workspaceMonitor.rect.topLeftCorner == monitorRect.topLeftCorner }
+            .sorted { lhs, rhs in
+                if let l = Int(lhs.name), let r = Int(rhs.name) { return l < r }
+                return lhs.name < rhs.name
+            }
+        let columns = max(1, min(6, workspaces.count)), rows = max(1, (workspaces.count + columns - 1) / columns)
+        let aspect = monitorRect.width / max(1, monitorRect.height)
+        var cardHeight = root.bounds.height * 0.16
+        var cardWidth = cardHeight * aspect
+        let maxWidth = (root.bounds.width * 0.9 - 2 * padding - CGFloat(columns - 1) * spacing) / CGFloat(columns)
+        if cardWidth > maxWidth { cardWidth = maxWidth; cardHeight = cardWidth / aspect }
+        let size = NSSize(width: 2 * padding + CGFloat(columns) * cardWidth + CGFloat(columns - 1) * spacing,
+                          height: 2 * padding + CGFloat(rows) * (cardHeight + labelHeight) + CGFloat(rows - 1) * spacing)
+        // Below the menu bar / sketchybar of this screen (Hyprspace reservedArea)
+        let top = (monitorVisible.topLeftY - monitorRect.topLeftY) + barOverlap(barHeight: config.barHeight, menuBarHeight: monitorVisible.topLeftY - monitorRect.topLeftY) + 10
+        frame = NSRect(x: (root.bounds.width - size.width) / 2, y: root.bounds.height - top - size.height, width: size.width, height: size.height)
+        blur.frame = bounds
+        blur.maskImage = roundedMask(radius)
+        cardsView.frame = bounds
+        cardsView.configure(workspaces: workspaces, columns: columns, cardSize: NSSize(width: cardWidth, height: cardHeight),
+                            padding: padding, spacing: spacing, labelHeight: labelHeight, radius: radius)
+    }
+
+    private func roundedMask(_ radius: CGFloat) -> NSImage {
+        let edge = radius * 2 + 1
+        let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+            return true
+        }
+        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+        image.resizingMode = .stretch
+        return image
+    }
+}
+
+private final class OverviewCards: NSView {
+    private var workspaces: [Workspace] = []
     private var cards: [(rect: NSRect, workspace: String)] = []
+    private var columns = 1, cardSize = NSSize.zero
+    private var padding: CGFloat = 0, spacing: CGFloat = 0, labelHeight: CGFloat = 0, radius: CGFloat = 0
 
     override var isFlipped: Bool { true } // same top-left origin as window rects
 
+    @MainActor
+    func configure(workspaces: [Workspace], columns: Int, cardSize: NSSize, padding: CGFloat, spacing: CGFloat, labelHeight: CGFloat, radius: CGFloat) {
+        (self.workspaces, self.columns, self.cardSize) = (workspaces, columns, cardSize)
+        (self.padding, self.spacing, self.labelHeight, self.radius) = (padding, spacing, labelHeight, radius)
+        needsDisplay = true
+    }
+
     override func draw(_ dirtyRect: NSRect) {
-        MainActor.assumeIsolated { drawCards() }
+        MainActor.assumeIsolated { drawStrip() }
     }
 
     @MainActor
-    private func drawCards() {
+    private func drawStrip() {
         let theme = overviewThemeColors()
         let fg = theme["fg"] ?? .white, accent = theme["accent"] ?? .systemBlue
-        (theme["bg"] ?? .black).withAlphaComponent(0.55).setFill()
-        bounds.fill()
-
-        let workspaces = Workspace.all.sorted { lhs, rhs in
-            if let l = Int(lhs.name), let r = Int(rhs.name) { return l < r }
-            return lhs.name < rhs.name
-        }
-        guard !workspaces.isEmpty else { return }
-        let columns = min(4, workspaces.count), rows = (workspaces.count + columns - 1) / columns
-        let margin: CGFloat = 70, spacing: CGFloat = 28, labelHeight: CGFloat = 26
-        let monitor = mainMonitorInfo.rect
-        let aspect = monitor.width / max(1, monitor.height)
-        var cardWidth = (bounds.width - 2 * margin - CGFloat(columns - 1) * spacing) / CGFloat(columns)
-        var cardHeight = cardWidth / aspect
-        let maxHeight = (bounds.height - 2 * margin - CGFloat(rows - 1) * spacing) / CGFloat(rows) - labelHeight
-        if cardHeight > maxHeight { cardHeight = maxHeight; cardWidth = cardHeight * aspect }
-        let gridWidth = CGFloat(columns) * cardWidth + CGFloat(columns - 1) * spacing
-        let gridHeight = CGFloat(rows) * (cardHeight + labelHeight) + CGFloat(rows - 1) * spacing
-        let origin = NSPoint(x: (bounds.width - gridWidth) / 2, y: (bounds.height - gridHeight) / 2)
+        // Theme tint over the blur, then the strip border (Hyprspace panelBorderColor)
+        let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: radius, yRadius: radius)
+        (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
+        outline.fill()
+        accent.withAlphaComponent(0.35).setStroke()
+        outline.lineWidth = 1
+        outline.stroke()
 
         cards = []
         let focused = focus.workspace
         for (index, workspace) in workspaces.enumerated() {
             let column = index % columns, row = index / columns
-            let card = NSRect(x: origin.x + CGFloat(column) * (cardWidth + spacing),
-                              y: origin.y + CGFloat(row) * (cardHeight + labelHeight + spacing) + labelHeight,
-                              width: cardWidth, height: cardHeight)
+            let card = NSRect(x: padding + CGFloat(column) * (cardSize.width + spacing),
+                              y: padding + CGFloat(row) * (cardSize.height + labelHeight + spacing) + labelHeight,
+                              width: cardSize.width, height: cardSize.height)
             cards.append((card, workspace.name))
+            let active = workspace == focused
             NSAttributedString(string: workspace.name, attributes: [
-                .font: NSFont.systemFont(ofSize: 15, weight: .semibold),
-                .foregroundColor: workspace == focused ? accent : fg.withAlphaComponent(0.8),
-            ]).draw(at: NSPoint(x: card.minX + 4, y: card.minY - labelHeight + 3))
+                .font: NSFont.systemFont(ofSize: 13, weight: active ? .bold : .medium),
+                .foregroundColor: active ? accent : fg.withAlphaComponent(0.65),
+            ]).draw(at: NSPoint(x: card.minX + 2, y: card.minY - labelHeight + 2))
 
-            let path = NSBezierPath(roundedRect: card, xRadius: 14, yRadius: 14)
-            (theme["bg_card"] ?? .darkGray).withAlphaComponent(0.7).setFill()
+            let path = NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12)
+            // active: tinted + accent border; inactive: almost transparent (Hyprspace)
+            (active ? accent.withAlphaComponent(0.16) : fg.withAlphaComponent(0.05)).setFill()
             path.fill()
             drawWindows(of: workspace, in: card, theme: theme)
-            path.lineWidth = workspace == focused ? 3 : 1
-            (workspace == focused ? accent : fg.withAlphaComponent(0.15)).setStroke()
+            path.lineWidth = active ? 2.5 : 1
+            (active ? accent : fg.withAlphaComponent(0.12)).setStroke()
             path.stroke()
         }
     }
@@ -125,38 +212,29 @@ private final class OverviewView: NSView {
     private func drawWindows(of workspace: Workspace, in card: NSRect, theme: [String: NSColor]) {
         let area = workspace.workspaceMonitor.visibleRect
         let scale = min(card.width / area.width, card.height / area.height)
+        let fg = theme["fg"] ?? .white
         for window in workspace.allLeafWindowsRecursive {
             guard let r = window.lastAppliedLayoutPhysicalRect else { continue } // floating: no layout rect
             let rect = NSRect(x: card.minX + (r.topLeftX - area.topLeftX) * scale,
                               y: card.minY + (r.topLeftY - area.topLeftY) * scale,
                               width: r.width * scale, height: r.height * scale).insetBy(dx: 3, dy: 3)
             guard rect.width > 8, rect.height > 8 else { continue }
-            let path = NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8)
-            (theme["bg_hover"] ?? .gray).withAlphaComponent(0.9).setFill()
+            let path = NSBezierPath(roundedRect: rect, xRadius: 7, yRadius: 7)
+            (theme["bg_hover"] ?? .gray).withAlphaComponent(0.45).setFill()
             path.fill()
-            let iconSize = min(56, rect.width * 0.45, rect.height * 0.55)
+            fg.withAlphaComponent(0.10).setStroke()
+            path.lineWidth = 1
+            path.stroke()
+            let iconSize = min(44, rect.width * 0.5, rect.height * 0.6)
             if let icon = NSRunningApplication(processIdentifier: window.app.pid)?.icon {
-                icon.draw(in: NSRect(x: rect.midX - iconSize / 2, y: rect.midY - iconSize / 2 - 6, width: iconSize, height: iconSize))
-            }
-            if let name = window.app.name, rect.height > iconSize + 30 {
-                let text = NSAttributedString(string: name, attributes: [
-                    .font: NSFont.systemFont(ofSize: 11, weight: .medium),
-                    .foregroundColor: (theme["fg_dim"] ?? .lightGray),
-                ])
-                let size = text.size()
-                if size.width < rect.width - 8 {
-                    text.draw(at: NSPoint(x: rect.midX - size.width / 2, y: rect.midY + iconSize / 2))
-                }
+                icon.draw(in: NSRect(x: rect.midX - iconSize / 2, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize))
             }
         }
     }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        guard let name = cards.first(where: { $0.rect.contains(point) })?.workspace else {
-            Task { @MainActor in await activateMode_nonCancellable(mainModeId) } // click outside: close
-            return
-        }
+        guard let name = cards.first(where: { $0.rect.contains(point) })?.workspace else { return } // strip background: stay open
         Task { @MainActor in
             if let token: RunSessionGuard = .isServerEnabled {
                 try? await runLightSession(.hotkeyBinding, token) { _ = Workspace.get(byName: name).focusWorkspace() }
