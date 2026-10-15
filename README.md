@@ -14,7 +14,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **window decoration**: rounded corners, active/inactive opacity
 - **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
 - **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**
-- **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget**
+- **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars
 - **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config
 - windows **keep their workspace** across restarts

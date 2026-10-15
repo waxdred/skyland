@@ -3,7 +3,12 @@
 // Now playing comes from third_party/mediaremote-adapter (MediaRemote through
 // the entitled /usr/bin/perl, needed since macOS 15.4). Colors follow the
 // current skyland theme (~/.cache/skyland/theme.css). Toggled by bin/skyland-media.
+// Audio-reactive bars (cava-like): system audio from ScreenCaptureKit (audio only,
+// while something plays; uses the Screen Recording permission of the launching
+// app), FFT with Accelerate, log-spaced bands with auto gain.
+import Accelerate
 import AppKit
+import ScreenCaptureKit
 
 let exe = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
 let repo = exe.deletingLastPathComponent().deletingLastPathComponent() // exe is <repo>/.build/skyland-media
@@ -47,6 +52,103 @@ final class Progress: NSView {
     }
 }
 
+/// Bars of the audio visualizer, levels 0...1, colored with the theme accent.
+final class Bars: NSView {
+    var levels: [Float] = [] { didSet { needsDisplay = true } }
+    var color = NSColor.white
+    override func draw(_ dirtyRect: NSRect) {
+        guard !levels.isEmpty else { return }
+        let gap: CGFloat = 3, width = (bounds.width - gap * CGFloat(levels.count - 1)) / CGFloat(levels.count)
+        for (i, level) in levels.enumerated() {
+            let height = max(2, bounds.height * CGFloat(level))
+            let bar = NSRect(x: CGFloat(i) * (width + gap), y: 0, width: width, height: height)
+            color.withAlphaComponent(0.45 + 0.55 * CGFloat(level)).setFill()
+            NSBezierPath(roundedRect: bar, xRadius: width / 2, yRadius: width / 2).fill()
+        }
+    }
+}
+
+/// System audio -> band levels. Runs only between start() and stop().
+final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
+    static let fftSize = 1024
+    let bandCount: Int
+    let onLevels: ([Float]) -> Void // called on the main queue
+    private var stream: SCStream?
+    private let queue = DispatchQueue(label: "skyland-media.audio")
+    private var samples: [Float] = []
+    private let dft = vDSP.DFT(count: fftSize, direction: .forward, transformType: .complexReal, ofType: Float.self)!
+    private let window = vDSP.window(ofType: Float.self, usingSequence: .hanningDenormalized, count: fftSize, isHalfWindow: false)
+    private var peak: Float = 1e-3 // auto gain, like cava autosens
+    private let tilt: Float = 1.5 // music has less energy up high: band gain (1 + band)^tilt, raise for livelier highs
+    private var sampleRate: Double = 48000
+
+    init(bands: Int, onLevels: @escaping ([Float]) -> Void) {
+        bandCount = bands
+        self.onLevels = onLevels
+    }
+
+    func start() {
+        guard stream == nil else { return }
+        Task {
+            guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false),
+                  let display = content.displays.first else { return }
+            let config = SCStreamConfiguration()
+            config.capturesAudio = true
+            config.excludesCurrentProcessAudio = true
+            config.sampleRate = Int(sampleRate)
+            config.channelCount = 1
+            config.width = 2 // audio only: the smallest video, one frame per second
+            config.height = 2
+            config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+            let stream = SCStream(filter: SCContentFilter(display: display, excludingWindows: []), configuration: config, delegate: nil)
+            try? stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: queue)
+            guard (try? await stream.startCapture()) != nil else { return }
+            self.stream = stream
+        }
+    }
+
+    func stop() {
+        let stream = self.stream
+        self.stream = nil
+        Task { try? await stream?.stopCapture() }
+    }
+
+    func stream(_ stream: SCStream, didOutputSampleBuffer buffer: CMSampleBuffer, of type: SCStreamOutputType) {
+        guard type == .audio else { return }
+        try? buffer.withAudioBufferList { list, _ in
+            guard let data = list.first?.mData else { return }
+            let count = Int(list.first!.mDataByteSize) / MemoryLayout<Float>.size
+            samples.append(contentsOf: UnsafeBufferPointer(start: data.assumingMemoryBound(to: Float.self), count: count))
+        }
+        while samples.count >= Self.fftSize {
+            let block = Array(samples.prefix(Self.fftSize))
+            samples.removeFirst(Self.fftSize / 2) // 50% overlap
+            let levels = bands(of: block)
+            DispatchQueue.main.async { self.onLevels(levels) }
+        }
+    }
+
+    private func bands(of block: [Float]) -> [Float] {
+        let windowed = vDSP.multiply(block, window)
+        // complexReal DFT input: even samples as real, odd samples as imaginary
+        let even = stride(from: 0, to: Self.fftSize, by: 2).map { windowed[$0] }
+        let odd = stride(from: 1, to: Self.fftSize, by: 2).map { windowed[$0] }
+        var re = [Float](repeating: 0, count: Self.fftSize / 2), im = re
+        dft.transform(inputReal: even, inputImaginary: odd, outputReal: &re, outputImaginary: &im)
+        let binHz = sampleRate / Double(Self.fftSize)
+        var levels = [Float](repeating: 0, count: bandCount)
+        for band in 0 ..< bandCount { // log spaced 50 Hz ... 12 kHz
+            let low = 50 * pow(240, Double(band) / Double(bandCount)), high = 50 * pow(240, Double(band + 1) / Double(bandCount))
+            let first = max(1, Int(low / binHz)), last = max(first, min(re.count - 1, Int(high / binHz)))
+            var sum: Float = 0
+            for k in first ... last { sum += sqrt(re[k] * re[k] + im[k] * im[k]) }
+            levels[band] = sum / Float(last - first + 1) * pow(Float(1 + band), tilt)
+        }
+        peak = max(levels.max() ?? 0, peak * 0.995, 1e-3)
+        return levels.map { min(1, sqrt($0 / peak)) }
+    }
+}
+
 final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let size = NSSize(width: 380, height: 116)
     let radius: CGFloat = 18
@@ -58,6 +160,10 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let source = NSTextField(labelWithString: "")
     let progress = Progress()
     var playButton: NSButton!
+    let bars = Bars()
+    var shownLevels = [Float](repeating: 0, count: 14)
+    var targetLevels = [Float](repeating: 0, count: 14)
+    lazy var audio = AudioBands(bands: 14) { [weak self] levels in self?.targetLevels = levels }
     var buttons: [NSButton] = []
 
     var state: [String: Any] = [:]
@@ -120,6 +226,20 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
             buttons.append(button)
         }
         playButton = buttons[1]
+        bars.frame = NSRect(x: 254, y: 10, width: size.width - 254 - 16, height: 22)
+        glass.addSubview(bars)
+        // 30 fps: rise at once, fall slowly (cava gravity)
+        Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let playing = self.state["playing"] as? Bool ?? false
+                for i in self.shownLevels.indices {
+                    let target = playing ? self.targetLevels[i] : 0
+                    self.shownLevels[i] = max(target, self.shownLevels[i] * 0.85)
+                }
+                if self.bars.levels != self.shownLevels { self.bars.levels = self.shownLevels }
+            }
+        }
 
         applyTheme()
         render()
@@ -152,6 +272,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         progress.fill = c["accent"] ?? fg
         progress.needsDisplay = true
         for button in buttons { button.contentTintColor = fg }
+        bars.color = c["accent"] ?? fg
         artwork.layer?.backgroundColor = (c["bg_hover"] ?? .darkGray).cgColor
     }
 
@@ -197,6 +318,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
             artwork.image = NSImage(systemSymbolName: "music.note", accessibilityDescription: nil)
         }
         playButton.image = NSImage(systemSymbolName: playing ? "pause.fill" : "play.fill", accessibilityDescription: nil)
+        if playing { audio.start() } else { audio.stop() } // capture only while something plays
         updateProgress()
     }
 
@@ -223,6 +345,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         stream?.terminationHandler = nil
         stream?.terminate()
+        audio.stop()
     }
 }
 
