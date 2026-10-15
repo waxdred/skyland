@@ -1,5 +1,6 @@
+import AppKit
+import Carbon
 import Common
-import Foundation
 
 // Hyprland-like window decoration (rounding, active/inactive opacity), applied
 // through the skyland scripting addition injected into Dock (see osax/payload.m).
@@ -78,6 +79,12 @@ func applyDecorations() {
     let focusedId = focus.windowOrNil?.windowId
     var alive = Set<UInt32>()
     var newWindows: [UInt32] = []
+    // Floating windows go back to the normal level while a password / Touch ID
+    // prompt (secure input) or another app without managed windows (auth agents,
+    // system popups) is in front: their normal level windows would be under them.
+    let frontPid = NSWorkspace.shared.frontmostApplication?.processIdentifier
+    let raiseFloating = !IsSecureEventInputEnabled()
+        && (frontPid == nil || MacWindow.allWindows.contains { $0.app.pid == frontPid })
     for (windowId, window) in MacWindow.allWindowsMap {
         alive.insert(windowId)
         var fadeIn = false
@@ -95,9 +102,10 @@ func applyDecorations() {
                 ? "fade \(windowId) \(Double(opacity) / 100) \(anim.fadeMs) \(anim.fadeBezier.args)\(fadeIn ? " 0" : "")"
                 : "alpha \(windowId) \(Double(opacity) / 100)")
         }
-        if payloadCapabilities.contains("layer"), window.isFloating != raisedWindows.contains(windowId) {
-            if window.isFloating { raisedWindows.insert(windowId) } else { raisedWindows.remove(windowId) }
-            skylandSa("layer \(windowId) \(window.isFloating ? 1 : 0)")
+        let raise = window.isFloating && raiseFloating
+        if payloadCapabilities.contains("layer"), raise != raisedWindows.contains(windowId) {
+            if raise { raisedWindows.insert(windowId) } else { raisedWindows.remove(windowId) }
+            skylandSa("layer \(windowId) \(raise ? 1 : 0)")
         }
         if sentRounding[windowId, default: 0] != deco.rounding {
             sentRounding[windowId] = deco.rounding
