@@ -242,6 +242,9 @@ func dwindleSplit(_ rect: Rect?, mouse: CGPoint?, fallback: Orientation) -> (Ori
 private func unbindAndGetBindingDataForNewTilingWindow(_ workspace: Workspace, window: Window?) -> BindingData {
     window?.unbindFromParent() // It's important to unbind to get correct data from below
     let mruWindow = workspace.mostRecentWindowRecursive
+    if isMasterWorkspace(workspace) { // skyland: master layout, new windows go to the bottom of the stack
+        return BindingData(parent: workspace.rootTilingContainer, adaptiveWeight: WEIGHT_AUTO, index: INDEX_BIND_LAST)
+    }
     if config.dwindle, let mruWindow, let tilingParent = mruWindow.parent as? TilingContainer {
         // Hyprland dwindle: split the focused window in two
         let fallback = tilingParent.children.count == 1 ? tilingParent.orientation : tilingParent.orientation.opposite

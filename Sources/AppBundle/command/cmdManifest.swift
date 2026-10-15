@@ -14,6 +14,8 @@ extension CmdArgs {
                 command = SettingsCommand(args: self as! SettingsCmdArgs)
             case .groupFocus:
                 command = GroupFocusCommand(args: self as! GroupFocusCmdArgs)
+            case .master:
+                command = MasterCommand(args: self as! MasterCmdArgs)
             case .close:
                 command = CloseCommand(args: self as! CloseCmdArgs)
             case .closeAllWindowsButCurrent:

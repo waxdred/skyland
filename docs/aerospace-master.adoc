@@ -1,0 +1,33 @@
+= aerospace-master(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-master
+// tag::purpose[]
+:manpurpose: Hyprland master layout of the focused workspace
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace master [-h|--help] (on|off|toggle|swap|focus)
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}: one master window (master-ratio percent wide) and the other windows
+stacked on the side; new windows go to the bottom of the stack. on / off / toggle
+switch the focused workspace (remembered), swap swaps the focused window with the
+master, focus focuses the master.
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+// end::body[]
+
+// =========================================================== Footer
+include::util/man-footer.adoc[]

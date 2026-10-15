@@ -189,3 +189,6 @@ let settings_help_generated = """
 let group_focus_help_generated = """
     USAGE: group-focus [-h|--help] (next|prev)
     """
+let master_help_generated = """
+    USAGE: master [-h|--help] (on|off|toggle|swap|focus)
+    """

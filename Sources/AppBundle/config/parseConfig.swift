@@ -142,6 +142,8 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     "default-root-container-layout": Parser(\.defaultRootContainerLayout, parseLayout),
     "dwindle": Parser(\.dwindle, parseBool),
     "dwindle-smart-split": Parser(\.dwindleSmartSplit, parseBool),
+    "master-workspaces": Parser(\.masterWorkspaces, parseArrayOfStrings),
+    "master-ratio": Parser(\.masterRatio, parseInt),
     "floating-center-percent": Parser(\.floatingCenterPercent, parseInt),
     "bar-height": Parser(\.barHeight, parseInt),
     "mouse-modifier": Parser(\.mouseModifier, { raw, backtrace in

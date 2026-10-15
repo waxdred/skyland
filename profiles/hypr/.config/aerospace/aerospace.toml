@@ -12,6 +12,8 @@ auto-reload-config = true
 dwindle = true
 # 43PR/Hyprland dwindle:smart_split: the new window goes on the side of the cursor
 dwindle-smart-split = true
+master-ratio = 55 # Hyprland master:mfact, master layout per workspace (alt-shift-t)
+master-workspaces = [] # workspaces in the master layout at the very first start
 # 43PR SUPER+Space: a tile made floating is resized to 70% of the monitor and centered
 floating-center-percent = 70
 # 43PR bindm SUPER + mouse:272 / mouse:273: alt + left drag moves a window,
@@ -194,6 +196,8 @@ alt-s = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch toggle' # 
 alt-shift-s = 'exec-and-forget ~/code/hyperland/skyland/bin/skyland-scratch move' # send window to the scratchpad
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
 alt-g = 'layout accordion tiles' # togglegroup: the window's container becomes a group of tabs, or tiles again
+alt-shift-t = 'master toggle' # master layout for this workspace (one big window, a stack on the side)
+alt-shift-enter = 'master swap' # swapwithmaster
 alt-n = 'group-focus next' # next tab of the group (changegroupactive f)
 alt-shift-n = 'group-focus prev' # previous tab of the group
 alt-ctrl-h = ['join-with left', 'layout accordion'] # moveintogroup: group with the window on the left
