@@ -70,6 +70,14 @@ final class KeysModel: ObservableObject {
         guard let name = keyName(UInt32(event.keyCode)) else { NSSound.beep(); return }
         let notation = mods.isEmpty ? name : "\(mods.toString())-\(name)"
         stopRecording()
+        if mods.isEmpty && mode == mainModeId {
+            error = "\(notation): a key without cmd / alt / ctrl / shift in the main mode would be taken from every app"
+            return
+        }
+        if notation != target, let existing = entries.first(where: { normalize($0.key) == normalize(notation) }) {
+            error = "\(notation) is already bound to \(existing.value), change or delete that one first"
+            return
+        }
         if target.isEmpty {
             change(nil, to: TomlEntry(key: notation, value: "'exec-and-forget echo'", comment: "new binding"))
         } else if let entry = entries.first(where: { $0.key == target }), notation != target {
