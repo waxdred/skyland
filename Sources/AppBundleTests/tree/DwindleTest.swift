@@ -81,6 +81,16 @@ final class InputSourceKeysTest: XCTestCase {
     }
 }
 
+final class ArrowKeysTest: XCTestCase {
+    func testHiddenArrowModifiersAreIgnored() {
+        // cmd-up as the keyboard sends it: command + function + numeric pad
+        assertEquals(modifierFlags([.maskCommand, .maskSecondaryFn, .maskNumericPad]), .command)
+        assertEquals(modifierFlags([.maskAlternate, .maskShift, .maskAlphaShift]), [.option, .shift])
+        assertEquals(isArrowKey(.upArrow), true)
+        assertEquals(isArrowKey(.m), false)
+    }
+}
+
 final class BarHeightTest: XCTestCase {
     func testOverlap() {
         assertEquals(barOverlap(barHeight: 32, menuBarHeight: 32), 0) // notched built-in display

@@ -24,6 +24,7 @@ import Foundation
         GlobalObserver.initObserver()
         startMouseDragTap() // skyland
         observeInputSourceChanges() // skyland
+        startArrowKeyTap() // skyland
         Workspace.garbageCollectUnusedWorkspaces() // init workspaces
         _ = Workspace.all.first?.focusWorkspace()
         await runHeavyCompleteRefreshSession(

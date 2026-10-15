@@ -28,7 +28,8 @@ extension HotKey {
 @MainActor var activeMode: String? = mainModeId
 @MainActor func activateMode_nonCancellable(_ targetMode: String?) async {
     let targetBindings = targetMode.flatMap { config.modes[$0] }?.bindings ?? [:]
-    for binding in targetBindings.values where !hotkeys.keys.contains(binding.descriptionWithKeyCode) {
+    // skyland: arrow key bindings never fired as Carbon hotkeys, arrowKeys.swift handles them
+    for binding in targetBindings.values where !hotkeys.keys.contains(binding.descriptionWithKeyCode) && !isArrowKey(binding.keyCode) {
         hotkeys[binding.descriptionWithKeyCode] = HotKey(key: binding.keyCode, modifiers: binding.modifiers, keyDownHandler: {
             Task.startUnstructured {
                 if let activeMode {
@@ -120,3 +121,4 @@ func parseBinding(_ raw: String, _ backtrace: ConfigBacktrace, _ mapping: [Strin
         }
     }
 }
+
