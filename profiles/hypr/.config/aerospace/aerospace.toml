@@ -128,14 +128,6 @@ highlight = 'theme' # text selection: the theme accent lightened, or a preset / 
 [terminal]
 app = 'Ghostty'
 
-# Hyprland window swallowing: a window started from a terminal (mpv, imv, a GUI
-# binary run from the shell) takes its place; the terminal comes back when it closes.
-# Apps started with `open` have no terminal parent: never swallowed.
-[swallow]
-enabled = true
-# terminals = ['com.mitchellh.ghostty'] # bundle ids, default: the common terminals
-# exceptions = ['org.videolan.vlc'] # apps that never swallow their terminal
-
 [media]
 opacity = 92 # percent
 

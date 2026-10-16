@@ -7,9 +7,6 @@ is also the text of its GitHub release.
 ## Unreleased
 
 **Hyprland**
-- **Window swallowing** (`[swallow]`): a window started from a terminal (`mpv`, `imv`, a
-  GUI binary run from the shell) takes the terminal's place; the terminal comes back when
-  it closes.
 - **Dim inactive windows** (`[decoration] dim-inactive`, percent, also in the settings
   window): unfocused windows are darkened, fading with focus. Needs the Dock payload
   rebuilt (`skyland sa build && skyland sa load`).
