@@ -38,6 +38,7 @@ final class MacWindow: Window {
         try await debugWindowsIfRecording(window, .cancellable)
         if try await !restoreClosedWindowsCacheIfNeeded(newlyDetectedWindow: window) {
             await runOnWindowDetected(ifConventional: window)
+            swallowTerminal(for: window) // skyland
         }
         return window
     }
@@ -82,7 +83,9 @@ final class MacWindow: Window {
             return
         }
         if !skipClosedWindowsCache { cacheClosedWindowIfNeeded() }
-        let parent = unbindFromParent().parent
+        let slot = unbindFromParent()
+        let parent = slot.parent
+        releaseSwallowedTerminal(of: windowId, at: slot) // skyland
         let deadWindowWorkspace = parent.nodeWorkspace
         let focus = focus
         if let deadWindowWorkspace, deadWindowWorkspace == focus.workspace ||

@@ -11,7 +11,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 
 - **dwindle** layout, split side following the cursor (`smart_split`), `togglesplit`
 - **move and resize with the mouse** anywhere on a window (`alt` + drag), tiles swap on drop
-- **window decoration**: rounded corners, active/inactive opacity, focused window **border** in the theme accent, Ghostty blur; floating windows stay on top
+- **window decoration**: rounded corners, active/inactive opacity, dim inactive windows, focused window **border** in the theme accent, Ghostty blur; floating windows stay on top
 - **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
 - **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**, light or dark picked from the wallpaper brightness
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars
@@ -19,6 +19,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, plus **Keys** (record a key, edit command and description, duplicates and macOS shortcuts flagged) and **Rules** (float / tile / workspace per app, from the running apps) tabs; applied live and written to the config with its comments kept
 - **master layout** per workspace (`alt-shift-t`): one big window and a stack on the side (master in the middle on ultrawide screens), `alt-shift-enter` swaps with the master (Hyprland `master`, `swapwithmaster`)
 - **groups** (`alt-g`): a container becomes tabs with a tabs bar, `alt-n` cycles, `alt-ctrl-h/j/k/l` groups with a neighbour (Hyprland `togglegroup`, `changegroupactive`, `moveintogroup`)
+- **window swallowing**: a window started from a terminal takes its place (Hyprland `enable_swallow`)
 - **scratchpads** (`alt-s`, named ones like `alt-a` = Spotify), **window rules** (floating utilities, apps sent to a workspace)
 - **window management on/off** (`alt-r`) with a HUD, windows back to stock macOS while off
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config
@@ -249,6 +250,7 @@ key-mapping.preset = 'input-source'  # letters follow the active keyboard layout
 rounding = 8
 active-opacity = 100              # percent
 inactive-opacity = 85
+dim-inactive = 20                 # darken unfocused windows, percent (Dock payload), 0 = none
 border-width = 2                  # focused window border, theme accent gradient (JankyBorders), 0 = none
 blur = 5                          # Ghostty background blur, 0 = none
 group-bar-height = 22             # accordion containers become groups with a tabs bar, 0 = AeroSpace accordion
@@ -279,7 +281,17 @@ blur = 4
 
 [media]
 opacity = 92
+
+[swallow]                         # Hyprland window swallowing
+enabled = true
+# terminals = ['com.mitchellh.ghostty']   # bundle ids, default: the common terminals
+# exceptions = ['org.videolan.vlc']       # apps that never swallow their terminal
 ```
+
+**Window swallowing**: a tiled window started from a terminal (`mpv`, `imv`, a GUI
+binary run from the shell) takes the place of that terminal window; the terminal comes
+back where it was when the window closes. Apps started with `open` are children of
+launchd, not of the shell, so they never swallow.
 
 The 18 43PR themes are in `profiles/hypr/.config/skyland/themes/`: copy one and
 edit the colors to make your own. `wallpaper-colors.json` maps Material roles to

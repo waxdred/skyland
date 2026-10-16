@@ -76,6 +76,7 @@ gaps.outer.left = 8
 rounding = 8
 active-opacity = 100
 inactive-opacity = 90
+dim-inactive = 0 # darken unfocused windows, percent (Hyprland dim_inactive), needs the payload
 border-width = 2 # focused window border, theme accent gradient (JankyBorders)
 blur = 5 # Ghostty background blur (43PR blur size 5)
 group-bar-height = 22 # Hyprland groups: accordion containers get a tabs bar (alt-g)
@@ -126,6 +127,14 @@ highlight = 'theme' # text selection: the theme accent lightened, or a preset / 
 # New terminal window on alt-t (bin/skyland-term): Ghostty, iTerm, WezTerm, kitty or any app
 [terminal]
 app = 'Ghostty'
+
+# Hyprland window swallowing: a window started from a terminal (mpv, imv, a GUI
+# binary run from the shell) takes its place; the terminal comes back when it closes.
+# Apps started with `open` have no terminal parent: never swallowed.
+[swallow]
+enabled = true
+# terminals = ['com.mitchellh.ghostty'] # bundle ids, default: the common terminals
+# exceptions = ['org.videolan.vlc'] # apps that never swallow their terminal
 
 [media]
 opacity = 92 # percent

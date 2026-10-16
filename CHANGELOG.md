@@ -6,6 +6,14 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+**Hyprland**
+- **Window swallowing** (`[swallow]`): a window started from a terminal (`mpv`, `imv`, a
+  GUI binary run from the shell) takes the terminal's place; the terminal comes back when
+  it closes.
+- **Dim inactive windows** (`[decoration] dim-inactive`, percent, also in the settings
+  window): unfocused windows are darkened, fading with focus. Needs the Dock payload
+  rebuilt (`skyland sa build && skyland sa load`).
+
 **Install**
 - `skyland sa load` offers to write the sudoers rule (payload injected at login without
   a password) and renews it after each rebuild of the payload.

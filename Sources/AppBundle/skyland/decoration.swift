@@ -13,6 +13,7 @@ import Common
 // rounding = 8
 // active-opacity = 100
 // inactive-opacity = 90
+// dim-inactive = 0     # darken unfocused windows, percent (Hyprland dim_inactive + dim_strength)
 // border-width = 2     # focused window border in the theme accent (JankyBorders), 0 = none
 // blur = 5             # Ghostty background blur behind its translucent background, 0 = none
 // group-bar-height = 22 # accordion containers become Hyprland groups: tabs bar on top, one window shown (0 = AeroSpace accordion)
@@ -21,17 +22,19 @@ struct Decoration: ConvenienceMutable, Equatable, Sendable {
     var rounding: Int = 0
     var activeOpacity: Int = 100
     var inactiveOpacity: Int = 100
+    var dimInactive: Int = 0
     var borderWidth: Int = 0
     var blur: Int = 0
     var groupBarHeight: Int = 0
 
-    var isEnabled: Bool { rounding > 0 || activeOpacity != 100 || inactiveOpacity != 100 }
+    var isEnabled: Bool { rounding > 0 || activeOpacity != 100 || inactiveOpacity != 100 || dimInactive > 0 }
 }
 
 private let decorationParser: [String: any ParserProtocol<Decoration>] = [
     "rounding": Parser(\.rounding, parseInt),
     "active-opacity": Parser(\.activeOpacity, parseInt),
     "inactive-opacity": Parser(\.inactiveOpacity, parseInt),
+    "dim-inactive": Parser(\.dimInactive, parseInt),
     "border-width": Parser(\.borderWidth, parseInt),
     "blur": Parser(\.blur, parseInt),
     "group-bar-height": Parser(\.groupBarHeight, parseInt),
@@ -44,6 +47,7 @@ func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inou
 // Last value sent per window, so a refresh only sends what changed.
 @MainActor private var sentOpacity: [UInt32: Int] = [:]
 @MainActor private var sentRounding: [UInt32: Int] = [:]
+@MainActor private var sentDim: [UInt32: Int] = [:]
 // Floating windows stay above tiles (payload `layer`); ids currently raised.
 @MainActor private var raisedWindows: Set<UInt32> = []
 @MainActor private var seenWindows: Set<UInt32> = []
@@ -64,7 +68,7 @@ func applyDecorations() {
     let deco = config.decoration
     let anim = config.animations
     let wantsFades = anim.enabled && anim.fadeMs > 0
-    if !deco.isEnabled && !wantsFades && sentOpacity.isEmpty && sentRounding.isEmpty && raisedWindows.isEmpty
+    if !deco.isEnabled && !wantsFades && sentOpacity.isEmpty && sentRounding.isEmpty && sentDim.isEmpty && raisedWindows.isEmpty
         && !MacWindow.allWindows.contains(where: \.isFloating) { return }
     var st = stat()
     let inode = unsafe stat(skylandSaSocketPath, &st) == 0 ? st.st_ino : 0
@@ -72,6 +76,7 @@ func applyDecorations() {
         payloadSocketInode = inode
         sentOpacity = [:]
         sentRounding = [:]
+        sentDim = [:]
         raisedWindows = []
         payloadCapabilities = Set((skylandSa("ping", wait: true) ?? "").split(whereSeparator: \.isWhitespace).map(String.init))
     }
@@ -110,6 +115,14 @@ func applyDecorations() {
             if raise { raisedWindows.insert(windowId) } else { raisedWindows.remove(windowId) }
             skylandSa("layer \(windowId) \(raise ? 1 : 0)")
         }
+        let dim = windowId == focusedId ? 0 : min(100, max(0, deco.dimInactive))
+        if payloadCapabilities.contains("dim"), sentDim[windowId, default: 0] != dim {
+            let from = sentDim[windowId, default: 0]
+            sentDim[windowId] = dim
+            skylandSa(fades && !fadeIn
+                ? "dim \(windowId) \(Double(dim) / 100) \(anim.fadeMs) \(anim.fadeBezier.args) \(Double(from) / 100)"
+                : "dim \(windowId) \(Double(dim) / 100)")
+        }
         if sentRounding[windowId, default: 0] != deco.rounding {
             sentRounding[windowId] = deco.rounding
             skylandSa(deco.rounding > 0 ? "corner \(windowId) \(deco.rounding)" : "uncorner \(windowId)")
@@ -117,6 +130,7 @@ func applyDecorations() {
     }
     sentOpacity = sentOpacity.filter { alive.contains($0.key) }
     sentRounding = sentRounding.filter { alive.contains($0.key) }
+    sentDim = sentDim.filter { alive.contains($0.key) }
     seenWindows = seenWindows.intersection(alive)
     raisedWindows = raisedWindows.intersection(alive)
     if !newWindows.isEmpty { resendLater(newWindows) }
@@ -130,6 +144,7 @@ func applyDecorations() {
         for windowId in windowIds {
             sentOpacity[windowId] = nil
             sentRounding[windowId] = nil
+            sentDim[windowId] = nil
         }
         applyDecorations()
     }
@@ -141,12 +156,14 @@ func restoreDecorations() {
     for windowId in sentOpacity.keys { skylandSa("alpha \(windowId) 1", wait: true) }
     for windowId in sentRounding.keys { skylandSa("uncorner \(windowId)", wait: true) }
     for windowId in raisedWindows { skylandSa("layer \(windowId) 0", wait: true) }
+    for (windowId, dim) in sentDim where dim > 0 { skylandSa("dim \(windowId) 0", wait: true) }
     // a transform left by an animation outlives skyland (and Dock): the window
     // would stay drawn at the animated position until its app reopens it
     for windowId in MacWindow.allWindowsMap.keys { skylandSa("untransform \(windowId)", wait: true) }
     raisedWindows = []
     sentOpacity = [:]
     sentRounding = [:]
+    sentDim = [:]
 }
 
 private let skylandSaQueue = DispatchQueue(label: "skyland-sa")

@@ -68,6 +68,7 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
         SettingField(section: "decoration", key: "rounding", label: "Rounding", kind: .int(0 ... 24, step: 1, unit: "px")),
         SettingField(section: "decoration", key: "active-opacity", label: "Active opacity", kind: .int(30 ... 100, step: 1, unit: "%")),
         SettingField(section: "decoration", key: "inactive-opacity", label: "Inactive opacity", kind: .int(30 ... 100, step: 1, unit: "%")),
+        SettingField(section: "decoration", key: "dim-inactive", label: "Dim inactive", kind: .int(0 ... 80, step: 1, unit: "%")),
         SettingField(section: "decoration", key: "border-width", label: "Border width", kind: .int(0 ... 8, step: 1, unit: "px"), after: ["skyland-theme", "apply"]),
         SettingField(section: "decoration", key: "blur", label: "Ghostty blur", kind: .int(0 ... 20, step: 1, unit: ""), after: ["skyland-theme", "apply"]),
     ]),

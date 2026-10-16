@@ -19,6 +19,9 @@
 //       Stepped here with SLSSetWindowTransform, never with a WindowServer-side
 //       animation.
 //   untransform <wid>                  (back to its real frame, stops an animation)
+//   dim <wid> <amount> [<ms> <x1> <y1> <x2> <y2> <from>]
+//       darken the window, 0 = normal, 1 = black (SLSSetWindowListBrightness, negative
+//       brightness); with a duration, stepped from <from> along the bezier like fade.
 //
 // Signatures from REA decompilation of SkyLight on macOS 15.6.1 (24G90),
 // see vault note "SkyLight private API recon".
@@ -48,6 +51,8 @@ extern CGError SLSSetWindowAlpha(int cid, uint32_t wid, float alpha);
 extern CGError SLSGetWindowAlpha(int cid, uint32_t wid, float *alpha);
 extern CGError SLSSetWindowTransform(int cid, uint32_t wid, CGAffineTransform t);
 extern CGError SLSSetWindowLevel(int cid, uint32_t wid, int level);
+// brightness -1 (black) .. 0 (normal) .. 1 (white), checked on macOS 15.6.1
+extern CGError SLSSetWindowListBrightness(int cid, uint32_t *wids, float *brightness, int count);
 
 // Latest animation generation per window: a newer `animate` on the same window
 // takes over and the older stepping thread stops without touching it.
@@ -56,7 +61,7 @@ extern CGError SLSSetWindowLevel(int cid, uint32_t wid, int level);
 // slide and fade at the same time.
 #define ANIM_SLOTS 512
 struct anim_table { struct { uint32_t wid; uint64_t gen; } slots[ANIM_SLOTS]; };
-static struct anim_table frame_anims, alpha_anims;
+static struct anim_table frame_anims, alpha_anims, dim_anims;
 static pthread_mutex_t anim_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint64_t anim_counter;
 
@@ -128,7 +133,14 @@ static void *animate(void *arg)
     return NULL;
 }
 
-struct fade { uint32_t wid; uint64_t gen; float to, from; int has_from; double ms, x1, y1, x2, y2; };
+// alpha fade, or with `dim` set a brightness fade (to / from are dim amounts)
+struct fade { uint32_t wid; uint64_t gen; float to, from; int has_from, dim; double ms, x1, y1, x2, y2; };
+
+static void set_dim(int cid, uint32_t wid, float amount)
+{
+    float brightness = -amount;
+    SLSSetWindowListBrightness(cid, &wid, &brightness, 1);
+}
 
 static void *fade(void *arg)
 {
@@ -140,14 +152,15 @@ static void *fade(void *arg)
     double start = now_ms();
     CGRect bounds;
     for (;;) {
-        if (!anim_current(&alpha_anims, f.wid, f.gen)) return NULL; // a newer alpha owns the window
+        if (!anim_current(f.dim ? &dim_anims : &alpha_anims, f.wid, f.gen)) return NULL; // a newer one owns the window
         if (SLSGetWindowBounds(cid, f.wid, &bounds) != kCGErrorSuccess) return NULL; // window gone
         double x = (now_ms() - start) / f.ms;
         if (x >= 1) break;
-        SLSSetWindowAlpha(cid, f.wid, from + (f.to - from) * (float) bezier_ease(x, f.x1, f.y1, f.x2, f.y2));
+        float value = from + (f.to - from) * (float) bezier_ease(x, f.x1, f.y1, f.x2, f.y2);
+        if (f.dim) set_dim(cid, f.wid, value); else SLSSetWindowAlpha(cid, f.wid, value);
         usleep(8000);
     }
-    SLSSetWindowAlpha(cid, f.wid, f.to);
+    if (f.dim) set_dim(cid, f.wid, f.to); else SLSSetWindowAlpha(cid, f.wid, f.to);
     return NULL;
 }
 
@@ -161,6 +174,27 @@ static const char *start_fade(uint32_t wid, double *args, int argc)
         .wid = wid, .gen = anim_claim(&alpha_anims, wid), .to = (float) args[0],
         .ms = args[1], .x1 = args[2], .y1 = args[3], .x2 = args[4], .y2 = args[5],
         .has_from = argc == 7, .from = argc == 7 ? (float) args[6] : 1,
+    };
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, fade, f) != 0) { free(f); return "err thread\n"; }
+    pthread_detach(thread);
+    return "ok\n";
+}
+
+static const char *start_dim(uint32_t wid, double *args, int argc)
+{
+    if (args[0] < 0 || args[0] > 1) return "err bad amount\n";
+    uint64_t gen = anim_claim(&dim_anims, wid); // stops a running dim fade
+    if (argc == 1) {
+        set_dim(SLSMainConnectionID(), wid, (float) args[0]);
+        return "ok\n";
+    }
+    if (args[1] <= 0 || args[6] < 0 || args[6] > 1) return "err bad duration or start amount\n";
+    struct fade *f = malloc(sizeof(*f));
+    if (!f) return "err oom\n";
+    *f = (struct fade) {
+        .wid = wid, .gen = gen, .to = (float) args[0], .dim = 1, .has_from = 1, .from = (float) args[6],
+        .ms = args[1], .x1 = args[2], .y1 = args[3], .x2 = args[4], .y2 = args[5],
     };
     pthread_t thread;
     if (pthread_create(&thread, NULL, fade, f) != 0) { free(f); return "err thread\n"; }
@@ -191,7 +225,7 @@ static const char *handle(char *line)
     char *save = NULL;
     char *cmd = strtok_r(line, " \n", &save);
     if (!cmd) return "err empty\n";
-    if (strcmp(cmd, "ping") == 0) return "ok fade close layer modal\n";
+    if (strcmp(cmd, "ping") == 0) return "ok fade close layer modal dim\n";
 
     char *wid_str = strtok_r(NULL, " \n", &save);
     if (!wid_str) return "err missing wid\n";
@@ -203,6 +237,9 @@ static const char *handle(char *line)
 
     if (strcmp(cmd, "fade") == 0) {
         return argc == 6 || argc == 7 ? start_fade(wid, args, argc) : "err bad argument count\n";
+    }
+    if (strcmp(cmd, "dim") == 0) {
+        return argc == 1 || argc == 7 ? start_dim(wid, args, argc) : "err bad argument count\n";
     }
     if (strcmp(cmd, "animate") == 0) {
         return argc == 9 || argc == 13 || argc == 14 ? start_animation(wid, args, argc) : "err bad argument count\n";
