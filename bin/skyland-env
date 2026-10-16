@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# Set up skyland: link the hypr profile into ~/.config, start Skyland.app, reload
-# sketchybar with the skyland workspaces. Run at login by the LaunchAgent.
+# Set up skyland: put the hypr profile config into ~/.config, start Skyland.app,
+# reload sketchybar with the skyland workspaces. Run at login by the LaunchAgent.
 # usage: skyland-env [hypr] | status
 #
-# Each entry of profiles/hypr/.config is linked into ~/.config (only symlinks or
-# missing paths are touched, never a real file or dir). skyland workspaces replace
-# macOS Spaces: keep one Space per display (Mission Control).
+# From a git clone, each entry of profiles/hypr/.config is linked into ~/.config
+# (edit the config in the repo). From a release or Homebrew, it is copied once and
+# then belongs to you: an update only adds new files (themes), never overwrites.
+# Only symlinks or missing paths are replaced, never your own files. skyland
+# workspaces replace macOS Spaces: keep one Space per display (Mission Control).
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+# Homebrew: Cellar/skyland/<version> goes away on upgrade, opt/skyland follows it
+[[ "$REPO" =~ ^(.*)/Cellar/skyland/[^/]+/libexec$ ]] && REPO="${BASH_REMATCH[1]}/opt/skyland/libexec"
 HYPR="$REPO/profiles/hypr/.config"
 APP="${SKYLAND_APP:-$REPO/.build/Skyland.app}"
 STATE="$HOME/.config/.skyland-profile" # read by the sketchybarrc hook (profiles/hypr/sketchybar/skyland.sh)
@@ -19,14 +23,28 @@ case "${1:-hypr}" in
     *) echo "usage: skyland-env [hypr] | status" >&2; exit 1 ;;
 esac
 
+mkdir -p "$HOME/.config"
 for entry in "$HYPR"/* "$HYPR"/.[!.]*; do
     [[ -e "$entry" ]] || continue
     dest="$HOME/.config/$(basename "$entry")"
-    if [[ -e "$dest" && ! -L "$dest" ]]; then
-        echo "skip $dest: real file, move it away first" >&2
-        continue
+    if [[ -d "$REPO/.git" ]]; then
+        if [[ -e "$dest" && ! -L "$dest" ]]; then
+            echo "skip $dest: real file, move it away first" >&2
+            continue
+        fi
+        ln -sfn "$entry" "$dest"
+    else
+        # a link into another skyland copy (an older release, a clone): keep what it
+        # holds (your edits) as a real folder of yours
+        if [[ -L "$dest" ]]; then
+            linked="$(readlink -f "$dest" 2>/dev/null || true)"
+            rm "$dest"
+            mkdir -p "$dest"
+            [[ -d "$linked" ]] && cp -R "$linked/." "$dest/"
+        fi
+        mkdir -p "$dest"
+        cp -Rn "$entry/." "$dest/" 2>/dev/null || true # -n: what is there stays (exits 1 on a skipped file)
     fi
-    ln -sfn "$entry" "$dest"
 done
 
 echo hypr > "$STATE"
