@@ -1,25 +1,29 @@
-# Audioware wave model
+# Audioware wave
 
-The `audioware` style of the media widget (`[media] style = 'audioware'`) draws the cover
-of [Audioware](https://github.com/cyb3rpsych0s1s/audioware): a luminous ribbon twisting
-around a cyan center line. `AudiowareWave` in `../main.swift` reads `model.json` at launch.
+The `audioware` style of the media widget (`[media] style = 'audioware'`) draws the live
+audio wave in the style of the [Audioware](https://github.com/cyb3rpsych0s1s/audioware)
+cover: a luminous ribbon twisting around a cyan center line, flat when silent.
+`AudiowareWave` in `../main.swift` draws it; `AudioBands` there feeds it.
 
-- `model.json`: everything measured on the 2000x571 cover (the lines, their light along
-  x, the ribbon light, the glow of the bright edge, spikes, axis colors) and the gains.
-- `render.js`: the same drawing in a canvas, the reference the gains were tuned with.
-  Keep it and `AudiowareWave` in step.
-- `preview.py`: writes `preview.html` (render.js on model.json, the four blurred planes
-  composited like the widget). Still it is the cover; pick an audio file or the
-  microphone to see it react live (bands computed like the widget's AudioBands).
-  Query: `w`, `h`, `f` (progress), `blur=0`, `ui=0`.
+- `render.js`: the same drawing in a canvas, the reference. Keep it and `AudiowareWave`
+  in step (same constants, same order).
+- `model.json`: the look. `gain` was tuned against the cover (the measured cover is
+  kept under `cover`), `window` is the cover's amplitude envelope along x.
+- `preview.py`: writes `preview.html`; open it, pick an audio file or the microphone and
+  the wave plays live, the bands and signals computed like the widget's. Query: `w`, `h`,
+  `f` (progress), `blur=0`, `ui=0`.
 
-Playing, the 14 bands spread over the drawn part of the cover (0.1...0.92 of the width):
-troughs dig with the bass, crests rise on their band, spectrum peaks and hanging hairs
-grow, light follows the band, onsets (level above its slow average) make everything
-jump and flash the axis, highs shimmer, lines drift faster when it is loud. Paused, or
-with no audio captured, it is the cover. `makeAudio` / `advanceAudio` in render.js and
-`AudiowareWave.advance` hold the same rules.
-- `compare.py <cover> <render.png> [heatmap.png]`: scores a 1000x286 render of the preview
-  against the cover (lower is closer) and writes a heatmap.
+How the wave follows the audio, 30 times a second:
 
-The cover is not in this repository: take it from the Audioware repository.
+- AudioBands low-passes the audio (~180 Hz) and band-passes it (~1 kHz), decimates both
+  to 6 kHz and keeps the last 768 points, next to the 14 band levels.
+- Like an oscilloscope, the 80 ms window most like the previous frame is shown. The
+  bright edge A is the low signal, the second edge B the same 10 ms earlier: a ribbon
+  that twists, wide where the signal moves, pinched where both meet. Both are shaped by
+  the cover's window (flat ends, big middle) and normalized by slow peaks.
+- Crest fans sit on the two highest peaks of A, the dotted jagged edge hangs under the
+  ribbon by |mid| (its cusps are the zero crossings), spectrum peaks rise where mid is
+  strong, hairs hang under troughs with the bass, light follows slope and amplitude,
+  onsets (level above its slow average) flash the ribbon and the axis.
+- Silence, no capture (Screen Recording permission) or pause: the wave eases back to the
+  flat line.
