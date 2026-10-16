@@ -4,7 +4,7 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
-## Unreleased
+## v0.1.5
 
 **Hyprland**
 - **Dim inactive windows** (`[decoration] dim-inactive`, percent, also in the settings
@@ -17,6 +17,9 @@ is also the text of its GitHub release.
 **Install**
 - `skyland sa load` offers to write the sudoers rule (payload injected at login without
   a password) and renews it after each rebuild of the payload.
+
+**Docs**
+- `CONTRIBUTING.md` for the fork, new README demo.
 
 ## v0.1.4
 
