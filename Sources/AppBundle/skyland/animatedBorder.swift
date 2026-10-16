@@ -22,7 +22,7 @@ import QuartzCore
 @MainActor
 func updateAnimatedBorder() {
     let deco = config.decoration
-    guard deco.borderRotateMs > 0, deco.borderWidth > 0, TrayMenuModel.shared.isEnabled,
+    guard deco.borderRotateMs > 0, deco.borderWidth > 0, TrayMenuModel.shared.isEnabled, !isOverviewOpen,
           let window = focus.windowOrNil, !window.isHiddenInCorner, !isHiddenGroupTab(window),
           let (frame, level) = windowServerFrame(window.windowId)
     else { return hideAnimatedBorder() }
