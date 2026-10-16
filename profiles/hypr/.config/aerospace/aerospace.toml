@@ -233,6 +233,7 @@ alt-p = 'exec-and-forget skyland shot area' # screenshot area, space for a windo
 alt-shift-p = 'exec-and-forget skyland shot screen' # screenshot every display (43PR Delete)
 alt-d = 'exec-and-forget skyland-cyberdeck launcher' # apps launcher, cyberdeck (43PR SUPER+D)
 alt-shift-m = 'exec-and-forget skyland-cyberdeck messages' # messages panel, cyberdeck
+alt-shift-d = 'exec-and-forget skyland-cyberdeck hud' # HUD: clock, calendar, connections, system, herdr agents, cyberdeck
 alt-shift-x = 'exec-and-forget skyland-cyberdeck dismiss --all' # dismiss all messages
 alt-tab = 'exec-and-forget skyland lock now' # lock screen (43PR SUPER+Tab, hyprlock)
 alt-m = 'exec-and-forget skyland media toggle' # floating media widget
