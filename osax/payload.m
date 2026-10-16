@@ -191,7 +191,7 @@ static const char *handle(char *line)
     char *save = NULL;
     char *cmd = strtok_r(line, " \n", &save);
     if (!cmd) return "err empty\n";
-    if (strcmp(cmd, "ping") == 0) return "ok fade close layer\n";
+    if (strcmp(cmd, "ping") == 0) return "ok fade close layer modal\n";
 
     char *wid_str = strtok_r(NULL, " \n", &save);
     if (!wid_str) return "err missing wid\n";
@@ -216,10 +216,12 @@ static const char *handle(char *line)
     }
 
     if (strcmp(cmd, "layer") == 0 && argc == 1) {
-        // layer <wid> 1|0: floating window level (above normal windows, like
-        // `yabai -m window --layer above`) or back to normal. Dock's universal
-        // connection may change the level of any app's window.
-        int level = CGWindowLevelForKey(args[0] != 0 ? kCGFloatingWindowLevelKey : kCGNormalWindowLevelKey);
+        // layer <wid> 1|2|0: floating window level (above normal windows, like
+        // `yabai -m window --layer above`), modal panel level (system prompts, above
+        // floating windows) or back to normal. Dock's universal connection may change
+        // the level of any app's window.
+        int level = CGWindowLevelForKey(args[0] == 2 ? kCGModalPanelWindowLevelKey
+                                        : args[0] != 0 ? kCGFloatingWindowLevelKey : kCGNormalWindowLevelKey);
         return SLSSetWindowLevel(SLSMainConnectionID(), wid, level) == kCGErrorSuccess ? "ok\n" : "err no window\n";
     }
 

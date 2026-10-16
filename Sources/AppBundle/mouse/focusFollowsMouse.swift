@@ -26,6 +26,9 @@ import AppKit
             // skyland: the overview and modifier drags own the mouse; following it there
             // focused the window under the cursor on another screen (workspace switch)
             if activeMode == overviewModeId || skylandMouseDrag != nil { return }
+            // skyland: a macOS prompt (unlock, permissions...) keeps the focus, else the
+            // window under the mouse would come above it
+            if !systemPromptWindows.isEmpty { return }
             try checkCancellation()
             // Ignores macOS menubar dropdown, but, unfortunately, it doesn't ignore non-native menu-like fake windows.
             // todo: It would be cool to somehow reuse isWindowHeuristic logic here
