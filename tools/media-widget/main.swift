@@ -314,8 +314,90 @@ final class AudiowareWave: NSView {
     }
     /// Crest outline over A: a steep straight rise to the apex, a long fall (the cover's crests).
     private static func crestKernel(_ d: CGFloat) -> CGFloat { d < -0.03 || d > 0.12 ? 0 : d < 0 ? 1 + d / 0.03 : pow(1 - d / 0.12, 2) }
-    static func rgba(_ c: RGB, _ a: CGFloat) -> CGColor {
+    private static func cgColor(_ c: RGB, _ a: CGFloat) -> CGColor {
         CGColor(srgbRed: c.r / 255, green: c.g / 255, blue: c.b / 255, alpha: max(0, min(1, a)))
+    }
+    /// A color of the design, in the theme's colors.
+    private func rgba(_ c: RGB, _ a: CGFloat) -> CGColor { Self.cgColor(tone(c), a) }
+
+    // MARK: theme (render.js makeTone)
+
+    private var hueShift: CGFloat = 0, saturationScale: CGFloat = 1, inkOnPaper = false, themed = false
+    private var softInk = false // the glow planes take the lighter ink on light themes
+    private var background: RGB = (10, 18, 26)
+    private var toned: [String: RGB] = [:]
+
+    /// Follow the skyland theme: every color of the design turns from the cover's cyan to
+    /// `accent` (hue rotated, saturation scaled, brightness kept). On a light `background`
+    /// it is ink on paper: brightness inverted for the sharp lines, a lighter ink for the
+    /// glows, dark tints of the cover's atmosphere turn pale. nil: the cover's colors.
+    func setTheme(accent: NSColor?, background color: NSColor?) {
+        let reference = Self.hsv((98, 205, 231))
+        themed = accent != nil
+        if let accent, let accentRGB = Self.rgb(accent) {
+            let target = Self.hsv(accentRGB)
+            hueShift = target.h - reference.h
+            saturationScale = max(0, min(1.3, target.s / reference.s))
+        }
+        background = color.flatMap { Self.rgb($0) } ?? (10, 18, 26)
+        inkOnPaper = themed && (0.2126 * background.r + 0.7152 * background.g + 0.0722 * background.b) / 255 > 0.5
+        toned = [:]
+        for plane in [glow, far, mid, near] { plane.needsDisplay = true }
+    }
+
+    private func tone(_ c: RGB) -> RGB {
+        guard themed else { return c }
+        let key = "\(c.r),\(c.g),\(c.b),\(softInk)"
+        if let cached = toned[key] { return cached }
+        var (h, s, v) = Self.hsv(c)
+        h = (h + hueShift).truncatingRemainder(dividingBy: 360)
+        if h < 0 { h += 360 }
+        s = min(1, s * saturationScale)
+        if inkOnPaper {
+            s *= pow(min(1, v / 0.6), 2)
+            if softInk {
+                s *= 0.75
+                v = max(0.45, min(0.92, 1.02 - 0.5 * v))
+            } else {
+                v = max(0.22, min(0.8, 1.08 - v))
+            }
+        }
+        let result = Self.rgb(h: h, s: s, v: v)
+        toned[key] = result
+        return result
+    }
+
+    private static func rgb(_ color: NSColor) -> RGB? {
+        guard let c = color.usingColorSpace(.sRGB) else { return nil }
+        return (c.redComponent * 255, c.greenComponent * 255, c.blueComponent * 255)
+    }
+    private static func hsv(_ c: RGB) -> (h: CGFloat, s: CGFloat, v: CGFloat) {
+        let r = c.r / 255, g = c.g / 255, b = c.b / 255, high = max(r, g, b), d = high - min(r, g, b)
+        var h: CGFloat = 0
+        if d > 0 {
+            if high == r {
+                h = 60 * ((g - b) / d).truncatingRemainder(dividingBy: 6)
+            } else if high == g {
+                h = 60 * ((b - r) / d + 2)
+            } else {
+                h = 60 * ((r - g) / d + 4)
+            }
+        }
+        if h < 0 { h += 360 }
+        return (h, high > 0 ? d / high : 0, high)
+    }
+    private static func rgb(h: CGFloat, s: CGFloat, v: CGFloat) -> RGB {
+        let c = v * s, x = c * (1 - abs((h / 60).truncatingRemainder(dividingBy: 2) - 1)), m = v - c
+        let parts: (CGFloat, CGFloat, CGFloat)
+        switch Int(h / 60) % 6 {
+        case 0: parts = (c, x, 0)
+        case 1: parts = (x, c, 0)
+        case 2: parts = (0, c, x)
+        case 3: parts = (0, x, c)
+        case 4: parts = (x, 0, c)
+        default: parts = (c, 0, x)
+        }
+        return (((parts.0 + m) * 255).rounded(), ((parts.1 + m) * 255).rounded(), ((parts.2 + m) * 255).rounded())
     }
     private func gain(_ key: String) -> CGFloat { model.gain[key] ?? 0 }
 
@@ -399,7 +481,7 @@ final class AudiowareWave: NSView {
         if let dash { ctx.setLineDash(phase: 0, lengths: dash.map { lw($0) }) }
         for (bucket, path) in buckets {
             ctx.addPath(path)
-            ctx.setStrokeColor(Self.rgba(color, CGFloat(bucket) / 20))
+            ctx.setStrokeColor(rgba(color, CGFloat(bucket) / 20))
             ctx.strokePath()
         }
         ctx.restoreGState()
@@ -426,7 +508,7 @@ final class AudiowareWave: NSView {
         ctx.setLineWidth(width)
         ctx.setLineCap(.butt)
         for (key, points) in buckets {
-            ctx.setStrokeColor(Self.rgba(Self.hairColors[key / 100], CGFloat(key % 100) / 20))
+            ctx.setStrokeColor(rgba(Self.hairColors[key / 100], CGFloat(key % 100) / 20))
             ctx.strokeLineSegments(between: points)
         }
         ctx.restoreGState()
@@ -435,7 +517,7 @@ final class AudiowareWave: NSView {
     /// Elliptic glow `rx` wide, `ry` tall.
     private func halo(_ ctx: CGContext, _ center: CGPoint, _ rx: CGFloat, _ ry: CGFloat, _ color: RGB, _ alpha: CGFloat) {
         guard rx > 0, ry > 0, alpha > 0 else { return }
-        let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [Self.rgba(color, alpha), Self.rgba(color, 0)] as CFArray, locations: [0, 1])!
+        let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [rgba(color, alpha), rgba(color, 0)] as CFArray, locations: [0, 1])!
         ctx.saveGState()
         ctx.translateBy(x: center.x, y: center.y)
         ctx.scaleBy(x: rx / ry, y: 1)
@@ -459,6 +541,8 @@ final class AudiowareWave: NSView {
     /// Ribbon light per column, the light the edges pour inside it, wide halos, axis glow.
     private func drawGlow(_ ctx: CGContext) {
         guard ready else { return }
+        softInk = true
+        defer { softInk = false }
         let w = bounds.width, h = bounds.height
         if amp > 0.01 { halo(ctx, CGPoint(x: w * 0.53, y: axisY), w * 0.40, h * 0.42, (22, 45, 80), 0.45 * amp) }
         var columns: [Hair] = []
@@ -490,6 +574,8 @@ final class AudiowareWave: NSView {
     /// Tight glows around every line.
     private func drawFar(_ ctx: CGContext) {
         guard ready else { return }
+        softInk = true
+        defer { softInk = false }
         for name in lineNames {
             lit(ctx, name, (60, 195, 240), gain("far") * (name == "A" ? 1 : gain("outerB")), gain("farW"))
         }
@@ -521,14 +607,14 @@ final class AudiowareWave: NSView {
             path.addQuadCurve(to: apex, control: CGPoint(x: apex.x - half * 0.15, y: py(base + height * 0.25)))
             path.addQuadCurve(to: CGPoint(x: apex.x + half, y: py(base)), control: CGPoint(x: apex.x + half * 0.15, y: py(base + height * 0.25)))
             path.closeSubpath()
-            let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [Self.rgba((70, 170, 245), peak), Self.rgba((70, 170, 245), peak * 0.3)] as CFArray, locations: [0, 1])!
+            let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [rgba((70, 170, 245), peak), rgba((70, 170, 245), peak * 0.3)] as CFArray, locations: [0, 1])!
             ctx.saveGState()
             ctx.addPath(path)
             ctx.clip()
             ctx.drawLinearGradient(gradient, start: CGPoint(x: 0, y: py(base)), end: apex, options: [])
             ctx.restoreGState()
             ctx.addPath(path)
-            ctx.setStrokeColor(Self.rgba((110, 210, 250), peak * 1.2))
+            ctx.setStrokeColor(rgba((110, 210, 250), peak * 1.2))
             ctx.setLineWidth(lw(0.5))
             ctx.strokePath()
             if tip - base > height + 0.02 {
@@ -568,7 +654,7 @@ final class AudiowareWave: NSView {
                 path.move(to: point(start, a[start] + (crest[start] - a[start]) * q))
                 for i in range.dropFirst() { path.addLine(to: point(i, a[i] + (crest[i] - a[i]) * q)) }
                 ctx.addPath(path)
-                ctx.setStrokeColor(Self.rgba((75, 155, 230), alpha * (0.35 + 0.65 * q) * on))
+                ctx.setStrokeColor(rgba((75, 155, 230), alpha * (0.35 + 0.65 * q) * on))
                 ctx.strokePath()
             }
         }
@@ -595,7 +681,7 @@ final class AudiowareWave: NSView {
         halo(ctx, CGPoint(x: w * 0.945, y: axisY), w * 0.03 * flare, lw(5), (120, 250, 255), 0.7)
         if amp > 0.01 { halo(ctx, CGPoint(x: w * 0.76, y: axisY), w * 0.07 * flare, lw(5), (45, 110, 230), 0.45 * amp * flare) }
         let head = w * max(0, min(1, progress))
-        ctx.setFillColor(Self.rgba((7, 15, 24), 0.45))
+        ctx.setFillColor(Self.cgColor(background, 0.45)) // what is left of the track
         ctx.fill(CGRect(x: head, y: axisY - thickness / 2, width: w - head, height: thickness))
         if progress > 0, progress < 1 { halo(ctx, CGPoint(x: head, y: axisY), lw(10), lw(3), (180, 245, 255), 0.9) }
         // light points where the edges cross and on crest tops
@@ -894,18 +980,25 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     /// Fixed cold palette of the audioware style, the skyland theme is ignored.
+    /// The wave in the theme's colors: its glow is the accent, or the highlight when the
+    /// accent has no color (white, black, gray); the cover's cyan without a theme.
     func applyAudioware() {
-        tint.layer?.backgroundColor = AudiowareWave.night.withAlphaComponent(0.92).cgColor
-        title.textColor = AudiowareWave.ice
-        artist.textColor = AudiowareWave.electric
-        source.textColor = AudiowareWave.cyan.withAlphaComponent(0.9)
-        for button in buttons { button.contentTintColor = AudiowareWave.light }
-        artwork.layer?.backgroundColor = AudiowareWave.deep.cgColor
-        artwork.contentTintColor = AudiowareWave.cyan
-        // the wave glows behind the text and buttons: a soft dark halo keeps them legible
+        let c = themeColors()
+        let colorful = { (color: NSColor?) in color.flatMap { $0.usingColorSpace(.sRGB) }.map { $0.saturationComponent >= 0.25 } ?? false }
+        let glow: NSColor? = c.isEmpty ? nil : [c["accent"], c["highlight"]].first(where: colorful) ?? c["accent"]
+        let background = c["bg"] ?? AudiowareWave.night
+        wave.setTheme(accent: glow, background: c["bg"])
+        tint.layer?.backgroundColor = background.withAlphaComponent(0.92).cgColor
+        title.textColor = c["fg"] ?? AudiowareWave.ice
+        artist.textColor = c["fg_dim"] ?? AudiowareWave.electric
+        source.textColor = (glow ?? AudiowareWave.cyan).withAlphaComponent(0.9)
+        for button in buttons { button.contentTintColor = c["fg"] ?? AudiowareWave.light }
+        artwork.layer?.backgroundColor = (c["bg_hover"] ?? AudiowareWave.deep).cgColor
+        artwork.contentTintColor = glow ?? AudiowareWave.cyan
+        // the wave glows behind the text and buttons: a soft halo of the background keeps them legible
         for view in [title, artist, source] + buttons {
             let legible = NSShadow()
-            legible.shadowColor = AudiowareWave.night.withAlphaComponent(0.95)
+            legible.shadowColor = background.withAlphaComponent(0.95)
             legible.shadowBlurRadius = 4
             legible.shadowOffset = .zero
             view.shadow = legible

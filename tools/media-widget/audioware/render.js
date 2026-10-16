@@ -15,7 +15,8 @@
 // light follows slope and amplitude, onsets flash. draw(P, W, H, st, progress) paints
 // it on four planes {glow, far, mid, near}, composited back to front with blur ~6, 1.2,
 // 0.35 and 0 px per 1000 px of width; axis is the height of the center line from the
-// bottom (on the cover 0.445; the widget puts it where the classic progress bar is).
+// bottom (on the cover 0.445; the widget puts it where the classic progress bar is),
+// theme its colors (makeTone).
 
 const WAVE = {points: 256, window: 480, shift: 60}; // shape resolution; samples shown (80 ms) and B's delay (10 ms) at 6 kHz
 
@@ -104,6 +105,40 @@ function signal(st, wave) {
   return out;
 }
 
+// Theme: every color of the design turns from the cover's cyan to the theme's glow color,
+// hue rotated, saturation scaled, brightness kept. On a light background it is ink on
+// paper: brightness inverted for the sharp lines, a lighter ink for the glows (soft), dark
+// tints of the cover's atmosphere turn pale. theme = {glow: [r, g, b], background: [r, g, b]},
+// none = the cover.
+function hsv([r, g, b]) {
+  r /= 255; g /= 255; b /= 255;
+  const high = Math.max(r, g, b), low = Math.min(r, g, b), d = high - low;
+  let h = 0;
+  if (d > 0) h = high === r ? 60 * (((g - b) / d) % 6) : high === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  if (h < 0) h += 360;
+  return [h, high > 0 ? d / high : 0, high];
+}
+function rgb([h, s, v]) {
+  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c, k = Math.floor(h / 60) % 6;
+  const [r, g, b] = k === 0 ? [c, x, 0] : k === 1 ? [x, c, 0] : k === 2 ? [0, c, x] : k === 3 ? [0, x, c] : k === 4 ? [x, 0, c] : [c, 0, x];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+}
+function makeTone(theme) {
+  if (!theme) return (c, soft) => c;
+  const ref = hsv([98, 205, 231]), glow = hsv(theme.glow), [br, bg, bb] = theme.background;
+  const shift = glow[0] - ref[0], scale = Math.max(0, Math.min(1.3, glow[1] / ref[1]));
+  const ink = (0.2126 * br + 0.7152 * bg + 0.0722 * bb) / 255 > 0.5, cache = {};
+  return (c, soft) => cache[c + soft] || (cache[c + soft] = (() => {
+    let [h, s, v] = hsv(c);
+    h = ((h + shift) % 360 + 360) % 360; s = Math.min(1, s * scale);
+    if (ink) {
+      s *= Math.pow(Math.min(1, v / 0.6), 2);
+      if (soft) { s *= 0.75; v = Math.max(0.45, Math.min(0.92, 1.02 - 0.5 * v)); } else v = Math.max(0.22, Math.min(0.8, 1.08 - v));
+    }
+    return rgb([h, s, v]);
+  })());
+}
+
 const lin = (P, x) => { if (x <= P[0][0]) return P[0][1]; if (x >= P[P.length - 1][0]) return P[P.length - 1][1]; let i = 1; while (P[i][0] < x) i++; const a = P[i - 1], b = P[i]; return a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]); };
 let MODEL_WINDOW = () => [[0, 0], [1, 0]];
 
@@ -112,7 +147,8 @@ MODEL_WINDOW = () => M.window;
 const hash = i => { const s = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
 // crest outline over A: a steep straight rise to the apex, a long fall (the cover's crests)
 const crestKernel = d => d < -0.03 || d > 0.12 ? 0 : d < 0 ? 1 + d / 0.03 : Math.pow(1 - d / 0.12, 2);
-return function draw(P, W, H, st = makeAudio(), frac = 1, axis = 0.445) {
+return function draw(P, W, H, st = makeAudio(), frac = 1, axis = 0.445, theme = null) {
+  const tone = makeTone(theme), background = theme ? theme.background : [10, 18, 26];
   const G = M.gain, s = W / 1000, n = Math.round(W / 1.5), mid = H * (1 - axis), unit = H * 0.525;
   const amp = st.activity * st.presence, xs = Array.from({length: n + 1}, (_, i) => i / n);
   const R = st.A ? st.A.length : 0;
@@ -132,7 +168,8 @@ return function draw(P, W, H, st = makeAudio(), frac = 1, axis = 0.445) {
   const names = Object.keys(L);
   const clip = h => { const m = Math.abs(h); return m <= 0.85 ? h : Math.sign(h) * (0.85 + 0.2 * Math.tanh((m - 0.85) / 0.2)); };
   const X = i => i / n * W, Y = h => mid - clip(h) * unit, W_ = w => Math.max(0.5, w * s);
-  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${Math.max(0, Math.min(1, a))})`;
+  let softInk = false; // the glow planes take the lighter ink on light themes
+  const rgba = (c, a) => { const t = tone(c, softInk); return `rgba(${t[0]},${t[1]},${t[2]},${Math.max(0, Math.min(1, a))})`; };
   const poly = (ctx, arr, from, to) => { ctx.beginPath(); let first = true; for (let i = from; i <= to; i++) { if (isNaN(arr[i])) { first = true; continue; } first ? ctx.moveTo(X(i), Y(arr[i])) : ctx.lineTo(X(i), Y(arr[i])); first = false; } };
   // a line drawn in chunks so its brightness follows its light
   const lit = (ctx, k, col, alpha, width, step = 4, dash, prof) => { const h = L[k], li = prof || light[k]; if (!h) return; ctx.lineWidth = W_(width); ctx.lineCap = 'round'; if (dash) ctx.setLineDash(dash.map(W_));
@@ -140,12 +177,12 @@ return function draw(P, W, H, st = makeAudio(), frac = 1, axis = 0.445) {
   const halo = (ctx, cx, cy, rx, ry, col, a) => { if (a <= 0) return; ctx.save(); ctx.translate(cx, cy); ctx.scale(rx / ry, 1); const g = ctx.createRadialGradient(0, 0, 0, 0, 0, ry); g.addColorStop(0, rgba(col, a)); g.addColorStop(1, rgba(col, 0)); ctx.fillStyle = g; ctx.fillRect(-ry, -ry, 2 * ry, 2 * ry); ctx.restore(); };
   // hairlines batched by color and alpha (rounded to 0.05)
   const hair = (ctx, segs, width) => { ctx.lineWidth = width; const buckets = {}; for (const [x0, y0, x1, y1, c, a] of segs) { const key = c + '|' + Math.round(Math.min(1, a) * 20) / 20; (buckets[key] = buckets[key] || []).push([x0, y0, x1, y1]); }
-    for (const key in buckets) { const [c, a] = key.split('|'); if (+a <= 0) continue; ctx.strokeStyle = `rgba(${c},${a})`; ctx.beginPath(); for (const [x0, y0, x1, y1] of buckets[key]) { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); } ctx.stroke(); } };
+    for (const key in buckets) { const [c, a] = key.split('|'); if (+a <= 0) continue; ctx.strokeStyle = rgba(c.split(',').map(Number), +a); ctx.beginPath(); for (const [x0, y0, x1, y1] of buckets[key]) { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); } ctx.stroke(); } };
   const ribbon = ctx => { ctx.beginPath(); for (let i = 0; i <= n; i++) ctx.lineTo(X(i), Y(top[i])); for (let i = n; i >= 0; i--) ctx.lineTo(X(i), Y(bot[i])); ctx.closePath(); };
   const thick = xs.map((_, i) => Math.min(1, (top[i] - bot[i]) / 0.25));
 
   // ---- GLOW plane (strong blur): ribbon light per column, light the edges pour inside it, wide halos
-  let ctx = P.glow;
+  let ctx = P.glow; softInk = true;
   if (amp > 0.01) halo(ctx, W * 0.53, mid, W * 0.40, H * 0.42, [22, 45, 80], 0.45 * amp);
   const cols = [];
   for (let i = 0; i <= n; i++) { if (top[i] - bot[i] < 0.005) continue;
@@ -165,7 +202,7 @@ return function draw(P, W, H, st = makeAudio(), frac = 1, axis = 0.445) {
   for (const k of names) lit(ctx, k, [60, 195, 240], G.far * (k === 'A' ? 1 : G.outerB), G.farW, 4);
 
   // ---- MID plane (barely soft): hatch, spectrum peaks, hanging hairs, fans, secondary edges
-  ctx = P.mid;
+  ctx = P.mid; softInk = false;
   const segs = [];
   for (let i = 0; i <= n; i++) { const r = hash(i + 40); if (top[i] - bot[i] < 0.01) continue;
     const c = r > 0.93 ? '120,210,255' : '55,125,215', a = G.hatch * fill[i] * (0.25 + 1.1 * r) * boost[i] * 2;
@@ -206,7 +243,7 @@ return function draw(P, W, H, st = makeAudio(), frac = 1, axis = 0.445) {
   const flare = 1 + 0.6 * flash;
   halo(ctx, W * 0.06, mid, W * 0.09 * flare, W_(G.axisGlowW), [110, 240, 255], G.axisGlow * flare); halo(ctx, W * 0.945, mid, W * 0.03 * flare, W_(5), [120, 250, 255], 0.7);
   if (amp > 0.01) halo(ctx, W * 0.76, mid, W * 0.07 * flare, W_(5), [45, 110, 230], 0.45 * amp * flare);
-  const head = W * frac; ctx.fillStyle = 'rgba(7,15,24,0.45)'; ctx.fillRect(head, mid - th / 2, W - head, th); if (frac > 0 && frac < 1) halo(ctx, head, mid, W_(10), W_(3), [180, 245, 255], 0.9);
+  const head = W * frac; ctx.fillStyle = `rgba(${background.join(',')},0.45)`; ctx.fillRect(head, mid - th / 2, W - head, th); if (frac > 0 && frac < 1) halo(ctx, head, mid, W_(10), W_(3), [180, 245, 255], 0.9);
   for (let i = 1; i < n; i++) { // light points where the edges cross and on crest tops
     if ((L.A[i] - L.B[i]) * (L.A[i + 1] - L.B[i + 1]) < 0 && Math.abs(L.A[i]) > 0.04) halo(ctx, X(i), Y(L.A[i]), W_(G.lightR), W_(G.lightR), [160, 235, 255], 0.45 * boost[i] * Math.min(1, amp * 4)); }
   for (const k of ['C1', 'C2']) { const hs = L[k]; if (!hs) continue; let best = -1; for (let i = 0; i <= n; i++) if (!isNaN(hs[i]) && (best < 0 || hs[i] > hs[best])) best = i;

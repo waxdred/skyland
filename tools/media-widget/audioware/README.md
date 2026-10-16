@@ -29,3 +29,12 @@ How the wave follows the audio, 30 times a second:
   onsets (level above its slow average) flash the ribbon and the axis.
 - Silence, no capture (Screen Recording permission) or pause: the wave eases back to the
   flat line.
+
+Colors follow the skyland theme (`~/.cache/skyland/theme.css`, live): the glow color is
+the theme's `accent`, or its `highlight` when the accent has no color (white, black,
+gray). Every color of the design turns from the cover's cyan to it, hue rotated,
+saturation scaled, brightness kept, so the relations between them stay. On a light
+background it is ink on paper: sharp lines darken, glows take a lighter ink, the dark
+tints of the cover's atmosphere turn pale. Text and buttons take `fg` / `fg_dim`, the
+background `bg`. Without a theme it is the cover's cyan (`makeTone` in render.js,
+`setTheme` in AudiowareWave). Preview: `?glow=7aa2f7&bg=16161e`.
