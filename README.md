@@ -104,6 +104,19 @@ app's windows. The payload (`osax/payload.m`) listens on
 
 ### Quick start (SIP on, nothing to disable)
 
+With [Homebrew](https://github.com/waxdred/homebrew-tap):
+
+```sh
+brew install waxdred/tap/skyland
+skyland install       # dependencies, signing identity, config in ~/.config, start
+skyland doctor        # what works, what is missing, how to fix it
+```
+
+After `brew upgrade skyland`: `skyland env` restarts it; your config in `~/.config`
+is kept (an upgrade only adds new themes).
+
+Or from source:
+
 ```sh
 git clone --recurse-submodules https://github.com/waxdred/skyland.git
 cd skyland
