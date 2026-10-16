@@ -141,6 +141,9 @@ func restoreDecorations() {
     for windowId in sentOpacity.keys { skylandSa("alpha \(windowId) 1", wait: true) }
     for windowId in sentRounding.keys { skylandSa("uncorner \(windowId)", wait: true) }
     for windowId in raisedWindows { skylandSa("layer \(windowId) 0", wait: true) }
+    // a transform left by an animation outlives skyland (and Dock): the window
+    // would stay drawn at the animated position until its app reopens it
+    for windowId in MacWindow.allWindowsMap.keys { skylandSa("untransform \(windowId)", wait: true) }
     raisedWindows = []
     sentOpacity = [:]
     sentRounding = [:]
