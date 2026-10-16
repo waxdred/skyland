@@ -6,10 +6,11 @@
 // Audio-reactive bars (cava-like): system audio from ScreenCaptureKit (audio only,
 // while something plays; uses the Screen Recording permission of the launching
 // app), FFT with Accelerate, log-spaced bands with auto gain.
-// --style audioware: the bars become a cyan light wave on night blue (after the
-// cover of github.com/cyb3rpsych0s1s/audioware), its center line is the progress.
+// --style audioware: the bars become a luminous blue ribbon around a cyan center line
+// (after the cover of github.com/cyb3rpsych0s1s/audioware), the line is the progress.
 import Accelerate
 import AppKit
+import CoreImage
 import ScreenCaptureKit
 
 let exe = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
@@ -73,45 +74,126 @@ final class Bars: NSView {
     }
 }
 
-/// Audioware style visualizer: an electroluminescent cyan wave on night blue, flat
-/// at the edges, dense in the middle, its big crest at two thirds. The silhouette is
-/// fixed (deterministic), audio scales it and drives the fine ripples. Drawn back to
-/// front: background, halo, vertical depth strokes, secondary curves, membrane,
-/// sharp contour, center line (brighter up to the playhead), peak highlights.
+/// Audioware style visualizer, after the cover of github.com/cyb3rpsych0s1s/audioware:
+/// a luminous ribbon twisting around a cyan center line on night blue. Its two edges
+/// cross the axis (the bright one dives into the 40 % trough then climbs to the first
+/// crest), the inside is hatched with hairlines and ruled lines, two crests are fans of
+/// nested contours (moiré), a spectrum of fine spikes rises over the middle. Keypoints
+/// are measured on the cover (x 0...1, height in half heights above the axis); audio
+/// scales them and drives slow wobbles and ripples. Three depth planes, each its own
+/// layer blurred by Core Image: far (back copy, ruled lines, echoes, bloom) blurred
+/// most, mid (spectrum, hatched ribbon, crests, lower edge) barely, near (bright edge,
+/// center line = progress, light points) sharp.
 final class AudiowareWave: NSView {
-    var levels: [Float] = [] { didSet { needsDisplay = true } }
+    var levels: [Float] = [] { didSet { recompute() } }
     var time: CGFloat = 0
-    var progress: CGFloat = 0 { didSet { if progress != oldValue { needsDisplay = true } } }
+    var progress: CGFloat = 0 { didSet { if progress != oldValue { near.needsDisplay = true } } }
 
-    static let night = rgb(0x050A12), deep = rgb(0x091727), steel = rgb(0x12618A), electric = rgb(0x168FC6)
+    static let night = rgb(0x070F18), deep = rgb(0x153054), electric = rgb(0x168FC6)
     static let cyan = rgb(0x28CFFF), light = rgb(0x69E7FF), ice = rgb(0xB4F5FF)
 
-    private static func gauss(_ x: CGFloat, _ c: CGFloat, _ w: CGFloat) -> CGFloat { exp(-(x - c) * (x - c) / (2 * w * w)) }
+    typealias Keys = [(x: CGFloat, h: CGFloat)]
+    /// Bright edge: flat, small bumps, crest at 1/4, dives to the 40 % trough, climbs to the first crest.
+    static let upperKeys: Keys = [
+        (0, 0), (0.10, 0.01), (0.113, 0.03), (0.13, 0.11), (0.15, 0.09), (0.165, 0.02), (0.178, 0.06), (0.19, 0.02),
+        (0.205, 0.05), (0.225, 0.10), (0.25, 0.23), (0.265, 0.26), (0.28, 0.24), (0.30, 0.13), (0.325, 0.02),
+        (0.35, -0.06), (0.365, -0.2), (0.39, -0.6), (0.41, -0.4), (0.425, -0.12), (0.44, 0.25), (0.457, 0.55),
+        (0.47, 0.47), (0.49, 0.26), (0.51, 0.14), (0.53, 0.10), (0.557, 0.14), (0.585, 0.25), (0.614, 0.34),
+        (0.643, 0.46), (0.665, 0.52), (0.69, 0.38), (0.705, 0.22), (0.72, 0.10), (0.74, 0.09), (0.755, 0.14),
+        (0.77, 0.25), (0.79, 0.24), (0.81, 0.12), (0.83, 0.06), (0.865, 0.09), (0.88, 0.07), (0.895, 0.02), (0.92, 0), (1, 0),
+    ]
+    /// Second edge: the spectrum top over the trough, then the lower troughs, jagged on the right.
+    static let lowerKeys: Keys = [
+        (0, 0), (0.11, 0), (0.125, -0.03), (0.16, -0.03), (0.2, -0.01), (0.225, -0.08), (0.25, -0.16), (0.27, -0.15),
+        (0.29, -0.09), (0.312, -0.13), (0.325, 0.0), (0.338, 0.21), (0.36, 0.30), (0.39, 0.33), (0.41, 0.31),
+        (0.425, 0.30), (0.44, 0.12), (0.455, -0.02), (0.468, -0.04), (0.485, -0.15), (0.512, -0.52), (0.53, -0.38),
+        (0.55, -0.12), (0.565, -0.03), (0.58, -0.23), (0.60, -0.33), (0.615, -0.16), (0.64, -0.38), (0.662, -0.47),
+        (0.678, -0.14), (0.70, -0.02), (0.715, -0.13), (0.73, -0.12), (0.745, -0.02), (0.765, -0.05), (0.79, -0.19),
+        (0.805, -0.16), (0.82, -0.02), (0.85, -0.03), (0.88, -0.01), (0.93, 0), (1, 0),
+    ]
+    /// Crests drawn as fans of nested contours.
+    static let crestKeys: [Keys] = [
+        [(0.43, 0), (0.457, 0.55), (0.47, 0.72), (0.485, 0.84), (0.50, 0.6), (0.52, 0.35), (0.545, 0.12), (0.56, 0)],
+        [(0.62, 0), (0.64, 0.47), (0.652, 0.57), (0.668, 0.69), (0.688, 0.65), (0.70, 0.46), (0.713, 0.25), (0.735, 0)],
+    ]
+    /// Tall isolated spikes (x, tip), a light point on each tip.
+    static let spikes: [(x: CGFloat, h: CGFloat)] = [
+        (0.263, 0.55), (0.301, 0.73), (0.412, 0.55), (0.428, 0.93), (0.44, 0.86), (0.451, 0.65), (0.487, 1.08),
+        (0.571, 0.45), (0.601, 0.84), (0.613, 0.89), (0.619, 0.78), (0.746, 0.33),
+        (0.377, -0.47), (0.415, -0.5), (0.509, -0.68), (0.516, -0.6), (0.688, -0.56),
+    ]
+
+    private final class Plane: NSView {
+        var paint: (CGContext) -> Void = { _ in }
+        override func draw(_ dirtyRect: NSRect) {
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+            paint(ctx)
+        }
+    }
+
+    private let far = Plane(), mid = Plane(), near = Plane()
+    // keypoint splines sampled once per width, then audio and time applied each frame
+    private var count = 0
+    private var upperBase: [CGFloat] = [], lowerBase: [CGFloat] = [], crestBase: [[CGFloat?]] = []
+    private var upper: [CGFloat] = [], lower: [CGFloat] = [], crests: [[CGFloat]] = []
+    private var loud: CGFloat = 0
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        // blur radii in points: far plane out of focus, mid just softened, near sharp
+        far.paint = { [weak self] in self?.drawFar($0) }
+        mid.paint = { [weak self] in self?.drawMid($0) }
+        near.paint = { [weak self] in self?.drawNear($0) }
+        for (plane, blur) in [(far, 1.1), (mid, 0.3), (near, 0.0)] {
+            plane.frame = bounds
+            plane.autoresizingMask = [.width, .height]
+            plane.wantsLayer = true
+            if blur > 0 {
+                plane.layerUsesCoreImageFilters = true
+                plane.layer?.filters = [CIFilter(name: "CIGaussianBlur", parameters: [kCIInputRadiusKey: blur])!]
+            }
+            addSubview(plane)
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        recompute()
+    }
+
+    // MARK: geometry
+
+    private static func spline(_ p: Keys, _ x: CGFloat) -> CGFloat {
+        var i = 1
+        while i < p.count - 1, p[i].x < x { i += 1 }
+        let a = p[i - 1], b = p[i], dx = b.x - a.x
+        let t = max(0, min(1, (x - a.x) / dx)), t2 = t * t, t3 = t2 * t
+        let ta: CGFloat = i >= 2 ? (b.h - p[i - 2].h) / (b.x - p[i - 2].x) : 0
+        let tb: CGFloat = i + 1 < p.count ? (p[i + 1].h - a.h) / (p[i + 1].x - a.x) : 0
+        let ends: CGFloat = (2 * t3 - 3 * t2 + 1) * a.h + (-2 * t3 + 3 * t2) * b.h
+        let slopes: CGFloat = ((t3 - 2 * t2 + t) * ta + (t3 - t2) * tb) * dx * 0.9
+        return ends + slopes
+    }
     private static func smooth(_ a: CGFloat, _ b: CGFloat, _ x: CGFloat) -> CGFloat {
         let t = max(0, min(1, (x - a) / (b - a)))
         return t * t * (3 - 2 * t)
     }
-    /// Deterministic pseudo random 0..<1 (the strokes stay put between frames).
+    private static func gauss(_ x: CGFloat, _ c: CGFloat, _ w: CGFloat) -> CGFloat { exp(-(x - c) * (x - c) / (2 * w * w)) }
+    /// Deterministic pseudo random 0..<1: strokes stay put between frames.
     private static func hash(_ i: Int) -> CGFloat {
         let s = sin(CGFloat(i) * 12.9898 + 78.233) * 43758.5453
         return s - floor(s)
     }
-
-    /// Silhouette, + up, in half heights: first crest at 1/4, triangular trough at
-    /// 40 %, dense center, main crest at 2/3 then a smaller one, back to flat.
-    private func shape(_ x: CGFloat, _ t: CGFloat) -> CGFloat {
-        let g = Self.gauss
-        let d = { (k: CGFloat) -> CGFloat in 0.006 * sin(t * 0.7 + k) } // slow drift of the crests
-        let left: CGFloat = 0.30 * g(x, 0.25 + d(1), 0.045) + 0.12 * g(x, 0.31, 0.02)
-        let trough: CGFloat = -0.85 * exp(-pow(abs(x - 0.405 - d(2)) / 0.03, 1.25))
-        let center: CGFloat = 0.62 * g(x, 0.465 + d(3), 0.018) - 0.48 * g(x, 0.515, 0.012) + 0.50 * g(x, 0.555 + d(4), 0.02) - 0.22 * g(x, 0.60, 0.015)
-        let crest: CGFloat = 0.95 * g(x, 0.665 + d(5), 0.045) + 0.48 * g(x, 0.75 + d(6), 0.028)
-        let tail: CGFloat = -0.15 * g(x, 0.81, 0.02) + 0.08 * g(x, 0.87, 0.02)
-        return left + trough + center + crest + tail
+    /// Detail amount: almost nothing on the outer 10 %.
+    private static func envelope(_ x: CGFloat) -> CGFloat { 0.04 + 0.96 * smooth(0.08, 0.3, x) * smooth(0.06, 0.25, 1 - x) }
+    /// Where the spectrum spikes cluster.
+    private static func density(_ x: CGFloat) -> CGFloat {
+        max(gauss(x, 0.40, 0.035), gauss(x, 0.59, 0.03), 0.6 * gauss(x, 0.29, 0.02), 0.5 * gauss(x, 0.75, 0.02))
     }
-    /// Detail density: almost nothing on the outer 10-15 %.
-    private func envelope(_ x: CGFloat) -> CGFloat { 0.04 + 0.96 * Self.smooth(0.08, 0.35, x) * Self.smooth(0.08, 0.32, 1 - x) }
-    private func ripple(_ x: CGFloat, _ t: CGFloat, _ k: CGFloat) -> CGFloat {
+    private static func ripple(_ x: CGFloat, _ t: CGFloat, _ k: CGFloat) -> CGFloat {
         let a: CGFloat = sin(x * 97 + t * 2.1 + k) * 0.5
         let b: CGFloat = sin(x * 173 - t * 1.3 + k * 2) * 0.3
         let c: CGFloat = sin(x * 311 + t * 3.7 + k * 3) * 0.2
@@ -120,130 +202,211 @@ final class AudiowareWave: NSView {
     /// Audio level at x: half the mean, half the band under x (interpolated).
     private func level(_ x: CGFloat) -> CGFloat {
         guard levels.count >= 2 else { return 0 }
-        let mean = CGFloat(levels.reduce(0, +)) / CGFloat(levels.count)
         let p = x * CGFloat(levels.count - 1), i = min(levels.count - 2, Int(p)), f = p - CGFloat(i)
-        let band = CGFloat(levels[i]) * (1 - f) + CGFloat(levels[i + 1]) * f
-        return 0.5 * mean + 0.5 * band
-    }
-    /// Signed height of a curve, soft clipped so a loud crest never leaves the view.
-    private func height(_ x: CGFloat, phase: CGFloat = 0, scale: CGFloat = 1, rippleGain: CGFloat = 1) -> CGFloat {
-        let l = level(x)
-        let body: CGFloat = shape(x, time + phase * 0.3) * scale * (0.45 + 0.75 * l)
-        let fine: CGFloat = envelope(x) * ripple(x, time, phase) * (0.05 + 0.10 * l) * rippleGain
-        return 1.1 * tanh((body + fine) / 1.1)
+        return 0.5 * loud + 0.5 * (CGFloat(levels[i]) * (1 - f) + CGFloat(levels[i + 1]) * f)
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        let w = bounds.width, mid = bounds.height * 0.5, amp = bounds.height * 0.42
-        let loud = CGFloat(levels.isEmpty ? 0 : levels.reduce(0, +) / Float(levels.count))
-        let count = max(60, Int(w / 1.5))
-        let space = CGColorSpace(name: CGColorSpace.sRGB)!
-
-        // 1-2. the night background is the widget tint; faint blue then cyan atmosphere
-        // behind the center, ellipses fading inside the view so it has no visible edge
-        halo(ctx, space, center: CGPoint(x: w * 0.58, y: mid), width: w * 0.45, Self.deep.withAlphaComponent(0.9))
-        halo(ctx, space, center: CGPoint(x: w * 0.6, y: mid), width: w * 0.25, Self.cyan.withAlphaComponent(0.05 + 0.05 * loud))
-
-        // 3. vertical depth strokes, irregular, denser and longer around big amplitudes
-        let strokes = Int(w / 6)
-        ctx.setLineWidth(1)
-        for i in 0 ..< strokes {
-            let x = (CGFloat(i) + Self.hash(i) * 0.9) / CGFloat(strokes)
-            let s = abs(shape(x, time))
-            guard Self.hash(i + 500) <= envelope(x) * (0.3 + s * 2) else { continue }
-            let h = height(x)
-            let direction: CGFloat = Self.hash(i + 77) < 0.5 ? 1 : -0.6
-            let reach: CGFloat = abs(h) * (0.3 + 1.3 * Self.hash(i + 900)) + 0.04 * Self.hash(i + 33)
-            let length = reach * amp * direction
-            let bright = Self.hash(i + 222) > 0.88
-            let color = bright ? Self.light.withAlphaComponent(0.35 + 0.3 * loud) : Self.electric.withAlphaComponent(0.12 + 0.18 * Self.hash(i + 3))
-            ctx.setStrokeColor(color.cgColor)
-            ctx.move(to: CGPoint(x: x * w, y: mid + h * amp))
-            ctx.addLine(to: CGPoint(x: x * w + (Self.hash(i + 4) - 0.5) * 3, y: mid + h * amp + length))
-            ctx.strokePath()
+    private func recompute() {
+        let n = max(60, Int(bounds.width / 1.5))
+        if n != count {
+            count = n
+            let xs = (0 ... n).map { CGFloat($0) / CGFloat(n) }
+            upperBase = xs.map { Self.spline(Self.upperKeys, $0) }
+            lowerBase = xs.map { x in // narrow upward points between rounded valleys on the right
+                let jag: CGFloat = 0.13 * pow(abs(sin(x * .pi * 26 + 0.6)), 7) * Self.smooth(0.56, 0.6, x) * Self.smooth(0.15, 0.19, 1 - x)
+                return Self.spline(Self.lowerKeys, x) + jag
+            }
+            crestBase = Self.crestKeys.map { keys in xs.map { x in x > keys[0].x && x < keys[keys.count - 1].x ? Self.spline(keys, x) : nil } }
         }
-
-        // 4. secondary translucent curves, offset copies (two of them below the axis)
-        let secondary: [(CGFloat, CGFloat, NSColor)] = [
-            (0.82, 0.6, Self.electric.withAlphaComponent(0.35)), (0.64, 1.7, Self.steel.withAlphaComponent(0.4)),
-            (1.12, 2.9, Self.electric.withAlphaComponent(0.22)), (-0.38, 4.1, Self.steel.withAlphaComponent(0.35)),
-            (-0.6, 5.3, Self.steel.withAlphaComponent(0.2)),
-        ]
-        ctx.setLineWidth(0.8)
-        for (scale, phase, color) in secondary {
-            ctx.addLines(between: (0 ... count).map { i in
-                let x = CGFloat(i) / CGFloat(count)
-                let h = height(x, phase: phase, scale: scale, rippleGain: 1.2 + 1.2 * (1 - level(x)))
-                return CGPoint(x: x * w, y: mid + h * amp)
-            })
-            ctx.setStrokeColor(color.cgColor)
-            ctx.strokePath()
+        loud = levels.isEmpty ? 0 : CGFloat(levels.reduce(0, +) / Float(levels.count))
+        upper = []; lower = []
+        crests = crestBase.map { _ in [] }
+        for i in 0 ... n {
+            let x = CGFloat(i) / CGFloat(n), l = level(x), gain = 0.55 + 0.6 * l
+            let wobble = { (k: CGFloat) -> CGFloat in 1 + 0.07 * sin(self.time * 0.9 + x * 23 + k) }
+            let r = Self.envelope(x) * Self.ripple(x, time, 0) * (0.015 + 0.03 * l)
+            let u = upperBase[i] * gain * wobble(0) + r, d = lowerBase[i] * gain * wobble(2) + r * 0.7
+            upper.append(u)
+            lower.append(d)
+            for k in crestBase.indices {
+                crests[k].append(max(crestBase[k][i].map { $0 * gain * wobble(4 + CGFloat(k)) } ?? -1, u, d))
+            }
         }
+        for plane in [far, mid, near] { plane.needsDisplay = true }
+    }
 
-        // 5. membrane between the main curve and the axis, hazy, transparent
-        let main = (0 ... count).map { i in
-            let x = CGFloat(i) / CGFloat(count)
-            return CGPoint(x: x * w, y: mid + height(x) * amp)
+    // MARK: drawing helpers
+
+    private var scale: CGFloat { bounds.width / 880 } // the prototype was tuned at 880 px wide
+    private var axis: CGFloat { bounds.height * 0.445 } // a bit below the middle, like the cover
+    private var amp: CGFloat { bounds.height * 0.53 }
+    private func px(_ i: Int) -> CGFloat { CGFloat(i) / CGFloat(count) * bounds.width }
+    private func py(_ h: CGFloat) -> CGFloat { axis + max(-1.05, min(1.05, h)) * amp }
+    private func width(_ w: CGFloat) -> CGFloat { max(0.5, w * scale) }
+
+    private func color(_ r: Int, _ g: Int, _ b: Int, _ a: CGFloat) -> CGColor {
+        CGColor(srgbRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: a)
+    }
+    private func stroke(_ ctx: CGContext, _ values: [CGFloat], _ color: CGColor, _ w: CGFloat, from: Int = 0) {
+        guard values.count > from + 1 else { return }
+        ctx.addLines(between: (from ..< values.count).map { CGPoint(x: px($0), y: py(values[$0])) })
+        ctx.setStrokeColor(color)
+        ctx.setLineWidth(width(w))
+        ctx.strokePath()
+    }
+    /// Vertical hairlines batched by color: [(color, segments)].
+    private func hairlines(_ ctx: CGContext, _ batches: [CGColor: [(CGPoint, CGPoint)]], _ w: CGFloat) {
+        ctx.setLineWidth(width(w))
+        for (color, segments) in batches {
+            ctx.setStrokeColor(color)
+            ctx.strokeLineSegments(between: segments.flatMap { [$0.0, $0.1] })
         }
-        ctx.saveGState()
-        ctx.move(to: CGPoint(x: 0, y: mid))
-        ctx.addLines(between: main)
-        ctx.addLine(to: CGPoint(x: w, y: mid))
+    }
+    private func ribbon(_ ctx: CGContext) {
+        ctx.addLines(between: (0 ... count).map { CGPoint(x: px($0), y: py(upper[$0])) })
+        ctx.addLines(between: (0 ... count).reversed().map { CGPoint(x: px($0), y: py(lower[$0])) })
         ctx.closePath()
-        ctx.clip()
-        let haze = [Self.cyan.withAlphaComponent(0.25), Self.electric.withAlphaComponent(0.10), Self.light.withAlphaComponent(0.30)]
-        let membrane = CGGradient(colorsSpace: space, colors: haze.map(\.cgColor) as CFArray, locations: [0, 0.5, 1])!
-        ctx.drawLinearGradient(membrane, start: CGPoint(x: 0, y: mid - amp), end: CGPoint(x: 0, y: mid + amp), options: [])
-        ctx.restoreGState()
-
-        // 6. sharp cyan contour with a short glow, a paler core on top
-        ctx.saveGState()
-        ctx.setShadow(offset: .zero, blur: 7, color: Self.cyan.withAlphaComponent(0.8).cgColor)
-        ctx.addLines(between: main)
-        ctx.setStrokeColor(Self.cyan.withAlphaComponent(0.9).cgColor)
-        ctx.setLineWidth(1.4)
-        ctx.strokePath()
-        ctx.restoreGState()
-        ctx.addLines(between: main)
-        ctx.setStrokeColor(Self.ice.withAlphaComponent(0.55).cgColor)
-        ctx.setLineWidth(0.6)
-        ctx.strokePath()
-
-        // 7. center line edge to edge: bright up to the playhead, steel after it
-        let head = w * max(0, min(1, progress))
-        ctx.saveGState()
-        ctx.setShadow(offset: .zero, blur: 4, color: Self.cyan.withAlphaComponent(0.9).cgColor)
-        ctx.setFillColor(Self.light.withAlphaComponent(0.85).cgColor)
-        ctx.fill(CGRect(x: 0, y: mid - 0.6, width: head, height: 1.2))
-        ctx.restoreGState()
-        ctx.setFillColor(Self.electric.withAlphaComponent(0.55).cgColor)
-        ctx.fill(CGRect(x: head, y: mid - 0.5, width: w - head, height: 1))
-
-        // 8. subtle light points on the crests and at the playhead
-        for i in 2 ..< count - 1 {
-            let y = main[i].y, h = (y - mid) / amp
-            guard y > main[i - 1].y, y >= main[i + 1].y, h > 0.5 else { continue }
-            radial(ctx, space, center: main[i], radius: 2 + 4 * h, Self.ice.withAlphaComponent(0.35 * h), Self.ice.withAlphaComponent(0))
-        }
-        if progress > 0 {
-            radial(ctx, space, center: CGPoint(x: head, y: mid), radius: 5, Self.ice.withAlphaComponent(0.8), Self.ice.withAlphaComponent(0))
-        }
     }
-
-    /// Elliptic glow, `width` wide, as tall as the view allows.
-    private func halo(_ ctx: CGContext, _ space: CGColorSpace, center: CGPoint, width: CGFloat, _ color: NSColor) {
-        let radius = bounds.height * 0.5
+    /// Elliptic glow `rx` wide, `ry` tall.
+    private func halo(_ ctx: CGContext, _ center: CGPoint, _ rx: CGFloat, _ ry: CGFloat, _ color: CGColor) {
+        let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [color, color.copy(alpha: 0)!] as CFArray, locations: [0, 1])!
         ctx.saveGState()
         ctx.translateBy(x: center.x, y: center.y)
-        ctx.scaleBy(x: width / radius, y: 1)
-        radial(ctx, space, center: .zero, radius: radius, color, color.withAlphaComponent(0))
+        ctx.scaleBy(x: rx / ry, y: 1)
+        ctx.drawRadialGradient(gradient, startCenter: .zero, startRadius: 0, endCenter: .zero, endRadius: ry, options: [])
         ctx.restoreGState()
     }
 
-    private func radial(_ ctx: CGContext, _ space: CGColorSpace, center: CGPoint, radius: CGFloat, _ inner: NSColor, _ outer: NSColor) {
-        let gradient = CGGradient(colorsSpace: space, colors: [inner.cgColor, outer.cgColor] as CFArray, locations: [0, 1])!
-        ctx.drawRadialGradient(gradient, startCenter: center, startRadius: 0, endCenter: center, endRadius: radius, options: [])
+    // MARK: planes
+
+    private func drawFar(_ ctx: CGContext) {
+        guard count > 0, upper.count == count + 1 else { return }
+        let w = bounds.width
+        halo(ctx, CGPoint(x: w * 0.52, y: axis), w * 0.42, bounds.height * 0.5, color(20, 48, 90, 0.55))
+        // back of the ribbon: shifted, smaller copy of both edges
+        let shift = Int(CGFloat(count) * 0.012)
+        let back = { (a: [CGFloat]) in a.indices.map { a[min(self.count, $0 + shift)] * 0.86 } }
+        stroke(ctx, back(upper), color(50, 140, 230, 0.45), 1.2)
+        stroke(ctx, back(lower), color(50, 140, 230, 0.35), 1.0)
+        // ruled lines across the ribbon (a twisted surface)
+        for k in 1 ..< 9 {
+            let f = CGFloat(k) / 9, s = sin(CGFloat(k) * 1.7)
+            stroke(ctx, upper.indices.map { upper[$0] * (1 - f) + lower[$0] * f }, color(70, 150, 230, 0.10 + 0.06 * s * s), 0.5)
+        }
+        // echoes of both edges, stepping inside the ribbon
+        for k in 1 ... 4 {
+            let step = CGFloat(k)
+            stroke(ctx, upper.indices.map { upper[$0] + 0.022 * step * (lower[$0] > upper[$0] ? 1 : -1) }, color(60, 140, 220, 0.22 - 0.04 * step), 0.5)
+            stroke(ctx, lower.indices.map { lower[$0] + 0.02 * step * (upper[$0] > lower[$0] ? 1 : -1) }, color(60, 140, 220, 0.20 - 0.04 * step), 0.5)
+        }
+        // bloom, softened by this plane's blur
+        stroke(ctx, upper, color(50, 170, 255, 0.45), 4)
+        stroke(ctx, lower, color(50, 170, 255, 0.30), 3)
+    }
+
+    private func drawMid(_ ctx: CGContext) {
+        guard count > 0, upper.count == count + 1 else { return }
+        let n = count, l = loud
+        // spectrum: dense fine spikes over the ribbon, fewer under it
+        var spectrum: [CGColor: [(CGPoint, CGPoint)]] = [:]
+        for i in 0 ... n {
+            let x = CGFloat(i) / CGFloat(n), d = Self.density(x)
+            guard Self.hash(i) <= min(1, d * 1.3) else { continue }
+            let top = max(upper[i], lower[i]), bottom = min(upper[i], lower[i]), b = Self.hash(i + 3)
+            let tip = max(top, 0) + pow(Self.hash(i + 7), 1.8) * 0.42 * d * (0.5 + l)
+            let c = b > 0.8 ? color(110, 210, 250, 0.7) : b > 0.4 ? color(50, 130, 215, 0.5) : color(50, 130, 215, 0.3)
+            spectrum[c, default: []].append((CGPoint(x: px(i), y: py(top - 0.15 * Self.hash(i + 5))), CGPoint(x: px(i), y: py(tip))))
+            if Self.hash(i + 11) < d * 0.35 {
+                let end = min(bottom, 0) - pow(Self.hash(i + 13), 2) * 0.3 * d * (0.5 + l)
+                spectrum[color(50, 130, 215, 0.2 + 0.35 * (b > 0.5 ? 1 : 0)), default: []].append((CGPoint(x: px(i), y: py(bottom)), CGPoint(x: px(i), y: py(end))))
+            }
+        }
+        hairlines(ctx, spectrum, 0.6)
+        // tall isolated spikes with a light point on the tip
+        for spike in Self.spikes {
+            let i = Int((spike.x * CGFloat(n)).rounded()), from = spike.h > 0 ? max(upper[i], lower[i]) : min(upper[i], lower[i])
+            let tip = spike.h * (0.55 + 0.6 * level(spike.x)) * (0.85 + 0.3 * sin(time * 1.7 + spike.x * 40))
+            ctx.move(to: CGPoint(x: px(i), y: py(from)))
+            ctx.addLine(to: CGPoint(x: px(i) + 0.3, y: py(tip)))
+            ctx.setStrokeColor(color(90, 185, 240, 0.75))
+            ctx.setLineWidth(width(0.8))
+            ctx.strokePath()
+            halo(ctx, CGPoint(x: px(i), y: py(tip)), width(2.5), width(2.5), color(160, 240, 255, 0.9))
+        }
+        // ribbon: translucent fill between the edges (even-odd where they cross)
+        ctx.saveGState()
+        ribbon(ctx)
+        ctx.clip(using: .evenOdd)
+        let fill = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [color(40, 120, 210, 0.40), color(25, 60, 140, 0.30), color(40, 120, 210, 0.40)] as CFArray, locations: [0, 0.55, 1])!
+        ctx.drawLinearGradient(fill, start: CGPoint(x: 0, y: axis + amp), end: CGPoint(x: 0, y: axis - amp * 0.7), options: [])
+        // inner glow along both edges
+        stroke(ctx, upper, color(60, 170, 240, 0.16), bounds.height * 0.05 / max(scale, 0.01))
+        stroke(ctx, upper, color(90, 200, 250, 0.18), bounds.height * 0.016 / max(scale, 0.01))
+        stroke(ctx, lower, color(60, 160, 240, 0.12), bounds.height * 0.04 / max(scale, 0.01))
+        ctx.restoreGState()
+        // hairline hatch inside the ribbon, irregular brightness: the organic texture
+        var hatch: [CGColor: [(CGPoint, CGPoint)]] = [:]
+        for i in 0 ... n where abs(upper[i] - lower[i]) > 0.01 {
+            let k = Self.hash(i + 40)
+            guard k >= 0.3 else { continue }
+            let c = k > 0.9 ? color(120, 210, 255, 0.26) : k > 0.6 ? color(55, 120, 215, 0.16) : color(55, 120, 215, 0.09)
+            hatch[c, default: []].append((CGPoint(x: px(i), y: py(upper[i])), CGPoint(x: px(i), y: py(lower[i]))))
+        }
+        hairlines(ctx, hatch, 0.5)
+        // crests: nested contours from the ribbon top up to the crest (moiré)
+        for crest in crests {
+            for k in 1 ... 16 {
+                let f = CGFloat(k) / 16
+                let line = crest.indices.map { i -> CGFloat in
+                    let base = max(upper[i], lower[i])
+                    return base + (crest[i] - base) * f
+                }
+                stroke(ctx, line, k == 16 ? color(130, 220, 255, 0.7) : color(70, 150, 225, 0.12 + 0.12 * f), k == 16 ? 0.9 : 0.5)
+            }
+        }
+        // lower edge: glowing up to 56 %, dotted after
+        let split = Int(CGFloat(n) * 0.56)
+        ctx.saveGState()
+        ctx.setShadow(offset: .zero, blur: 7 * scale, color: color(60, 200, 255, 0.9))
+        stroke(ctx, Array(lower[0 ... split]), color(98, 205, 231, 0.9), 1.2)
+        ctx.setLineDash(phase: 0, lengths: [width(1.2), width(1.8)])
+        stroke(ctx, lower, color(120, 220, 250, 0.9), 1.0, from: split)
+        ctx.restoreGState()
+    }
+
+    private func drawNear(_ ctx: CGContext) {
+        guard count > 0, upper.count == count + 1 else { return }
+        let w = bounds.width, n = count
+        // bright edge: cyan with a short glow, a paler core
+        ctx.saveGState()
+        ctx.setShadow(offset: .zero, blur: 8 * scale, color: color(60, 200, 255, 0.9))
+        stroke(ctx, upper, color(98, 205, 231, 0.95), 1.4)
+        ctx.restoreGState()
+        stroke(ctx, upper, color(180, 245, 255, 0.7), 0.6)
+        // center line edge to edge: cyan streaks at both ends, royal blue under the ribbon
+        let line = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [
+            color(120, 250, 255, 1), color(70, 210, 255, 0.95), color(40, 110, 220, 0.6), color(40, 90, 220, 0.7), color(110, 250, 255, 0.95), color(90, 220, 255, 0.5),
+        ] as CFArray, locations: [0, 0.12, 0.3, 0.75, 0.93, 1])!
+        let thickness = width(1.8)
+        ctx.saveGState()
+        ctx.setShadow(offset: .zero, blur: 6 * scale, color: color(60, 200, 255, 0.9))
+        ctx.clip(to: CGRect(x: 0, y: axis - thickness / 2, width: w, height: thickness))
+        ctx.drawLinearGradient(line, start: .zero, end: CGPoint(x: w, y: 0), options: [])
+        ctx.restoreGState()
+        halo(ctx, CGPoint(x: w * 0.06, y: axis), w * 0.1, width(6), color(100, 240, 255, 0.7))
+        halo(ctx, CGPoint(x: w * 0.96, y: axis), w * 0.05, width(5), color(100, 240, 255, 0.7))
+        halo(ctx, CGPoint(x: w * 0.75, y: axis), w * 0.06, width(3), color(60, 110, 255, 0.45))
+        // progress: what is left of the track is dimmer, a light point at the playhead
+        let head = w * max(0, min(1, progress))
+        ctx.setFillColor(color(5, 10, 18, 0.45))
+        ctx.fill(CGRect(x: head, y: axis - thickness / 2, width: w - head, height: thickness))
+        if progress > 0 { halo(ctx, CGPoint(x: head, y: axis), width(9), width(3), color(180, 245, 255, 0.9)) }
+        // light points where the edges cross and on the crests of the bright edge
+        for i in 1 ..< n {
+            let crossing = (upper[i] - lower[i]) * (upper[i + 1] - lower[i + 1]) < 0
+            let top = upper[i] > upper[i - 1] && upper[i] >= upper[i + 1] && upper[i] > 0.2
+            if crossing || top { halo(ctx, CGPoint(x: px(i), y: py(upper[i])), width(4), width(4), color(170, 240, 255, 0.55)) }
+        }
     }
 }
 
@@ -333,7 +496,7 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
 }
 
 final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    let size = audioware ? NSSize(width: 420, height: 150) : NSSize(width: 380, height: 116)
+    let size = audioware ? NSSize(width: 440, height: 180) : NSSize(width: 380, height: 116)
     let radius: CGFloat = 18
     var panel: NSPanel!
     var tint: NSView!
@@ -344,7 +507,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let progress = Progress()
     var playButton: NSButton!
     let bars = Bars()
-    let wave = AudiowareWave()
+    let wave = AudiowareWave(frame: .zero)
     var shownLevels = [Float](repeating: 0, count: 14)
     var targetLevels = [Float](repeating: 0, count: 14)
     lazy var audio = AudioBands(bands: 14) { [weak self] levels in self?.targetLevels = levels }
@@ -380,7 +543,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         tint.layer?.cornerRadius = radius
         glass.addSubview(tint)
 
-        artwork.frame = audioware ? NSRect(x: 14, y: 90, width: 50, height: 50) : NSRect(x: 14, y: 14, width: 88, height: 88)
+        artwork.frame = audioware ? NSRect(x: 14, y: 124, width: 46, height: 46) : NSRect(x: 14, y: 14, width: 88, height: 88)
         artwork.imageScaling = .scaleProportionallyUpOrDown
         artwork.wantsLayer = true
         artwork.layer?.cornerRadius = 12
@@ -393,8 +556,8 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         {
             field.frame = NSRect(x: 114, y: y, width: size.width - 128, height: 18)
             if audioware { // title over the whole width, artist and source left of the controls
-                field.frame = field === title ? NSRect(x: 76, y: 122, width: size.width - 90, height: 18)
-                    : NSRect(x: 76, y: field === artist ? 106 : 90, width: size.width - 76 - 132, height: 16)
+                field.frame = field === title ? NSRect(x: 72, y: 154, width: size.width - 86, height: 18)
+                    : NSRect(x: 72, y: field === artist ? 138 : 122, width: size.width - 72 - 132, height: 16)
             }
             field.font = font
             field.lineBreakMode = .byTruncatingTail
@@ -402,7 +565,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         progress.frame = NSRect(x: 114, y: 38, width: size.width - 128, height: 4)
         if audioware { // the wave sits under the text, edge to edge; its center line is the progress
-            wave.frame = NSRect(x: 0, y: 0, width: size.width, height: 84)
+            wave.frame = NSRect(x: 0, y: 0, width: size.width, height: 118)
             glass.addSubview(wave)
         } else {
             glass.addSubview(progress)
@@ -414,7 +577,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
             button.isBordered = false
             button.tag = command
             button.symbolConfiguration = .init(pointSize: i == 1 ? 18 : 14, weight: .semibold)
-            button.frame = audioware ? NSRect(x: size.width - 14 - 114 + CGFloat(i) * 40, y: 92, width: 34, height: 26)
+            button.frame = audioware ? NSRect(x: size.width - 14 - 114 + CGFloat(i) * 40, y: 128, width: 34, height: 26)
                 : NSRect(x: 114 + CGFloat(i) * 44, y: 8, width: 36, height: 26)
             glass.addSubview(button)
             buttons.append(button)
@@ -433,7 +596,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 }
                 if audioware {
                     if playing { self.wave.time += 1.0 / 30 } // paused: the wave freezes and settles
-                    if self.wave.levels != self.shownLevels || playing { self.wave.levels = self.shownLevels }
+                    if self.wave.levels != self.shownLevels || playing { self.wave.levels = self.shownLevels } // recomputes and redraws
                 } else if self.bars.levels != self.shownLevels {
                     self.bars.levels = self.shownLevels
                 }
