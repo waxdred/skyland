@@ -40,3 +40,22 @@ jobs:
         with:
           files: dist/skyland-${{ github.ref_name }}.zip
           generate_release_notes: true
+      - name: Update the Homebrew tap (waxdred/homebrew-tap)
+        # needs the HOMEBREW_TAP_TOKEN secret: a fine-grained token with Contents
+        # read / write on waxdred/homebrew-tap only; skipped without it
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          [ -n "$TAP_TOKEN" ] || { echo "no HOMEBREW_TAP_TOKEN secret: tap not updated"; exit 0; }
+          version="${GITHUB_REF_NAME#v}"
+          sha="$(shasum -a 256 "dist/skyland-${GITHUB_REF_NAME}.zip" | cut -d' ' -f1)"
+          git clone -q "https://x-access-token:${TAP_TOKEN}@github.com/waxdred/homebrew-tap.git" tap
+          cd tap
+          sed -i '' -E \
+            -e "s|releases/download/v[^/]+/skyland-v[^\"]+\.zip|releases/download/${GITHUB_REF_NAME}/skyland-${GITHUB_REF_NAME}.zip|" \
+            -e "s|sha256 \"[0-9a-f]{64}\"|sha256 \"${sha}\"|" Formula/skyland.rb
+          git diff --quiet && { echo "formula already up to date"; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -qam "skyland ${version}"
+          git push -q
