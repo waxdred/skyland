@@ -118,7 +118,8 @@ private func handleMouse(_ type: CGEventType, _ location: CGPoint, _ flags: CGEv
 @MainActor
 private func managedWindow(at point: CGPoint) -> (Window, CGRect)? {
     guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return nil }
-    for info in list where (info[kCGWindowLayer as String] as? Int) == 0 { // front to back
+    // front to back; skyland's own windows (the rotating border above the focused window) don't count
+    for info in list where (info[kCGWindowLayer as String] as? Int) == 0 && (info[kCGWindowOwnerPID as String] as? pid_t) != myPid {
         guard let bounds = info[kCGWindowBounds as String] as? [String: CGFloat],
               let rect = CGRect(dictionaryRepresentation: bounds as CFDictionary), rect.contains(point) else { continue }
         guard let id = info[kCGWindowNumber as String] as? UInt32, let window = MacWindow.allWindowsMap[id],

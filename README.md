@@ -27,7 +27,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 
 What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
-![skyland demo: dwindle tiling, groups with a tabs bar, master layout, theme picker and themes, wallpaper with automatic light / dark, cyberdeck launcher and messages, overview, cheat sheet, settings window](docs/screenshots/demo.gif)
+![skyland demo: dwindle tiling with a rotating border and dimmed inactive windows, alt + mouse move and resize, groups with a tabs bar, master layout, theme picker and themes, wallpaper with automatic light / dark, cyberdeck launcher and messages, overview, cheat sheet, settings window](docs/screenshots/demo.gif)
 
 <table>
 <tr>
