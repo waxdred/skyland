@@ -4,6 +4,13 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## v0.1.9
+
+**Performance**
+- Media widget `audioware` style: about 26% CPU instead of 38% while playing (each
+  plane of the wave drawn into its own bitmap, the blurred planes repaint at 15 fps,
+  the wave shape is capped at 260 points).
+
 ## v0.1.8
 
 **Media widget**
