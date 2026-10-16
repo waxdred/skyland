@@ -142,8 +142,10 @@ if sketchybar --query bar >/dev/null 2>&1; then
 fi
 # [decoration] border-width: focused window border, accent -> highlight gradient
 # (Hyprland col.active_border). A second `borders` call updates the running one.
+# With border-rotate-ms skyland draws a rotating border itself: no JankyBorders.
 width="$("$REPO/bin/skyland-config" decoration border-width)"
-if [[ "${width:-0}" -gt 0 ]] && command -v borders >/dev/null; then
+rotate="$("$REPO/bin/skyland-config" decoration border-rotate-ms)"
+if [[ "${width:-0}" -gt 0 && "${rotate:-0}" -eq 0 ]] && command -v borders >/dev/null; then
     nohup borders style=round hidpi=on width="$width.0" inactive_color=0x00000000 \
         active_color="gradient(top_left=0xff$c_accent,bottom_right=0xff${c_highlight:-$c_accent})" >/dev/null 2>&1 &
 else

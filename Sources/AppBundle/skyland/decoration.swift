@@ -15,6 +15,7 @@ import Common
 // inactive-opacity = 90
 // dim-inactive = 0     # darken unfocused windows, percent (Hyprland dim_inactive + dim_strength)
 // border-width = 2     # focused window border in the theme accent (JankyBorders), 0 = none
+// border-rotate-ms = 0 # rotating border gradient, one turn in ms (skyland draws it, see animatedBorder.swift)
 // blur = 5             # Ghostty background blur behind its translucent background, 0 = none
 // group-bar-height = 22 # accordion containers become Hyprland groups: tabs bar on top, one window shown (0 = AeroSpace accordion)
 // border-width and blur are applied by bin/skyland-theme; parsed here so the config validates.
@@ -24,6 +25,7 @@ struct Decoration: ConvenienceMutable, Equatable, Sendable {
     var inactiveOpacity: Int = 100
     var dimInactive: Int = 0
     var borderWidth: Int = 0
+    var borderRotateMs: Int = 0
     var blur: Int = 0
     var groupBarHeight: Int = 0
 
@@ -36,6 +38,7 @@ private let decorationParser: [String: any ParserProtocol<Decoration>] = [
     "inactive-opacity": Parser(\.inactiveOpacity, parseInt),
     "dim-inactive": Parser(\.dimInactive, parseInt),
     "border-width": Parser(\.borderWidth, parseInt),
+    "border-rotate-ms": Parser(\.borderRotateMs, parseInt),
     "blur": Parser(\.blur, parseInt),
     "group-bar-height": Parser(\.groupBarHeight, parseInt),
 ]
@@ -64,6 +67,7 @@ func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inou
 
 @MainActor
 func applyDecorations() {
+    updateAnimatedBorder()
     guard TrayMenuModel.shared.isEnabled else { return } // disabled: stock macOS look (restoreDecorations)
     let deco = config.decoration
     let anim = config.animations
@@ -153,6 +157,7 @@ func applyDecorations() {
 /// Put every window back to stock macOS look, called before quitting.
 @MainActor
 func restoreDecorations() {
+    hideAnimatedBorder()
     for windowId in sentOpacity.keys { skylandSa("alpha \(windowId) 1", wait: true) }
     for windowId in sentRounding.keys { skylandSa("uncorner \(windowId)", wait: true) }
     for windowId in raisedWindows { skylandSa("layer \(windowId) 0", wait: true) }
