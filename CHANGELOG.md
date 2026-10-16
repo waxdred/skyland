@@ -4,6 +4,15 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## v0.1.6
+
+**Fixes**
+- **alt + mouse** works again on the focused window with the rotating border on (the
+  border window was taken for the window under the cursor).
+
+**Docs**
+- New README demo: rotating border, dim inactive, alt + mouse.
+
 ## v0.1.5
 
 **Hyprland**
@@ -19,7 +28,7 @@ is also the text of its GitHub release.
   a password) and renews it after each rebuild of the payload.
 
 **Docs**
-- `CONTRIBUTING.md` for the fork, new README demo.
+- `CONTRIBUTING.md` for the fork.
 
 ## v0.1.4
 
