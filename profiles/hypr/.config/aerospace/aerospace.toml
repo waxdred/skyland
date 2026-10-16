@@ -112,7 +112,7 @@ auto-mode = true # light theme for a bright wallpaper, dark for a dark one; alt-
 # hyprlock-like screen saver (bin/skyland-lock): blurred wallpaper, glassy clock
 # in the current theme. alt-tab starts it (43PR SUPER+Tab); macOS asks the password.
 [lock]
-name = 'Waxcoin'
+# name = ''         # lock screen name, default: your macOS full name
 blur = 4 # wallpaper blur radius, 0 = sharp
 
 # Floating media widget (alt-m, bin/skyland-media)

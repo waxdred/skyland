@@ -1,64 +1,49 @@
 # Contributing
 
-The main and the most important rule: **read the room!**
+skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace). Bugs and
+ideas about skyland's own features (layouts, animations, themes, scripts, install) go to
+[skyland's issues](https://github.com/waxdred/skyland/issues). A bug that also happens
+in plain AeroSpace belongs upstream, in
+[AeroSpace's discussions](https://github.com/nikitabobko/AeroSpace/discussions).
 
-* Does your patch look like typical commit in the repo?
-* Does your commit message look like typical commit message in the repo?
-* Does your test look like typical test in the repo?
-* etc.
+## Reporting a bug
 
-## Submiting bugs and feature ideas
+- `skyland doctor` output
+- `skyland debug-windows` output, if the problem is about some windows
+- your config (`~/.config/aerospace/aerospace.toml`), macOS version, skyland version
+  (release tag, or `git rev-parse --short HEAD` for a clone), whether the Dock payload is loaded (`skyland sa send ping`)
+- a screenshot or a short video for anything visual
 
-Submit bugs to https://github.com/nikitabobko/AeroSpace/discussions/categories/potential-bugs
+## Where the code lives
 
-Submit feature ideas to https://github.com/nikitabobko/AeroSpace/discussions/categories/feature-ideas
+| Path | What |
+|---|---|
+| `Sources/AppBundle/skyland/` | skyland's additions to the window manager (Swift): animations, decorations, master layout, groups, overview, settings window, scratchpads... |
+| `Sources/AppBundle/` (the rest) | AeroSpace: keep changes there small, they are merged with upstream |
+| `Sources/AppBundleTests/skyland/` | tests of the additions |
+| `osax/` | Dock payload (Objective-C, arm64e): corners, opacity, transforms, layers |
+| `bin/` | the `skyland` CLI and its scripts (bash) |
+| `profiles/hypr/` | default config, themes, sketchybar items |
+| `tools/` | helper apps: shortcut cheat sheet, lock screen saver, media widget |
 
-Rules:
-* Search for duplicates (in GitHub Issues and Discussions) before creating a new discussion
-* Upvote for issues/discussions that you find useful
+## Build and test
 
-**Consider including in bug reports**
+```sh
+bin/skyland-build           # Swift from .swift-version through swiftly, signs Skyland.app
+swiftly run swift test      # must pass, CI runs it on every push
+skyland sa build            # Dock payload (needs SIP partially off to load: skyland sa load)
+```
 
-* `aerospace debug-windows` output, if the problem is about handling some windows
-* Screenshots of problematic windows
-* Videos of problematic windows
-* What did you try to resolve the issue?
-* Your config
-* AeroSpace version
-* macOS version
+Restart the app with `open .build/Skyland.app`.
 
-**Consider including in feature request**
+## Sending a change
 
-* Use cases!
-* Alternative approaches
-* Links to docs of similar features in other window managers that you know
-* Synopsis, if you suggest a new command
-* Mental model description
+- Open a pull request against `main`. Small and focused beats big.
+- Look like the code around it: same naming, comment density and idioms. Swift is
+  checked by `./lint.sh` (swiftformat, swiftlint); bash scripts start with a usage
+  comment and `set -euo pipefail`.
+- Add a test for logic (layouts, config parsing) in `Sources/AppBundleTests/skyland/`.
+- A user-visible change gets a line in the `## Unreleased` section of `CHANGELOG.md`;
+  a new config key or binding goes in `README.md` and the default config.
 
-## Submiting code
-
-There are 2 options:
-1. Send email patches to: `echo YWVyb3NwYWNlLXBhdGNoZXNAYm9ia28ueHl6Cg== | base64 --decode`
-2. Send GitHub PRs
-
-**License Agreement**. By contributing changes to this repository, you agree to license your contributions under the MIT license.
-
-Maintainers can apply your patch with arbitrary modifications.
-
-## Spread the word
-
-Do you like the project? Does AeroSpace finally fix your problems with windows management on macOS? Good to hear it!
-
-* Spread the word in social networks! (Don't forget to share the link :) )
-* Talk about AeroSpace to your colleagues and friends
-* Write a blogpost about your workflows
-* Record a YouTube video
-
-## Share your workflow and tips
-
-Submit your tips to [the Goodies page](https://nikitabobko.github.io/AeroSpace/goodies). The source code of the page can be found in `./docs` directory
-
-## Support the project financially
-
-Supporting the project financially counts as a contribution (even if it's just a $1/month).
-You can sponsor the project on GitHub Sponsors page: https://github.com/sponsors/nikitabobko
+By contributing, you agree to license your changes under the MIT license.

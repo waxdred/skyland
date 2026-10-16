@@ -9,7 +9,7 @@
 #   preview    render it to a PNG
 #
 # [lock]
-# name = 'Waxcoin'
+# name = 'Neo'
 # blur = 4             # wallpaper blur radius (on a 1920 px wide copy)
 set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"

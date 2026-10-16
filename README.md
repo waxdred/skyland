@@ -69,7 +69,7 @@ with the cyberpunk HUD pieces, bound in the hypr profile:
 </table>
 
 ```sh
-git clone git@github.com:waxdred/skyland-cyberdeck.git && cd skyland-cyberdeck
+git clone https://github.com/waxdred/skyland-cyberdeck.git && cd skyland-cyberdeck
 swift build -c release && ln -s "$PWD/.build/release/skyland-cyberdeck" ~/.local/bin/
 ```
 
@@ -274,7 +274,7 @@ scheme = 'auto'                   # monochrome for grayscale wallpapers, else co
 auto-mode = true                  # light theme for a bright wallpaper, dark for a dark one (alt-l still toggles)
 
 [lock]
-name = 'Waxcoin'
+name = 'Neo'                      # lock screen name, default: your macOS full name
 blur = 4
 
 [media]
