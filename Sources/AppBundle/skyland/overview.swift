@@ -26,6 +26,9 @@ func overviewModeChanged(_ mode: String?) {
     if mode == overviewModeId { showOverview() } else { hideOverview() }
 }
 
+/// The windows are zoomed out under the strip: the focused border has nothing to frame.
+@MainActor var isOverviewOpen: Bool { panel?.isVisible == true }
+
 /// Called after every refresh: keep the cards in sync while it is open.
 @MainActor
 func refreshOverview() {
@@ -56,6 +59,7 @@ private func showOverview() {
     newStrip.setFrameOrigin(NSPoint(x: final.minX, y: root.bounds.height))
     panel.alphaValue = 0
     panel.orderFrontRegardless()
+    hideAnimatedBorder()
     NSAnimationContext.runAnimationGroup { context in
         context.duration = duration
         context.timingFunction = CAMediaTimingFunction(controlPoints: Float(anim.windowsBezier.x1), Float(anim.windowsBezier.y1),
@@ -72,7 +76,8 @@ private func showOverview() {
 private func hideOverview() {
     guard panel?.isVisible == true else { return }
     panel?.orderOut(nil)
-    zoomIn()
+    // the border comes back around the focused window once it is at its real frame
+    pauseAnimatedBorder(ms: zoomIn())
 }
 
 // MARK: zoom out / in (payload transforms, like the window animations)
@@ -98,14 +103,15 @@ private func zoomOut(_ workspace: Workspace, below top: CGFloat, durationMs: Int
     }
 }
 
-@MainActor
-private func zoomIn() {
+@MainActor @discardableResult
+private func zoomIn() -> Int {
     let ms = max(1, config.animations.enabled ? min(450, config.animations.windowsMs) : 1)
     for (windowId, _, zoomed) in zoomedWindows {
         // from the zoomed rect back to the real frame, the transform is reset at the end
         skylandSa("animate \(windowId) \(zoomed.args) \(ms) \(config.animations.windowsBezier.args)")
     }
     zoomedWindows = []
+    return ms
 }
 
 // MARK: thumbnails (ScreenCaptureKit)

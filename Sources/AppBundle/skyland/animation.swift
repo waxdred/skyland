@@ -162,4 +162,5 @@ func animateLayoutChange(_ window: Window, from previous: Rect?, to target: Rect
     }
     if ms <= 0 { return }
     skylandSa("animate \(window.windowId) \(from.args) \(ms) \(bezier.args)")
+    pauseAnimatedBorder(ms: ms) // the window server frame is the animated one until the end
 }

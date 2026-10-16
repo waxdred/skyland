@@ -11,7 +11,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 
 - **dwindle** layout, split side following the cursor (`smart_split`), `togglesplit`
 - **move and resize with the mouse** anywhere on a window (`alt` + drag), tiles swap on drop
-- **window decoration**: rounded corners, active/inactive opacity, dim inactive windows, focused window **border** in the theme accent, Ghostty blur; floating windows stay on top
+- **window decoration**: rounded corners, active/inactive opacity, dim inactive windows, focused window **border** in the theme accent (optionally rotating), Ghostty blur; floating windows stay on top
 - **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
 - **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**, light or dark picked from the wallpaper brightness
 - **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars
@@ -251,6 +251,7 @@ active-opacity = 100              # percent
 inactive-opacity = 85
 dim-inactive = 20                 # darken unfocused windows, percent (Dock payload), 0 = none
 border-width = 2                  # focused window border, theme accent gradient (JankyBorders), 0 = none
+border-rotate-ms = 4000           # the border gradient turns, one turn in ms (skyland draws it), 0 = static
 blur = 5                          # Ghostty background blur, 0 = none
 group-bar-height = 22             # accordion containers become groups with a tabs bar, 0 = AeroSpace accordion
 
