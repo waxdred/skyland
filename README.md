@@ -23,7 +23,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **window management on/off** (`alt-r`) with a HUD, windows back to stock macOS while off
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config
 - windows **keep their workspace** across restarts
-- companion **[skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)**: cyberpunk apps launcher (`alt-d`) and messages panel (`alt-shift-m`) with a scripting API, notifications from mail and herdr agents
+- companion **[skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)**: cyberpunk apps launcher (`alt-d`), messages panel (`alt-shift-m`) with a scripting API, and a HUD (`alt-shift-d`) with live system data and herdr agents
 
 What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
@@ -57,6 +57,8 @@ with the cyberpunk HUD pieces, bound in the hypr profile:
   apps, type to search
 - **messages** (`alt-shift-m`, `alt-shift-x` dismisses all): the macOS Notification
   Center history and script messages as neon contact cards
+- **HUD** (`alt-shift-d`): clock, calendar, Wi-Fi / Bluetooth, brightness and volume,
+  CPU / RAM / network / disk / battery, herdr agents, last messages, quick launch
 - **scripting API**: `skyland-cyberdeck notify -t TITLE -b BODY`, `list --json`,
   `dismiss`; integrations for a sketchybar mail item and
   [herdr](https://herdr.dev) agents (finished / needs you)
@@ -327,6 +329,7 @@ right, falling back left when fewer screens are plugged).
 | `alt-p`, `alt-shift-p` | screenshot area (space: window), every display; to ~/Pictures/Screenshots + clipboard | `Shift+Delete`, `Delete` |
 | `alt-d` | apps launcher ([skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)) | `Super+D` |
 | `alt-shift-m`, `alt-shift-x` | messages panel (notifications + script messages), dismiss all | `Super+Shift+M`, `Super+Shift+X` |
+| `alt-shift-d` | HUD: clock, calendar, connections, system, herdr agents ([skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)) | |
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |
 | `alt-m` | media widget | |
