@@ -849,6 +849,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let source = NSTextField(labelWithString: "")
     let progress = Progress()
     var playButton: NSButton!
+    var watchdogTicks = 0
     let bars = Bars()
     let wave = AudiowareWave(frame: .zero)
     var shownLevels = [Float](repeating: 0, count: 14)
@@ -945,11 +946,15 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         applyTheme()
         render()
+        // streams left by a widget that did not stop them (now children of launchd)
+        try? Process.run(URL(fileURLWithPath: "/usr/bin/pkill"), arguments: ["-P", "1", "-f", "mediaremote-adapter\\.pl .* stream "])
         startStream()
         Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.updateProgress()
                 self?.applyThemeIfChanged()
+                self?.watchdogTicks += 1
+                if (self?.watchdogTicks ?? 0) % 8 == 0 { self?.checkStream() } // every 4 s
             }
         }
         panel.orderFrontRegardless()
@@ -1007,6 +1012,33 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: now playing
 
+    /// The stream sometimes stops sending (the perl process lives on, silent): every few
+    /// seconds the real state is asked once; if it differs from what is shown, it is shown
+    /// and the stream is started again.
+    func checkStream() {
+        let shown = (state["title"] as? String, state["playing"] as? Bool ?? false)
+        let p = adapter(["get", "--micros"])
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = FileHandle.nullDevice
+        DispatchQueue.global(qos: .utility).async {
+            guard (try? p.run()) != nil else { return }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            p.waitUntilExit()
+            guard let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            let real = (payload["title"] as? String, payload["playing"] as? Bool ?? false)
+            guard real.0 != shown.0 || real.1 != shown.1 else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.state = payload
+                self.render()
+                self.stream?.terminationHandler = nil
+                self.stream?.terminate()
+                self.startStream()
+            }
+        }
+    }
+
     func startStream() {
         let p = adapter(["stream", "--no-diff", "--micros", "--debounce=100"])
         let pipe = Pipe()
@@ -1042,7 +1074,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
             source.stringValue = ""
         }
         if let b64 = state["artworkData"] as? String, let data = Data(base64Encoded: b64) {
-            artwork.image = NSImage(data: data)
+            artwork.image = NSImage(data: data).map(squared) // a 16:9 video thumbnail fills the square
         } else if state["title"] == nil {
             artwork.image = NSImage(systemSymbolName: "music.note", accessibilityDescription: nil)
         }
@@ -1076,6 +1108,18 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         stream?.terminationHandler = nil
         stream?.terminate()
         audio.stop()
+    }
+}
+
+/// The middle square of an image (aspect fill), for a thumbnail that is not square.
+func squared(_ image: NSImage) -> NSImage {
+    let size = image.size
+    let side = min(size.width, size.height)
+    guard side > 0, size.width != size.height else { return image }
+    let crop = NSRect(x: (size.width - side) / 2, y: (size.height - side) / 2, width: side, height: side)
+    return NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+        image.draw(in: rect, from: crop, operation: .copy, fraction: 1)
+        return true
     }
 }
 
