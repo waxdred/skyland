@@ -76,6 +76,14 @@ private func showOverview() {
 private func hideOverview() {
     guard panel?.isVisible == true else { return }
     panel?.orderOut(nil)
+    // thumbnails, cards and panel are made again at every open: kept, the thumbnails
+    // piled up all day (closed windows included) and the hidden full-screen panel kept
+    // its buffers (~35 MB)
+    thumbnails = [:]
+    strip?.removeFromSuperview()
+    strip = nil
+    panel?.close()
+    panel = nil
     // the border comes back around the focused window once it is at its real frame
     pauseAnimatedBorder(ms: zoomIn())
 }
@@ -130,6 +138,7 @@ private func captureThumbnails(of workspaces: [Workspace]) {
             configuration.width = Int(scWindow.frame.width * scale)
             configuration.height = Int(scWindow.frame.height * scale)
             configuration.showsCursor = false
+            configuration.captureResolution = .nominal // a 640 px thumbnail needs no Retina capture
             guard let image = try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration) else { continue }
             thumbnails[scWindow.windowID] = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
             strip?.cardsNeedDisplay()
@@ -143,6 +152,7 @@ private func captureThumbnails(of workspaces: [Workspace]) {
 private func makePanel() -> NSPanel {
     let p = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
     p.level = .popUpMenu
+    p.isReleasedWhenClosed = false // closed at every hide, ARC owns it
     p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
     p.isOpaque = false
     p.backgroundColor = .clear
