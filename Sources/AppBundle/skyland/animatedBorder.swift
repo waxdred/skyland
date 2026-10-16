@@ -102,6 +102,10 @@ func hideAnimatedBorder() {
     gradient.type = .conic
     gradient.startPoint = CGPoint(x: 0.5, y: 0.5)
     gradient.endPoint = CGPoint(x: 0.5, y: 0)
+    // a smooth gradient as large as the window's diagonal: computed at a quarter of the
+    // resolution (a few MB instead of tens); only the 2 px stroke of it shows, kept
+    // sharp by the full-resolution mask
+    gradient.contentsScale = 0.25
     view.layer?.addSublayer(gradient)
     view.layer?.mask = mask
     panel.contentView = view
