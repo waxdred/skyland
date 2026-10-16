@@ -83,6 +83,11 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
         SettingField(section: "wallpaper", key: "scheme", label: "Color scheme", kind: .choice(["auto", "scheme-content", "scheme-tonal-spot", "scheme-vibrant", "scheme-expressive", "scheme-fidelity", "scheme-monochrome", "scheme-neutral", "scheme-rainbow", "scheme-fruit-salad"])),
         SettingField(section: "wallpaper", key: "dir", label: "Folder", kind: .text),
     ]),
+    ("macOS appearance", [
+        SettingField(section: "appearance", key: "sync-dark-mode", label: "Dark / light follows skyland", kind: .bool, after: ["skyland-appearance"]),
+        SettingField(section: "appearance", key: "accent", label: "Accent color", kind: .choice(["theme", "off", "blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite", "multicolor"]), after: ["skyland-appearance"]),
+        SettingField(section: "appearance", key: "highlight", label: "Highlight color", kind: .choice(["theme", "off", "blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"]), after: ["skyland-appearance"]),
+    ]),
     ("Terminal", [
         SettingField(section: "terminal", key: "app", label: "Terminal app (alt-t)", kind: .choice(["Ghostty", "iTerm", "WezTerm", "kitty", "Terminal", "Alacritty"])),
     ]),

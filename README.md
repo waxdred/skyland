@@ -174,6 +174,24 @@ Everything goes through the `skyland` CLI (`~/.local/bin/skyland`): `skyland the
 | `skyland-config <section> <key>` | read a value of the config (used by the scripts) |
 | `skyland-cert` | create the `skyland-codesign` signing identity |
 
+### macOS appearance (optional)
+
+With an `[appearance]` table, every theme change also sets System Settings >
+Appearance, so Finder, Mail, Settings and the other apps match:
+
+```toml
+[appearance]
+sync-dark-mode = true   # macOS dark / light follows skyland (alt-l, wallpaper auto-mode)
+accent = 'theme'        # the macOS accent closest to the theme accent | 'off' | blue, purple,
+                        # pink, red, orange, yellow, green, graphite, multicolor
+highlight = 'theme'     # text selection: the theme accent lightened (any color, not only the
+                        # 8 of System Settings) | 'off' | a preset | '#rrggbb'
+```
+
+The values found before the first change are kept: `skyland appearance restore` puts
+them back. The first dark / light switch asks to let Skyland control System Events.
+Also in the settings window (`alt-i`).
+
 ### Wallpapers
 
 `skyland-wallpaper fetch` downloads SFW wallpapers from [wallhaven](https://wallhaven.cc)

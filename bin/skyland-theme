@@ -151,4 +151,5 @@ else
 fi
 cp "$file" "$CACHE/theme.css" # current theme, for skyland-lock
 "$REPO/bin/skyland-lock" refresh || true
+"$REPO/bin/skyland-appearance" apply || true # [appearance]: macOS dark mode and colors (optional)
 echo "theme: $mode ($file)"

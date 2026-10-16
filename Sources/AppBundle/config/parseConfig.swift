@@ -177,6 +177,7 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     "lock": Parser(\.lock, parseLock),
     "media": Parser(\.media, parseMedia),
     "terminal": Parser(\.terminal, parseTerminal),
+    "appearance": Parser(\.appearance, parseAppearance),
     "focus-follows-mouse": Parser(\.focusFollowsMouse, parseFocusFollowsMouse),
     "workspace-to-monitor-force-assignment": Parser(\.workspaceToMonitorForceAssignment, parseWorkspaceToMonitorAssignment),
     "on-window-detected": Parser(\.onWindowDetected, parseOnWindowDetectedArray),

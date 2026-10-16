@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# macOS appearance from the skyland theme (System Settings > Appearance), optional:
+# nothing changes without an [appearance] table in the config.
+# usage: skyland appearance [apply] | restore
+#   apply    (run by skyland-theme on every theme change) dark / light mode, accent
+#            and highlight colors from the current theme and mode
+#   restore  put back the values found before the first apply
+#
+# [appearance]
+# sync-dark-mode = true   # macOS dark / light follows skyland (alt-l, wallpaper auto-mode)
+# accent = 'theme'        # 'theme': the macOS accent closest to the theme accent | 'off' |
+#                         # blue purple pink red orange yellow green graphite multicolor
+# highlight = 'theme'     # 'theme': the theme accent, lightened | 'off' | a preset above | '#rrggbb'
+set -euo pipefail
+REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+CACHE="$HOME/.cache/skyland"
+ORIGINAL="$CACHE/appearance-original" # values before skyland touched them
+TOOL="$REPO/.build/skyland-wallpaper-picker" # posts the color change notification
+conf() { "$REPO/bin/skyland-config" appearance "$1"; }
+
+notify_colors() {
+    [[ -x "$TOOL" ]] && "$TOOL" --notify AppleColorPreferencesChangedNotification AppleAquaColorVariantChanged || true
+}
+
+set_dark() { # true | false
+    osascript -e "tell application \"System Events\" to tell appearance preferences to set dark mode to $1" >/dev/null
+}
+
+save_original() {
+    [[ -f "$ORIGINAL" ]] && return
+    mkdir -p "$CACHE"
+    printf 'style=%q\naccent=%q\nhighlight=%q\n' \
+        "$(defaults read -g AppleInterfaceStyle 2>/dev/null || echo Light)" \
+        "$(defaults read -g AppleAccentColor 2>/dev/null || echo none)" \
+        "$(defaults read -g AppleHighlightColor 2>/dev/null || echo none)" > "$ORIGINAL"
+}
+
+# preset name -> AppleAccentColor value ("" = multicolor, the key removed)
+accent_value() {
+    case "$1" in
+        graphite) echo -1 ;; red) echo 0 ;; orange) echo 1 ;; yellow) echo 2 ;; green) echo 3 ;;
+        blue) echo 4 ;; purple) echo 5 ;; pink) echo 6 ;; multicolor) echo "" ;;
+        *) return 1 ;;
+    esac
+}
+
+# preset name -> AppleHighlightColor string (the System Settings values)
+highlight_preset() {
+    case "$1" in
+        blue) echo "0.698039 0.843137 1.000000 Blue" ;; purple) echo "0.968627 0.831373 1.000000 Purple" ;;
+        pink) echo "1.000000 0.749020 0.823529 Pink" ;; red) echo "1.000000 0.733333 0.721569 Red" ;;
+        orange) echo "1.000000 0.874510 0.701961 Orange" ;; yellow) echo "1.000000 0.937255 0.690196 Yellow" ;;
+        green) echo "0.752941 0.964706 0.678431 Green" ;; graphite) echo "0.847059 0.847059 0.862745 Graphite" ;;
+        *) return 1 ;;
+    esac
+}
+
+theme_accent() { # rrggbb of the current theme accent
+    awk 'match($0, /@define-color[[:space:]]+accent[[:space:]]+#[0-9A-Fa-f]{6}/) { s = substr($0, RSTART, RLENGTH); print tolower(substr(s, length(s) - 5)); exit }' "$CACHE/theme.css" 2>/dev/null
+}
+
+# closest macOS accent: graphite for a grey, else by hue
+nearest_accent() { # rrggbb
+    awk -v r=$((16#${1:0:2})) -v g=$((16#${1:2:2})) -v b=$((16#${1:4:2})) 'BEGIN {
+        r /= 255; g /= 255; b /= 255
+        max = r; if (g > max) max = g; if (b > max) max = b
+        min = r; if (g < min) min = g; if (b < min) min = b
+        d = max - min
+        if (max == 0 || d / max < 0.18) { print "graphite"; exit }
+        if (max == r) hue = 60 * (((g - b) / d) % 6); else if (max == g) hue = 60 * ((b - r) / d + 2); else hue = 60 * ((r - g) / d + 4)
+        if (hue < 0) hue += 360
+        if (hue < 15 || hue >= 345) print "red"; else if (hue < 40) print "orange"; else if (hue < 65) print "yellow"
+        else if (hue < 170) print "green"; else if (hue < 255) print "blue"; else if (hue < 290) print "purple"; else print "pink"
+    }'
+}
+
+# "#rrggbb" or rrggbb mixed 40% with white -> "r g b Other" (the highlight is drawn translucent)
+highlight_from_hex() {
+    local h="${1#\#}"
+    awk -v r=$((16#${h:0:2})) -v g=$((16#${h:2:2})) -v b=$((16#${h:4:2})) 'BEGIN {
+        c[0] = r / 255; c[1] = g / 255; c[2] = b / 255
+        # a near white accent (monochrome themes) would hide selections on light backgrounds
+        if (c[0] > 0.85 && c[1] > 0.85 && c[2] > 0.85) { print "0.847059 0.847059 0.862745 Graphite"; exit }
+        printf "%f %f %f Other\n", c[0] + (1 - c[0]) * 0.4, c[1] + (1 - c[1]) * 0.4, c[2] + (1 - c[2]) * 0.4
+    }'
+}
+
+apply() {
+    local sync accent highlight changed=0 mode hex
+    sync="$(conf sync-dark-mode)" accent="$(conf accent)" highlight="$(conf highlight)"
+    [[ "$sync" == true || ( -n "$accent" && "$accent" != off ) || ( -n "$highlight" && "$highlight" != off ) ]] || exit 0
+    save_original
+    mode="$(cat "$CACHE/theme-mode" 2>/dev/null || echo dark)"
+    hex="$(theme_accent)"
+    if [[ "$sync" == true ]]; then
+        local want=false
+        [[ "$mode" == dark ]] && want=true
+        local now=false
+        [[ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" == Dark ]] && now=true
+        [[ "$want" == "$now" ]] || set_dark "$want"
+    fi
+    if [[ -n "$accent" && "$accent" != off ]]; then
+        [[ "$accent" == theme && -n "$hex" ]] && accent="$(nearest_accent "$hex")"
+        local value
+        if value="$(accent_value "$accent")"; then
+            if [[ -z "$value" ]]; then defaults delete -g AppleAccentColor 2>/dev/null || true
+            else defaults write -g AppleAccentColor -int "$value"; fi
+            changed=1
+        fi
+    fi
+    if [[ -n "$highlight" && "$highlight" != off ]]; then
+        local string=""
+        if [[ "$highlight" == theme ]]; then [[ -n "$hex" ]] && string="$(highlight_from_hex "$hex")"
+        elif [[ "$highlight" == \#* ]]; then string="$(highlight_from_hex "$highlight")"
+        else string="$(highlight_preset "$highlight" || true)"; fi
+        [[ -n "$string" ]] && defaults write -g AppleHighlightColor -string "$string" && changed=1
+    fi
+    (( changed )) && notify_colors
+    return 0
+}
+
+restore() {
+    [[ -f "$ORIGINAL" ]] || { echo "nothing to restore"; exit 0; }
+    # shellcheck source=/dev/null
+    source "$ORIGINAL"
+    set_dark "$([[ "$style" == Dark ]] && echo true || echo false)"
+    if [[ "$accent" == none ]]; then defaults delete -g AppleAccentColor 2>/dev/null || true; else defaults write -g AppleAccentColor -int "$accent"; fi
+    if [[ "$highlight" == none ]]; then defaults delete -g AppleHighlightColor 2>/dev/null || true; else defaults write -g AppleHighlightColor -string "$highlight"; fi
+    notify_colors
+    rm -f "$ORIGINAL"
+    echo "appearance restored"
+}
+
+case "${1:-apply}" in
+    apply) apply ;;
+    restore) restore ;;
+    *) echo "usage: skyland appearance [apply] | restore" >&2; exit 1 ;;
+esac

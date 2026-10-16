@@ -72,6 +72,7 @@ struct Config: ConvenienceMutable {
     var lock: LockConfig = LockConfig()
     var media: MediaConfig = MediaConfig()
     var terminal = TerminalConfig() // skyland: [terminal] app (bin/skyland-term)
+    var appearance = AppearanceConfig() // skyland: [appearance], macOS dark mode and colors (bin/skyland-appearance)
     var workspaceToMonitorForceAssignment: [String: [MonitorDescription]] = [:]
     var modes: [String: Mode] = [:]
     var onWindowDetected: [WindowDetectedCallback] = []

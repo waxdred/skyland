@@ -49,6 +49,14 @@ if args.count == 5, args[1] == "--blur" {
     }
     exit(0)
 }
+if args.count >= 3, args[1] == "--notify" {
+    // Post distributed notifications (bin/skyland-appearance): apps reload the
+    // accent / highlight colors on AppleColorPreferencesChangedNotification
+    for name in args.dropFirst(2) {
+        DistributedNotificationCenter.default().postNotificationName(.init(name), object: nil, userInfo: nil, deliverImmediately: true)
+    }
+    exit(0)
+}
 if args.count == 3, args[1] == "--set" {
     let url = URL(fileURLWithPath: args[2])
     do {

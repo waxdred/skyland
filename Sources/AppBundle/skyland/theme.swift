@@ -94,3 +94,21 @@ private let terminalParser: [String: any ParserProtocol<TerminalConfig>] = [
 func parseTerminal(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> TerminalConfig {
     parseTable(raw, TerminalConfig(), terminalParser, backtrace, &c)
 }
+
+/// [appearance]: macOS dark mode, accent and highlight colors from the theme,
+/// applied by bin/skyland-appearance after each theme change. Optional.
+struct AppearanceConfig: ConvenienceMutable, Equatable, Sendable {
+    var syncDarkMode: Bool = false
+    var accent: String = ""
+    var highlight: String = ""
+}
+
+private let appearanceParser: [String: any ParserProtocol<AppearanceConfig>] = [
+    "sync-dark-mode": Parser(\.syncDarkMode, parseBool),
+    "accent": Parser(\.accent, parseString),
+    "highlight": Parser(\.highlight, parseString),
+]
+
+func parseAppearance(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> AppearanceConfig {
+    parseTable(raw, AppearanceConfig(), appearanceParser, backtrace, &c)
+}

@@ -116,6 +116,13 @@ name = 'Waxcoin'
 blur = 4 # wallpaper blur radius, 0 = sharp
 
 # Floating media widget (alt-m, bin/skyland-media)
+# macOS appearance from the skyland theme (System Settings > Appearance), optional.
+# skyland appearance restore puts back the values from before.
+[appearance]
+sync-dark-mode = true # macOS dark / light follows skyland (alt-l, wallpaper auto-mode)
+accent = 'theme' # the macOS accent closest to the theme accent, or a preset / 'off'
+highlight = 'theme' # text selection: the theme accent lightened, or a preset / '#rrggbb' / 'off'
+
 # New terminal window on alt-t (bin/skyland-term): Ghostty, iTerm, WezTerm, kitty or any app
 [terminal]
 app = 'Ghostty'
