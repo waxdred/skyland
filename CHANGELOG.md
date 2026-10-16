@@ -10,6 +10,9 @@ is also the text of its GitHub release.
 - **Dim inactive windows** (`[decoration] dim-inactive`, percent, also in the settings
   window): unfocused windows are darkened, fading with focus. Needs the Dock payload
   rebuilt (`skyland sa build && skyland sa load`).
+- **Rotating border** (`[decoration] border-rotate-ms`, Hyprland `borderangle` loop): the
+  focused window border gradient turns. skyland draws it itself, rotated by Core
+  Animation (no measurable CPU); hidden while windows animate and in the overview.
 
 **Install**
 - `skyland sa load` offers to write the sudoers rule (payload injected at login without

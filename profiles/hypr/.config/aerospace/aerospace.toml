@@ -78,6 +78,7 @@ active-opacity = 100
 inactive-opacity = 90
 dim-inactive = 0 # darken unfocused windows, percent (Hyprland dim_inactive), needs the payload
 border-width = 2 # focused window border, theme accent gradient (JankyBorders)
+border-rotate-ms = 0 # rotating border gradient, one turn in ms (e.g. 4000, Hyprland borderangle loop), 0 = static JankyBorders border
 blur = 5 # Ghostty background blur (43PR blur size 5)
 group-bar-height = 22 # Hyprland groups: accordion containers get a tabs bar (alt-g)
 
