@@ -302,8 +302,10 @@ skyland does not ship a bar config: keep your own `sketchybarrc`, and connect it
 with one line at its end:
 
 ```sh
-command -v skyland >/dev/null && skyland bar &
+[ -x "$HOME/.local/bin/skyland" ] && "$HOME/.local/bin/skyland" bar >/dev/null 2>&1 &
 ```
+
+(full path: sketchybar started by `brew services` has a short PATH without `~/.local/bin`)
 
 `skyland bar` (`profiles/hypr/sketchybar/skyland.sh`) then:
 

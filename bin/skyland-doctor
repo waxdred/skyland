@@ -66,7 +66,7 @@ else opt "no LaunchAgent: start skyland by hand after a login" "README > Autosta
 section "Bar, border, colors"
 if pgrep -xq sketchybar; then
     if sketchybar --query workspace.1 >/dev/null 2>&1; then ok "sketchybar with skyland workspaces"
-    else opt "sketchybar runs without skyland workspaces" "end your sketchybarrc with: command -v skyland >/dev/null && skyland bar &"; fi
+    else opt "sketchybar runs without skyland workspaces" "end your sketchybarrc with: [ -x \"\$HOME/.local/bin/skyland\" ] && \"\$HOME/.local/bin/skyland\" bar >/dev/null 2>&1 &"; fi
 else
     opt "sketchybar not running (no bar)" "brew install felixkratz/formulae/sketchybar && brew services start sketchybar"
 fi

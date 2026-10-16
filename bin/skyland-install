@@ -16,10 +16,17 @@ prebuilt="$( [[ -f .build/PREBUILT ]] && cat .build/PREBUILT || true )"
 command -v brew >/dev/null || { echo "Homebrew is required: https://brew.sh" >&2; exit 1; }
 
 step "Dependencies (Brewfile)"
+# recent Homebrew refuses third-party taps until trusted: felixkratz/formulae is
+# the sketchybar / borders tap (https://github.com/FelixKratz/homebrew-formulae)
+if brew trust --help >/dev/null 2>&1; then
+    echo "trusting the felixkratz/formulae tap (sketchybar, borders)"
+    brew tap felixkratz/formulae >/dev/null && brew trust felixkratz/formulae
+fi
+# --no-upgrade: install what is missing, never update what you already have
 if [[ -n "$prebuilt" ]]; then
-    grep -v '"swiftly"' "$REPO/Brewfile" | brew bundle --file=- # a release needs no Swift toolchain
+    grep -v '"swiftly"' "$REPO/Brewfile" | brew bundle --no-upgrade --file=- # a release needs no Swift toolchain
 else
-    brew bundle --file "$REPO/Brewfile"
+    brew bundle --no-upgrade --file "$REPO/Brewfile"
 fi
 if ! command -v matugen >/dev/null && [[ ! -x "$HOME/.cargo/bin/matugen" ]]; then
     if command -v cargo >/dev/null; then cargo install matugen; else warn "no cargo: skipping matugen (colors from the wallpaper). Install Rust, then: cargo install matugen"; fi
@@ -60,7 +67,8 @@ cat <<MSG
 Done. Run  skyland doctor  to check everything. Next:
   1. System Settings > Privacy & Security > Accessibility: allow Skyland
      (Screen Recording too, for the overview thumbnails and the media widget bars).
-  2. Hook sketchybar: end your sketchybarrc with  command -v skyland >/dev/null && skyland bar &
+  2. Hook sketchybar: end your sketchybarrc with
+       [ -x "\$HOME/.local/bin/skyland" ] && "\$HOME/.local/bin/skyland" bar >/dev/null 2>&1 &
   3. Shortcuts: alt-shift-h. Settings: alt-i. Config: ~/.config/aerospace/aerospace.toml
   4. Optional, window effects (corners, opacity, animations, floating on top):
      partial SIP disable + boot-arg, then skyland sa build && skyland sa load. See README.
