@@ -18,11 +18,22 @@ import QuartzCore
 @MainActor private var borderMask: CAShapeLayer?
 @MainActor private var borderState = "" // what is on screen: frame, level, colors, settings
 @MainActor private var borderColors: (date: Date, colors: [CGColor])?
+// While windows animate their window server frame is the animated one: no border until then
+@MainActor private var borderPausedUntil = Date.distantPast
+
+/// Hide the border for `ms` (windows animating), then put it back.
+@MainActor
+func pauseAnimatedBorder(ms: Int) {
+    guard config.decoration.borderRotateMs > 0 else { return }
+    borderPausedUntil = max(borderPausedUntil, .now + Double(ms) / 1000)
+    hideAnimatedBorder()
+    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(ms + 20)) { updateAnimatedBorder() }
+}
 
 @MainActor
 func updateAnimatedBorder() {
     let deco = config.decoration
-    guard deco.borderRotateMs > 0, deco.borderWidth > 0, TrayMenuModel.shared.isEnabled, !isOverviewOpen,
+    guard deco.borderRotateMs > 0, deco.borderWidth > 0, TrayMenuModel.shared.isEnabled, !isOverviewOpen, Date.now >= borderPausedUntil,
           let window = focus.windowOrNil, !window.isHiddenInCorner, !isHiddenGroupTab(window),
           let (frame, level) = windowServerFrame(window.windowId)
     else { return hideAnimatedBorder() }

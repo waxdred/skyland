@@ -76,9 +76,8 @@ private func showOverview() {
 private func hideOverview() {
     guard panel?.isVisible == true else { return }
     panel?.orderOut(nil)
-    let ms = zoomIn()
     // the border comes back around the focused window once it is at its real frame
-    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(ms)) { updateAnimatedBorder() }
+    pauseAnimatedBorder(ms: zoomIn())
 }
 
 // MARK: zoom out / in (payload transforms, like the window animations)
