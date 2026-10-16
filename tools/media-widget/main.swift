@@ -461,7 +461,9 @@ final class AudiowareWave: NSView {
     private func gain(_ key: String) -> CGFloat { model.gain[key] ?? 0 }
 
     private func recompute() {
-        let count = max(60, Int((bounds.width / 1.5).rounded()))
+        // a point per 1.5 pt, at most 260: the drawing costs by the point (the widget, 380 pt,
+        // is below it; cyberdeck's audio deck draws this wave wider)
+        let count = min(260, max(60, Int((bounds.width / 1.5).rounded())))
         if count != n {
             n = count
             xs = (0 ... n).map { CGFloat($0) / CGFloat(n) }
