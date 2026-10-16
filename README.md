@@ -25,6 +25,8 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - windows **keep their workspace** across restarts
 - companion **[skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)**: cyberpunk apps launcher (`alt-d`) and messages panel (`alt-shift-m`) with a scripting API, notifications from mail and herdr agents
 
+What changed in each version: [CHANGELOG.md](CHANGELOG.md).
+
 ![skyland demo: dwindle tiling, groups with a tabs bar, master layout, theme picker and themes, wallpaper with automatic light / dark, cyberdeck launcher and messages, overview, cheat sheet, settings window](docs/screenshots/demo.gif)
 
 <table>
