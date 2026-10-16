@@ -281,8 +281,13 @@ blur = 4
 
 [media]
 opacity = 92
-style = 'classic'                 # or 'audioware': cyan light wave on night blue, the center line is the progress
+style = 'classic'                 # or 'audioware': a light wave in the theme's accent, the center line is the progress
 ```
+
+The **media widget** (`alt-m`) shows what any app plays (Spotify, Brave / YouTube,
+Music...) and follows the theme, in two styles:
+
+![media widget: classic style with audio bars, audioware style with a light wave](docs/screenshots/media-widget.png)
 
 The 18 43PR themes are in `profiles/hypr/.config/skyland/themes/`: copy one and
 edit the colors to make your own. `wallpaper-colors.json` maps Material roles to
