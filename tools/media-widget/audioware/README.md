@@ -2,7 +2,9 @@
 
 The `audioware` style of the media widget (`[media] style = 'audioware'`) draws the live
 audio wave in the style of the [Audioware](https://github.com/cyb3rpsych0s1s/audioware)
-cover: a luminous ribbon twisting around a cyan center line, flat when silent.
+cover: a luminous ribbon twisting around a cyan center line, flat when silent, behind
+the artwork, text and buttons (its center line is the progress, where the classic
+progress bar is).
 `AudiowareWave` in `../main.swift` draws it; `AudioBands` there feeds it.
 
 - `render.js`: the same drawing in a canvas, the reference. Keep it and `AudiowareWave`
@@ -11,7 +13,7 @@ cover: a luminous ribbon twisting around a cyan center line, flat when silent.
   kept under `cover`), `window` is the cover's amplitude envelope along x.
 - `preview.py`: writes `preview.html`; open it, pick an audio file or the microphone and
   the wave plays live, the bands and signals computed like the widget's. Query: `w`, `h`,
-  `f` (progress), `blur=0`, `ui=0`.
+  `f` (progress), `axis` (height of the center line), `blur=0`, `ui=0`.
 
 How the wave follows the audio, 30 times a second:
 

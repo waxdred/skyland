@@ -2,7 +2,8 @@
 """Write preview.html: render.js drawing the wave on the four planes composited with
 their blur like the widget. Open it in a browser and pick an audio file or the
 microphone: the bands and the low / mid signals are computed like the widget's
-AudioBands, live at 30 fps. Query: w, h (size), f (progress), blur=0, ui=0.
+AudioBands, live at 30 fps. Query: w, h (size), f (progress), axis (height of the
+center line, 0...1), blur=0, ui=0.
 For scripted frames: window.frame(levels[14], playing, {low, mid}) advances once."""
 import json, pathlib
 here = pathlib.Path(__file__).parent
@@ -18,7 +19,7 @@ const mk=()=>{const o=document.createElement('canvas');o.width=W;o.height=H;retu
 const pl={glow:mk(),far:mk(),mid:mk(),near:mk()},draw=makeWave(MODEL),audio=makeAudio();
 function render(){
   for(const k in pl)pl[k].getContext('2d').clearRect(0,0,W,H);
-  draw({glow:pl.glow.getContext('2d'),far:pl.far.getContext('2d'),mid:pl.mid.getContext('2d'),near:pl.near.getContext('2d')},W,H,audio,+(q.get('f')||1));
+  draw({glow:pl.glow.getContext('2d'),far:pl.far.getContext('2d'),mid:pl.mid.getContext('2d'),near:pl.near.getContext('2d')},W,H,audio,+(q.get('f')||1),+(q.get('axis')||0.445));
   const o=c.getContext('2d');o.filter='none';o.fillStyle='#0A121A';o.fillRect(0,0,W,H);
   for(const [p,r] of [['glow',6],['far',1.2],['mid',0.35],['near',0]]){o.filter=blur&&r?`blur(${(r*sc).toFixed(2)}px)`:'none';o.drawImage(pl[p],0,0)}
 }

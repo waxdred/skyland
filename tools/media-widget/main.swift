@@ -88,6 +88,8 @@ final class Bars: NSView {
 /// progress, light points) sharp.
 final class AudiowareWave: NSView {
     var progress: CGFloat = 0 { didSet { if progress != oldValue { near.needsDisplay = true } } }
+    /// Height of the center line from the bottom, 0...1 (on the cover 0.445).
+    var axisFraction: CGFloat = 0.445 { didSet { recompute() } }
 
     static let night = rgb(0x0A121A), deep = rgb(0x153054), electric = rgb(0x168FC6)
     static let cyan = rgb(0x28CFFF), light = rgb(0x69E7FF), ice = rgb(0xB4F5FF)
@@ -211,8 +213,11 @@ final class AudiowareWave: NSView {
         recompute()
     }
 
-    /// Round off the loudest swings.
-    private static func soft(_ v: CGFloat) -> CGFloat { tanh(v * 1.1) / tanh(1.1) }
+    /// Round off the loudest swings; troughs 0.72 of crests, like the cover (+0.84 / -0.6).
+    private static func soft(_ v: CGFloat) -> CGFloat {
+        let k = tanh(v * 1.1) / tanh(1.1)
+        return k < 0 ? k * 0.72 : k
+    }
 
     /// The 80 ms of the low / mid signals shown this frame, normalized by slow peaks.
     private func shownSignal(_ low: [Float], _ mid: [Float]) -> (a: [CGFloat], b: [CGFloat], m: [CGFloat], rms: CGFloat)? {
@@ -361,7 +366,7 @@ final class AudiowareWave: NSView {
     // MARK: drawing helpers
 
     private var unitScale: CGFloat { bounds.width / 1000 }
-    private var axisY: CGFloat { bounds.height * 0.445 } // 0.555 from the top, like the cover
+    private var axisY: CGFloat { bounds.height * axisFraction }
     private func px(_ i: Int) -> CGFloat { CGFloat(i) / CGFloat(n) * bounds.width }
     /// Soft knee above 0.85 so loud crests round off instead of flattening.
     private func py(_ h: CGFloat) -> CGFloat {
@@ -748,7 +753,7 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
 }
 
 final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    let size = audioware ? NSSize(width: 440, height: 180) : NSSize(width: 380, height: 116)
+    let size = NSSize(width: 380, height: 116)
     let radius: CGFloat = 18
     var panel: NSPanel!
     var tint: NSView!
@@ -796,7 +801,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         tint.layer?.cornerRadius = radius
         glass.addSubview(tint)
 
-        artwork.frame = audioware ? NSRect(x: 14, y: 124, width: 46, height: 46) : NSRect(x: 14, y: 14, width: 88, height: 88)
+        artwork.frame = NSRect(x: 14, y: 14, width: 88, height: 88)
         artwork.imageScaling = .scaleProportionallyUpOrDown
         artwork.wantsLayer = true
         artwork.layer?.cornerRadius = 12
@@ -808,18 +813,15 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                  (source, 46.0, NSFont.systemFont(ofSize: 10, weight: .medium))]
         {
             field.frame = NSRect(x: 114, y: y, width: size.width - 128, height: 18)
-            if audioware { // title over the whole width, artist and source left of the controls
-                field.frame = field === title ? NSRect(x: 72, y: 154, width: size.width - 86, height: 18)
-                    : NSRect(x: 72, y: field === artist ? 138 : 122, width: size.width - 72 - 132, height: 16)
-            }
             field.font = font
             field.lineBreakMode = .byTruncatingTail
             glass.addSubview(field)
         }
         progress.frame = NSRect(x: 114, y: 38, width: size.width - 128, height: 4)
-        if audioware { // the wave sits under the text, edge to edge; its center line is the progress
-            wave.frame = NSRect(x: 0, y: 0, width: size.width, height: 118)
-            glass.addSubview(wave)
+        if audioware { // the wave is the background, under the artwork, text and buttons; its center line is the progress
+            wave.frame = glass.bounds
+            wave.axisFraction = progress.frame.midY / size.height
+            glass.addSubview(wave, positioned: .above, relativeTo: tint)
             audio.onWave = { [weak self] low, mid in self?.signals = (low, mid) }
         } else {
             glass.addSubview(progress)
@@ -831,8 +833,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
             button.isBordered = false
             button.tag = command
             button.symbolConfiguration = .init(pointSize: i == 1 ? 18 : 14, weight: .semibold)
-            button.frame = audioware ? NSRect(x: size.width - 14 - 114 + CGFloat(i) * 40, y: 128, width: 34, height: 26)
-                : NSRect(x: 114 + CGFloat(i) * 44, y: 8, width: 36, height: 26)
+            button.frame = NSRect(x: 114 + CGFloat(i) * 44, y: 8, width: 36, height: 26)
             glass.addSubview(button)
             buttons.append(button)
         }
@@ -901,6 +902,14 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         for button in buttons { button.contentTintColor = AudiowareWave.light }
         artwork.layer?.backgroundColor = AudiowareWave.deep.cgColor
         artwork.contentTintColor = AudiowareWave.cyan
+        // the wave glows behind the text and buttons: a soft dark halo keeps them legible
+        for view in [title, artist, source] + buttons {
+            let legible = NSShadow()
+            legible.shadowColor = AudiowareWave.night.withAlphaComponent(0.95)
+            legible.shadowBlurRadius = 4
+            legible.shadowOffset = .zero
+            view.shadow = legible
+        }
     }
 
     // MARK: now playing

@@ -14,7 +14,8 @@
 // spectrum peaks rise where mid is strong, hairs hang under troughs with the bass,
 // light follows slope and amplitude, onsets flash. draw(P, W, H, st, progress) paints
 // it on four planes {glow, far, mid, near}, composited back to front with blur ~6, 1.2,
-// 0.35 and 0 px per 1000 px of width.
+// 0.35 and 0 px per 1000 px of width; axis is the height of the center line from the
+// bottom (on the cover 0.445; the widget puts it where the classic progress bar is).
 
 const WAVE = {points: 256, window: 480, shift: 60}; // shape resolution; samples shown (80 ms) and B's delay (10 ms) at 6 kHz
 
@@ -39,7 +40,8 @@ function advanceAudio(st, input, playing, wave) {
   st.presence += (gate - st.presence) * (gate > st.presence ? 0.25 : 0.08);
   if (!st.A) { st.A = new Array(R).fill(0); st.B = new Array(R).fill(0); st.M = new Array(R).fill(0); }
   const amp = st.activity * st.presence, size = 0.9 * (0.65 + 0.5 * st.loud);
-  const soft = v => Math.tanh(v * 1.1) / Math.tanh(1.1); // round off the loudest swings
+  // round off the loudest swings; troughs 0.72 of crests, like the cover (+0.84 / -0.6)
+  const soft = v => { const k = Math.tanh(v * 1.1) / Math.tanh(1.1); return k < 0 ? k * 0.72 : k; };
   for (let r = 0; r < R; r++) {
     const w = lin(MODEL_WINDOW(), r / (R - 1)) * amp * size;
     const a = sig ? w * soft(sig.a[r]) : 0, b = sig ? w * 0.9 * soft(sig.b[r]) : 0, m = sig ? Math.abs(sig.m[r]) : 0;
@@ -110,8 +112,8 @@ MODEL_WINDOW = () => M.window;
 const hash = i => { const s = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
 // crest outline over A: a steep straight rise to the apex, a long fall (the cover's crests)
 const crestKernel = d => d < -0.03 || d > 0.12 ? 0 : d < 0 ? 1 + d / 0.03 : Math.pow(1 - d / 0.12, 2);
-return function draw(P, W, H, st = makeAudio(), frac = 1) {
-  const G = M.gain, s = W / 1000, n = Math.round(W / 1.5), mid = H * 0.555, unit = H * 0.525;
+return function draw(P, W, H, st = makeAudio(), frac = 1, axis = 0.445) {
+  const G = M.gain, s = W / 1000, n = Math.round(W / 1.5), mid = H * (1 - axis), unit = H * 0.525;
   const amp = st.activity * st.presence, xs = Array.from({length: n + 1}, (_, i) => i / n);
   const R = st.A ? st.A.length : 0;
   const sample = arr => xs.map(x => { if (!R) return 0; const p = x * (R - 1), k = Math.min(R - 2, Math.floor(p)), f = p - k; return arr[k] * (1 - f) + arr[k + 1] * f; });
