@@ -52,6 +52,19 @@ case "${1:-}" in
 PLIST
         "$DEST/Contents/MacOS/loader" "$(pgrep -x -u "$(stat -f %Su /dev/console)" Dock)"
         echo "injected into Dock"
+        # sudoers rule pinned to the loader sha256, so the login LaunchAgent can
+        # inject without a password. A rebuild changes the hash: an existing rule
+        # is renewed, a new one is only written when you say yes.
+        SUDOERS=/private/etc/sudoers.d/skyland
+        if [[ -f "$SUDOERS" ]] || { [[ -t 0 ]] &&
+            read -rp "Inject at login without a password (sudoers rule for this loader only)? [y/N] " answer &&
+            [[ "$answer" == [yY]* ]]; }; then
+            hash="$(shasum -a 256 "$DEST/Contents/MacOS/loader" | cut -d' ' -f1)"
+            tmp="$(mktemp)"
+            echo "${SUDO_USER:-$(stat -f %Su /dev/console)} ALL=(root) NOPASSWD: sha256:$hash $DEST/Contents/MacOS/loader" > "$tmp"
+            visudo -cqf "$tmp" && install -m 0440 -o root -g wheel "$tmp" "$SUDOERS" && echo "sudoers rule: $SUDOERS"
+            rm -f "$tmp"
+        fi
         ;;
     send)
         shift

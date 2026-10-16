@@ -361,12 +361,11 @@ items to it. For anything else, query the CLI, e.g.
 
 ## Autostart
 
-Not installed by any script: both steps give extra privileges, so review and run
-them yourself.
+Both steps give extra privileges: nothing is set up without you saying so.
 
 **1. Inject the payload without a password.** A sudoers rule allowing only the
-root-owned loader, pinned to its sha256 (redo it after every
-`skyland-sa build && skyland-sa load`, the hash changes):
+root-owned loader, pinned to its sha256. `skyland sa load` offers to write it
+(answer `y`) and renews it after each rebuild, since the hash changes. By hand:
 
 ```sh
 LOADER=/Library/ScriptingAdditions/skyland.osax/Contents/MacOS/loader

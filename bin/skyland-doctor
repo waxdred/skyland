@@ -55,8 +55,8 @@ elif [[ -x "$loader" ]]; then
 fi
 if [[ -x "$loader" ]]; then
     if sudo -n -l "$loader" >/dev/null 2>&1; then ok "sudoers rule matches the loader (loads at login without password)"
-    elif [[ -f /private/etc/sudoers.d/skyland ]]; then bad "sudoers rule is stale (the loader changed after a rebuild)" "redo step 1 of README > Autostart"
-    else opt "no sudoers rule: the payload is not loaded at login" "README > Autostart, step 1"; fi
+    elif [[ -f /private/etc/sudoers.d/skyland ]]; then bad "sudoers rule is stale (the loader changed after a rebuild)" "skyland sa load (renews it)"
+    else opt "no sudoers rule: the payload is not loaded at login" "skyland sa load, answer y"; fi
 fi
 
 section "Autostart (optional)"

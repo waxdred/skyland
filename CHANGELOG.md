@@ -4,6 +4,12 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## Unreleased
+
+**Install**
+- `skyland sa load` offers to write the sudoers rule (payload injected at login without
+  a password) and renews it after each rebuild of the payload.
+
 ## v0.1.4
 
 **Settings window**
