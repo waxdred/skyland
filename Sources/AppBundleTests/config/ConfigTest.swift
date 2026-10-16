@@ -543,6 +543,7 @@ final class ConfigTest: XCTestCase {
         assertEquals(wallpaper.config.wallpaper, WallpaperConfig(dir: "~/Pictures/Wallpapers", dynamicColors: true, prefer: "", scheme: ""))
         assertEquals(parseConfig("[lock]\nname = 'Waxcoin'").config.lock, LockConfig(name: "Waxcoin", blur: 0))
         assertEquals(parseConfig("[media]\nopacity = 92").config.media, MediaConfig(opacity: 92))
+        assertEquals(parseConfig("[media]\nstyle = 'audioware'").config.media, MediaConfig(style: "audioware"))
     }
 
     func testParseGaps() {

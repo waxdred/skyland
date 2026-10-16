@@ -131,6 +131,7 @@ app = 'Ghostty'
 
 [media]
 opacity = 92 # percent
+style = 'classic' # classic (glass, theme colors, bars) | audioware (cyan light wave)
 
 # Window rules (Hyprland windowrule): small utility windows float at their own size,
 # chat and mail go to workspace 8. App ids: `aerospace list-apps`.

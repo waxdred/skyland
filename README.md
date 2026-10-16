@@ -14,7 +14,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **window decoration**: rounded corners, active/inactive opacity, dim inactive windows, focused window **border** in the theme accent (optionally rotating), Ghostty blur; floating windows stay on top
 - **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
 - **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**, light or dark picked from the wallpaper brightness
-- **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars
+- **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars or an Audioware-style light wave (`[media] style`)
 - **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
 - **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, plus **Keys** (record a key, edit command and description, duplicates and macOS shortcuts flagged) and **Rules** (float / tile / workspace per app, from the running apps) tabs; applied live and written to the config with its comments kept
 - **master layout** per workspace (`alt-shift-t`): one big window and a stack on the side (master in the middle on ultrawide screens), `alt-shift-enter` swaps with the master (Hyprland `master`, `swapwithmaster`)
@@ -283,7 +283,13 @@ blur = 4
 
 [media]
 opacity = 92
+style = 'classic'                 # or 'audioware': a light wave in the theme's accent, the center line is the progress
 ```
+
+The **media widget** (`alt-m`) shows what any app plays (Spotify, Brave / YouTube,
+Music...) and follows the theme, in two styles:
+
+![media widget: classic style with audio bars, audioware style with a light wave](docs/screenshots/media-widget.png)
 
 The 18 43PR themes are in `profiles/hypr/.config/skyland/themes/`: copy one and
 edit the colors to make your own. `wallpaper-colors.json` maps Material roles to
