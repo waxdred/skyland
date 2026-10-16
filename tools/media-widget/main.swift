@@ -85,13 +85,19 @@ final class Bars: NSView {
 /// Four depth planes, each a layer blurred by Core Image: glow (ribbon light, inner and
 /// outer glows), far (tight glows), mid (hatch, peaks, crest fans, secondary edges),
 /// near (bright edge, center line = progress, light points) sharp. Paused it is the
-/// cover as is; playing, the audio scales the heights and slow wobbles move the lines.
+/// cover as is. Playing (advance, 30 times a second) the bands spread over the drawn
+/// part: troughs dig with the bass, crests rise on their band, spectrum peaks and
+/// hanging hairs grow, light follows the band, onsets make everything jump and flash
+/// the axis, highs shimmer, and the lines drift faster when it is loud.
 final class AudiowareWave: NSView {
-    var levels: [Float] = [] { didSet { recompute() } }
-    var time: CGFloat = 0
-    /// 0 paused (the still cover) ... 1 playing (heights follow the audio).
-    var activity: CGFloat = 0
     var progress: CGFloat = 0 { didSet { if progress != oldValue { near.needsDisplay = true } } }
+    // audio state (render.js makeAudio / advanceAudio)
+    private var time: CGFloat = 0
+    private var activity: CGFloat = 0 // 0 paused (the still cover) ... 1 playing
+    private var bands: [CGFloat] = []
+    private var loud: CGFloat = 0, loudSlow: CGFloat = 0, pulse: CGFloat = 0
+    private var seen = false // audio captured lately (else: no permission, silence)
+    private var bass: CGFloat = 0.6, treble: CGFloat = 0.6
 
     static let night = rgb(0x0A121A), deep = rgb(0x153054), electric = rgb(0x168FC6)
     static let cyan = rgb(0x28CFFF), light = rgb(0x69E7FF), ice = rgb(0xB4F5FF)
@@ -160,7 +166,8 @@ final class AudiowareWave: NSView {
     // each frame
     private var heights: [String: [CGFloat]] = [:]
     private var top: [CGFloat] = [], bottom: [CGFloat] = []
-    private var loud: CGFloat = 0
+    private var coverTop: [CGFloat] = [], coverBottom: [CGFloat] = [] // ribbon edges of the cover, the base of the spikes
+    private var levelAt: [CGFloat] = [], boost: [CGFloat] = [] // audio level and light boost per sample
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -222,14 +229,47 @@ final class AudiowareWave: NSView {
     }
     private func gain(_ key: String) -> CGFloat { model.gain[key] ?? 0 }
 
-    /// Audio level at x: half the mean, half the band under x (interpolated).
-    private func level(_ x: CGFloat) -> CGFloat {
-        guard levels.count >= 2 else { return 0 }
-        let p = x * CGFloat(levels.count - 1), i = min(levels.count - 2, Int(p)), f = p - CGFloat(i)
-        return 0.5 * loud + 0.5 * (CGFloat(levels[i]) * (1 - f) + CGFloat(levels[i + 1]) * f)
+    /// 30 times a second with the band levels (0...1, fast rise, slow fall): eases between
+    /// the still cover and the music, smooths the bands, finds onsets, redraws.
+    func advance(levels input: [Float], playing: Bool) {
+        let target: CGFloat = playing ? 1 : 0, settling = abs(activity - target) > 0.002
+        guard playing || settling || pulse > 0.001 || bands.contains(where: { $0 > 0.002 }) else { return } // still cover
+        activity = settling ? activity + (target - activity) * 0.08 : target
+        if bands.count != input.count { bands = [CGFloat](repeating: 0, count: input.count) }
+        for i in bands.indices { // fast attack, softer release
+            let v = CGFloat(input[i])
+            bands[i] += (v - bands[i]) * (v > bands[i] ? 0.6 : 0.18)
+        }
+        let mean = { (part: ArraySlice<CGFloat>) -> CGFloat in part.isEmpty ? 0 : part.reduce(0, +) / CGFloat(part.count) }
+        loud = mean(bands[...])
+        loudSlow += (loud - loudSlow) * 0.05
+        seen = loudSlow > 0.01
+        pulse = seen ? max(pulse * 0.86, min(1, max(0, (loud - loudSlow) * 4))) : 0 // onsets: kick, attack
+        bass = seen ? mean(bands.prefix(3)) : 0.6
+        treble = seen ? mean(bands.dropFirst(9)) : 0.6
+        if playing { time += (0.5 + 1.5 * loud) / 30 } // louder, livelier
+        recompute()
     }
-    /// Height scale at x: 1 is the cover (paused), audio moves it around while playing.
-    private func scale(_ x: CGFloat) -> CGFloat { 1 + activity * (0.55 + 0.6 * level(x) - 1) }
+
+    /// Audio level under x: the bands spread over the drawn part of the cover (0.1...0.92).
+    private func level(_ x: CGFloat) -> CGFloat {
+        guard seen, bands.count >= 2 else { return 0.6 }
+        let u = max(0, min(1, (x - 0.1) / 0.82)) * CGFloat(bands.count - 1), i = min(bands.count - 2, Int(u)), f = u - CGFloat(i)
+        return bands[i] * (1 - f) + bands[i + 1] * f
+    }
+    /// Growth of a line at level l, 1 = the cover: troughs dig with the bass, crests rise
+    /// on their band, all jump on onsets.
+    private func response(_ name: String, _ l: CGFloat) -> CGFloat {
+        let v: CGFloat
+        switch name {
+        case "B", "T": v = 0.4 + 0.5 * l + 0.5 * bass + 0.25 * pulse
+        case "C1", "C2": v = 0.3 + 1.15 * l + 0.15 * pulse
+        default: v = 0.4 + l + 0.12 * pulse
+        }
+        return 1 + activity * (v - 1)
+    }
+    private func spikeGrow(_ l: CGFloat) -> CGFloat { 1 + activity * (0.04 + 1.6 * l - 1) }
+    private func hangGrow(_ l: CGFloat) -> CGFloat { 1 + activity * (0.4 + 0.5 * l + 0.5 * bass + 0.6 * pulse - 1) }
 
     private func recompute() {
         let count = max(60, Int((bounds.width / 1.5).rounded()))
@@ -245,33 +285,41 @@ final class AudiowareWave: NSView {
             fillDown = xs.map { Self.linear(model.fillDown, $0) }
             innerA = xs.map { Self.linear(model.innerA, $0) }
             outerA = xs.map { Self.linear(model.outerA, $0) }
+            (coverTop, coverBottom) = edges(baseHeight)
             // blur radii follow the width, like the prototype (glow 6, far 1.2, mid 0.35 per 1000)
             for (plane, radius) in [(glow, 6.0), (far, 1.2), (mid, 0.35)] {
                 plane.layer?.filters = [CIFilter(name: "CIGaussianBlur", parameters: [kCIInputRadiusKey: radius * Double(bounds.width) / 1000])!]
             }
         }
-        loud = levels.isEmpty ? 0 : CGFloat(levels.reduce(0, +) / Float(levels.count))
-        let scales = xs.map { scale($0) }
+        levelAt = xs.map { level($0) }
+        boost = levelAt.map { 1 + activity * (0.5 * ($0 - 0.6) + 0.45 * pulse) } // light follows the band, flashes on onsets
         for name in lineNames {
             guard let base = baseHeight[name] else { continue }
             let k = CGFloat(name.unicodeScalars.first!.value)
             heights[name] = base.indices.map { i -> CGFloat in
                 let x = xs[i], wobble = 1 + 0.06 * activity * (sin(time * 0.9 + x * 23 + k) - sin(x * 23 + k))
-                return base[i] * scales[i] * wobble
+                let shimmer = activity * treble * 0.025 * sin(x * 90 - time * 7 + k) * min(1, abs(base[i]) * 8)
+                return base[i] * response(name, levelAt[i]) * wobble + shimmer
             }
         }
-        top = []; bottom = []
-        for i in 0 ... n {
-            var high = -CGFloat.infinity, low = CGFloat.infinity
-            for name in lineNames where !(name == "C1" || (name == "C2" && xs[i] < 0.72)) {
-                guard let h = heights[name]?[i], !h.isNaN else { continue }
-                high = max(high, h)
-                low = min(low, h)
-            }
-            top.append(high.isFinite ? high : 0)
-            bottom.append(low.isFinite ? low : 0)
-        }
+        (top, bottom) = edges(heights)
         for plane in [glow, far, mid, near] { plane.needsDisplay = true }
+    }
+
+    /// Ribbon edges: highest and lowest line per sample, crests aside.
+    private func edges(_ lines: [String: [CGFloat]]) -> ([CGFloat], [CGFloat]) {
+        var high = [CGFloat](), low = [CGFloat]()
+        for i in 0 ... n {
+            var a = -CGFloat.infinity, b = CGFloat.infinity
+            for name in lineNames where !(name == "C1" || (name == "C2" && xs[i] < 0.72)) {
+                guard let h = lines[name]?[i], !h.isNaN else { continue }
+                a = max(a, h)
+                b = min(b, h)
+            }
+            high.append(a.isFinite ? a : 0)
+            low.append(b.isFinite ? b : 0)
+        }
+        return (high, low)
     }
 
     // MARK: drawing helpers
@@ -279,7 +327,11 @@ final class AudiowareWave: NSView {
     private var unitScale: CGFloat { bounds.width / 1000 }
     private var axisY: CGFloat { bounds.height * 0.445 } // 0.555 from the top, like the cover
     private func px(_ i: Int) -> CGFloat { CGFloat(i) / CGFloat(n) * bounds.width }
-    private func py(_ h: CGFloat) -> CGFloat { axisY + max(-1.05, min(1.05, h)) * bounds.height * 0.525 }
+    /// Soft knee above 0.85 so loud crests round off instead of flattening.
+    private func py(_ h: CGFloat) -> CGFloat {
+        let m = abs(h), clipped = m <= 0.85 ? h : (h < 0 ? -1 : 1) * (0.85 + 0.2 * tanh((m - 0.85) / 0.2))
+        return axisY + clipped * bounds.height * 0.525
+    }
     private func point(_ i: Int, _ h: CGFloat) -> CGPoint { CGPoint(x: px(i), y: py(h)) }
     /// Width given at 1000 px wide, at least half a point.
     private func lw(_ w: CGFloat) -> CGFloat { max(0.5, w * unitScale) }
@@ -291,7 +343,7 @@ final class AudiowareWave: NSView {
         for i in stride(from: 0, to: n, by: step) {
             let j = min(n, i + step)
             guard !h[i].isNaN, !h[j].isNaN else { continue }
-            let bucket = Int((min(1, alpha * (light[i] + light[j]) / 2) * 20).rounded())
+            let bucket = Int((min(1, alpha * (light[i] + light[j]) / 2 * (boost[i] + boost[j]) / 2) * 20).rounded())
             guard bucket > 0 else { continue }
             let path = buckets[bucket] ?? CGMutablePath()
             buckets[bucket] = path
@@ -355,7 +407,7 @@ final class AudiowareWave: NSView {
         return CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: model.axis.map(\.color) as CFArray, locations: model.axis.map(\.x))
     }
 
-    private var ready: Bool { n > 0 && top.count == n + 1 && !lineNames.isEmpty }
+    private var ready: Bool { n > 0 && top.count == n + 1 && boost.count == n + 1 && !lineNames.isEmpty }
 
     // MARK: planes
 
@@ -366,8 +418,8 @@ final class AudiowareWave: NSView {
         halo(ctx, CGPoint(x: w * 0.53, y: axisY), w * 0.40, h * 0.42, (22, 45, 80), 0.45)
         var columns: [Hair] = []
         for i in 0 ... n where top[i] - bottom[i] >= 0.005 {
-            if top[i] > 0 { columns.append((point(i, top[i]), point(i, max(0, bottom[i])), 5, gain("fill") * fillUp[i])) }
-            if bottom[i] < 0 { columns.append((point(i, min(0, top[i])), point(i, bottom[i]), 5, gain("fill") * fillDown[i])) }
+            if top[i] > 0 { columns.append((point(i, top[i]), point(i, max(0, bottom[i])), 5, gain("fill") * fillUp[i] * boost[i])) }
+            if bottom[i] < 0 { columns.append((point(i, min(0, top[i])), point(i, bottom[i]), 5, gain("fill") * fillDown[i] * boost[i])) }
         }
         hairs(ctx, columns, width: max(0.5, w / CGFloat(n) + 0.5 * unitScale))
         ctx.saveGState()
@@ -396,8 +448,8 @@ final class AudiowareWave: NSView {
             let range = xs.indices.filter { xs[$0] >= first.x && xs[$0] <= last.x }
             if let start = range.first {
                 let path = CGMutablePath()
-                path.move(to: point(start, max(top[start], Self.linear(model.haze, xs[start]) * scale(xs[start]))))
-                for i in range.dropFirst() { path.addLine(to: point(i, max(top[i], Self.linear(model.haze, xs[i]) * scale(xs[i])))) }
+                path.move(to: point(start, max(top[start], Self.linear(model.haze, xs[start]) * response("A", levelAt[start]))))
+                for i in range.dropFirst() { path.addLine(to: point(i, max(top[i], Self.linear(model.haze, xs[i]) * response("A", levelAt[i])))) }
                 for i in range.reversed() { path.addLine(to: point(i, top[i])) }
                 path.closeSubpath()
                 let haze = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [Self.rgba((60, 150, 240), 0), Self.rgba((60, 150, 240), gain("haze"))] as CFArray, locations: [0, 1])!
@@ -421,12 +473,12 @@ final class AudiowareWave: NSView {
     /// Hatch, spectrum peaks, hanging hairs, crest fans, secondary edges.
     private func drawMid(_ ctx: CGContext) {
         guard ready else { return }
-        let w = bounds.width, hairScale = 1.35 + activity * (0.6 + loud - 1.35)
+        let w = bounds.width
         var hatch: [Hair] = []
         for i in 0 ... n where top[i] - bottom[i] >= 0.01 {
             let r = Self.hash(i + 40), color = r > 0.93 ? 1 : 0
-            if top[i] > 0 { hatch.append((point(i, top[i]), point(i, max(0, bottom[i])), color, gain("hatch") * fillUp[i] * (0.25 + 1.1 * r))) }
-            if bottom[i] < 0 { hatch.append((point(i, min(0, top[i])), point(i, bottom[i]), color, gain("hatch") * fillDown[i] * (0.25 + 1.1 * Self.hash(i + 91)))) }
+            if top[i] > 0 { hatch.append((point(i, top[i]), point(i, max(0, bottom[i])), color, gain("hatch") * fillUp[i] * (0.25 + 1.1 * r) * boost[i])) }
+            if bottom[i] < 0 { hatch.append((point(i, min(0, top[i])), point(i, bottom[i]), color, gain("hatch") * fillDown[i] * (0.25 + 1.1 * Self.hash(i + 91)) * boost[i])) }
         }
         hairs(ctx, hatch, width: lw(0.55))
         // spectrum peaks: narrow glowing peaks on the top edge, concave flanks; the tallest
@@ -434,7 +486,8 @@ final class AudiowareWave: NSView {
         var spikes: [Hair] = []
         for spike in model.spikesUp {
             let i = Int((spike.x * CGFloat(n)).rounded()), base = top[i]
-            let tip = spike.v * scale(spike.x) * (1 + 0.12 * activity * (sin(time * 1.7 + spike.x * 40) - sin(spike.x * 40)))
+            let flicker = 1 + 0.12 * activity * (sin(time * 1.7 + spike.x * 40) - sin(spike.x * 40))
+            let tip = base + max(0, spike.v - coverTop[i]) * spikeGrow(levelAt[i]) * flicker
             guard tip - base >= 0.03 else { continue }
             let height = min(0.22, tip - base), half = (0.003 + 0.02 * height) * w, apex = point(i, base + height)
             let path = CGMutablePath()
@@ -442,27 +495,28 @@ final class AudiowareWave: NSView {
             path.addQuadCurve(to: apex, control: CGPoint(x: apex.x - half * 0.15, y: py(base + height * 0.25)))
             path.addQuadCurve(to: CGPoint(x: apex.x + half, y: py(base)), control: CGPoint(x: apex.x + half * 0.15, y: py(base + height * 0.25)))
             path.closeSubpath()
-            let fill = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [Self.rgba((70, 170, 245), gain("peak")), Self.rgba((70, 170, 245), gain("peak") * 0.3)] as CFArray, locations: [0, 1])!
+            let peak = gain("peak") * boost[i]
+            let fill = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [Self.rgba((70, 170, 245), peak), Self.rgba((70, 170, 245), peak * 0.3)] as CFArray, locations: [0, 1])!
             ctx.saveGState()
             ctx.addPath(path)
             ctx.clip()
             ctx.drawLinearGradient(fill, start: CGPoint(x: 0, y: py(base)), end: apex, options: [])
             ctx.restoreGState()
             ctx.addPath(path)
-            ctx.setStrokeColor(Self.rgba((110, 210, 250), gain("peak") * 1.2))
+            ctx.setStrokeColor(Self.rgba((110, 210, 250), peak * 1.2))
             ctx.setLineWidth(lw(0.5))
             ctx.strokePath()
             if tip - base > height + 0.02 {
-                spikes.append((apex, point(i, tip), 2, gain("spike")))
-                if tip > 0.5 { halo(ctx, point(i, tip), lw(2), lw(2), (170, 240, 255), 0.5) }
+                spikes.append((apex, point(i, tip), 2, gain("spike") * boost[i]))
+                if tip > 0.5 { halo(ctx, point(i, tip), lw(2), lw(2), (170, 240, 255), 0.5 * boost[i]) }
             }
         }
         for spike in model.spikesDown {
-            let i = Int((spike.x * CGFloat(n)).rounded()), base = bottom[i], tip = spike.v * scale(spike.x)
+            let i = Int((spike.x * CGFloat(n)).rounded()), base = bottom[i], tip = base - max(0, coverBottom[i] - spike.v) * hangGrow(levelAt[i])
             guard base - tip >= 0.03 else { continue }
             let middle = (base + tip) / 2
-            spikes.append((point(i, base), point(i, middle), 3, gain("spike")))
-            spikes.append((point(i, middle), point(i, tip), 3, gain("spike") * 0.45))
+            spikes.append((point(i, base), point(i, middle), 3, gain("spike") * boost[i]))
+            spikes.append((point(i, middle), point(i, tip), 3, gain("spike") * 0.45 * boost[i]))
         }
         for i in 0 ... n {
             let x = xs[i]
@@ -471,11 +525,11 @@ final class AudiowareWave: NSView {
             let above: CGFloat = aboveLeft + 0.4 * Self.gauss(x, 0.60, 0.02) + 0.3 * Self.gauss(x, 0.74, 0.01)
             let below: CGFloat = min(1, Self.gauss(x, 0.40, 0.02) + Self.gauss(x, 0.52, 0.025) + 0.4 * Self.gauss(x, 0.66, 0.04))
             if Self.hash(i + 7) < above {
-                let length = pow(Self.hash(i + 11), 2) * 0.3 * hairScale
-                spikes.append((point(i, top[i]), point(i, top[i] + length), 4, gain("hairs") * (0.4 + 0.6 * Self.hash(i + 3))))
+                let length = pow(Self.hash(i + 11), 2) * 0.3 * 1.35 * spikeGrow(levelAt[i])
+                spikes.append((point(i, top[i]), point(i, top[i] + length), 4, gain("hairs") * (0.4 + 0.6 * Self.hash(i + 3)) * boost[i]))
             }
             if Self.hash(i + 17) < below {
-                let length = (0.04 + pow(Self.hash(i + 19), 1.5) * 0.22) * hairScale, a = gain("hairs") * (0.4 + 0.6 * Self.hash(i + 23))
+                let length = (0.04 + pow(Self.hash(i + 19), 1.5) * 0.22) * 1.35 * hangGrow(levelAt[i]), a = gain("hairs") * (0.4 + 0.6 * Self.hash(i + 23)) * boost[i]
                 let middle = bottom[i] - length / 2
                 spikes.append((point(i, bottom[i]), point(i, middle), 4, a))
                 spikes.append((point(i, middle), point(i, bottom[i] - length), 4, a * 0.4))
@@ -511,23 +565,28 @@ final class AudiowareWave: NSView {
         let w = bounds.width
         lit(ctx, "A", (98, 205, 231), gain("core"), gain("coreW"), step: 3)
         lit(ctx, "A", (190, 248, 255), 0.8 * gain("core"), 0.6, step: 3)
-        let thickness = lw(gain("axisW"))
+        let thickness = lw(gain("axisW")), flash = activity * pulse
         if let axis = axisGradient() {
             ctx.saveGState()
             ctx.clip(to: CGRect(x: 0, y: axisY - thickness / 2, width: w, height: thickness))
             ctx.drawLinearGradient(axis, start: .zero, end: CGPoint(x: w, y: 0), options: [])
+            if flash > 0.02 { // the axis flashes on onsets
+                ctx.setAlpha(min(1, flash * 0.8))
+                ctx.drawLinearGradient(axis, start: .zero, end: CGPoint(x: w, y: 0), options: [])
+            }
             ctx.restoreGState()
         }
-        halo(ctx, CGPoint(x: w * 0.06, y: axisY), w * 0.09, lw(gain("axisGlowW")), (110, 240, 255), gain("axisGlow"))
-        halo(ctx, CGPoint(x: w * 0.945, y: axisY), w * 0.03, lw(5), (120, 250, 255), 0.7)
-        halo(ctx, CGPoint(x: w * 0.76, y: axisY), w * 0.07, lw(5), (45, 110, 230), 0.45)
+        let flare = 1 + 0.6 * flash
+        halo(ctx, CGPoint(x: w * 0.06, y: axisY), w * 0.09 * flare, lw(gain("axisGlowW")), (110, 240, 255), gain("axisGlow") * flare)
+        halo(ctx, CGPoint(x: w * 0.945, y: axisY), w * 0.03 * flare, lw(5), (120, 250, 255), 0.7)
+        halo(ctx, CGPoint(x: w * 0.76, y: axisY), w * 0.07 * flare, lw(5), (45, 110, 230), 0.45 * flare)
         let head = w * max(0, min(1, progress))
         ctx.setFillColor(Self.rgba((7, 15, 24), 0.45))
         ctx.fill(CGRect(x: head, y: axisY - thickness / 2, width: w - head, height: thickness))
         if progress > 0, progress < 1 { halo(ctx, CGPoint(x: head, y: axisY), lw(10), lw(3), (180, 245, 255), 0.9) }
         for light in model.lights {
             let i = Int((light.x * CGFloat(n)).rounded())
-            halo(ctx, point(i, light.h * scale(light.x)), lw(gain("lightR")), lw(gain("lightR")), (160, 235, 255), light.alpha)
+            halo(ctx, point(i, light.h * response("A", levelAt[i])), lw(gain("lightR")), lw(gain("lightR")), (160, 235, 255), light.alpha * boost[i])
         }
     }
 }
@@ -717,11 +776,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     self.shownLevels[i] = max(target, self.shownLevels[i] * 0.85)
                 }
                 if audioware {
-                    // playing: audio drives the wave; paused: it settles back to the still cover
-                    if playing { self.wave.time += 1.0 / 30 }
-                    let target: CGFloat = playing ? 1 : 0, settling = abs(self.wave.activity - target) > 0.002
-                    self.wave.activity = settling ? self.wave.activity + (target - self.wave.activity) * 0.08 : target
-                    if playing || settling || self.wave.levels != self.shownLevels { self.wave.levels = self.shownLevels } // recomputes and redraws
+                    self.wave.advance(levels: self.shownLevels, playing: playing) // paused: settles back to the still cover
                 } else if self.bars.levels != self.shownLevels {
                     self.bars.levels = self.shownLevels
                 }
