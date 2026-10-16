@@ -113,11 +113,65 @@ final class AudiowareWave: NSView {
         }
     }
 
+    /// A plane draws itself into a bitmap at its own resolution and hands it to Core
+    /// Animation, which scales and blurs it: a plane blurred afterwards needs no Retina
+    /// drawing. Through AppKit's draw(_:) at Retina scale the four planes took ~38% CPU at
+    /// 30 fps (glow's large radial gradients first).
     private final class Plane: NSView {
         var paint: (CGContext) -> Void = { _ in }
-        override func draw(_ dirtyRect: NSRect) {
-            guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        /// Bitmap pixels per point; nil = the screen's.
+        var resolution: CGFloat?
+        /// Repaint one request out of `every` (a blurred plane hides the frames it skips).
+        var every = 1
+        private var pending = false, requests = 0
+
+        override init(frame: NSRect) {
+            super.init(frame: frame)
+            layer = CALayer() // layer-hosting: AppKit leaves its contents to us
+            wantsLayer = true
+        }
+        required init?(coder: NSCoder) { nil }
+
+        /// `needsDisplay = true` (the wave's redraw requests): one render on the next turn.
+        override var needsDisplay: Bool {
+            get { pending }
+            set {
+                guard newValue else { return }
+                requests += 1
+                if requests % every == 0 { schedule() }
+            }
+        }
+
+        override func layout() {
+            super.layout()
+            schedule()
+        }
+
+        private func schedule() {
+            guard !pending else { return }
+            pending = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                pending = false
+                render()
+            }
+        }
+
+        private func render() {
+            let scale = resolution ?? window?.backingScaleFactor ?? 2
+            let width = Int((bounds.width * scale).rounded(.up)), height = Int((bounds.height * scale).rounded(.up))
+            guard width > 0, height > 0,
+                  // the screen's color space: no conversion of the bitmap at every frame
+                  let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: window?.screen?.colorSpace?.cgColorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return }
+            ctx.scaleBy(x: scale, y: scale)
             paint(ctx)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            layer?.contents = ctx.makeImage()
+            CATransaction.commit()
         }
     }
 
@@ -165,6 +219,11 @@ final class AudiowareWave: NSView {
             plane.layerUsesCoreImageFilters = true
             addSubview(plane)
         }
+        glow.resolution = 0.25 // the most blurred plane, and the costly one (thick strokes): a pixel per 4 points
+        far.resolution = 1
+        mid.resolution = 1 // barely blurred, but fine at 1x behind the sharp near plane
+        glow.every = 2 // 15 fps behind the blur
+        far.every = 2
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
@@ -473,11 +532,16 @@ final class AudiowareWave: NSView {
             let path = buckets[bucket] ?? CGMutablePath()
             buckets[bucket] = path
             path.move(to: point(i, h[i]))
-            for k in i + 1 ... j { path.addLine(to: point(k, h[k])) }
+            // blurred planes (softInk): a point out of 3, the blur smooths the curve anyway,
+            // and wide strokes cost by the segment (outlining), not by the pixel
+            for k in stride(from: i + (softInk ? 3 : 1), to: j, by: softInk ? 3 : 1) { path.addLine(to: point(k, h[k])) }
+            path.addLine(to: point(j, h[j]))
         }
         ctx.saveGState()
         ctx.setLineWidth(lw(width))
-        ctx.setLineCap(.round)
+        // round caps make CG outline every wide stroke the hard way; on the blurred planes
+        // (softInk) nobody sees the caps
+        ctx.setLineCap(softInk ? .butt : .round)
         if let dash { ctx.setLineDash(phase: 0, lengths: dash.map { lw($0) }) }
         for (bucket, path) in buckets {
             ctx.addPath(path)
