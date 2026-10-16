@@ -4,6 +4,14 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## v0.1.7
+
+**Performance**
+- **Memory**: skyland uses about 42 MB instead of 137 MB with the rotating border on
+  (its gradient is computed at a quarter of the resolution, the stroke stays sharp), and
+  the workspace overview frees its thumbnails and full-screen panel when it closes
+  instead of keeping them all day (stable around 76 MB after using it).
+
 ## v0.1.6
 
 **Fixes**
