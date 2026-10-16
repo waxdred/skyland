@@ -4,6 +4,20 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## v0.1.8
+
+**Media widget**
+- New **`audioware`** style (`[media] style = 'audioware'`): a light wave after the
+  Audioware cover art, driven by the audio (flat when silent, the center line is the
+  progress), in the theme's colors, live.
+- Fixes: play / pause and a new track or video are always picked up (the now playing
+  stream could go silent), a non-square artwork (video thumbnail) fills its square
+  instead of showing grey bands, leftover background helpers are cleaned up.
+
+**cyberdeck**
+- `alt-shift-d` opens the [skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)
+  HUD (clock, calendar, connections, system, herdr agents), needs skyland-cyberdeck 0.2.0.
+
 ## v0.1.7
 
 **Performance**
