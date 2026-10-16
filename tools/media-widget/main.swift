@@ -334,12 +334,12 @@ final class AudiowareWave: NSView {
     func setTheme(accent: NSColor?, background color: NSColor?) {
         let reference = Self.hsv((98, 205, 231))
         themed = accent != nil
-        if let accent, let accentRGB = Self.rgb(accent) {
+        if let accent, let accentRGB = Self.components(accent) {
             let target = Self.hsv(accentRGB)
             hueShift = target.h - reference.h
             saturationScale = max(0, min(1.3, target.s / reference.s))
         }
-        background = color.flatMap { Self.rgb($0) } ?? (10, 18, 26)
+        background = color.flatMap { Self.components($0) } ?? (10, 18, 26)
         inkOnPaper = themed && (0.2126 * background.r + 0.7152 * background.g + 0.0722 * background.b) / 255 > 0.5
         toned = [:]
         for plane in [glow, far, mid, near] { plane.needsDisplay = true }
@@ -362,12 +362,12 @@ final class AudiowareWave: NSView {
                 v = max(0.22, min(0.8, 1.08 - v))
             }
         }
-        let result = Self.rgb(h: h, s: s, v: v)
+        let result = Self.fromHSV(h: h, s: s, v: v)
         toned[key] = result
         return result
     }
 
-    private static func rgb(_ color: NSColor) -> RGB? {
+    private static func components(_ color: NSColor) -> RGB? {
         guard let c = color.usingColorSpace(.sRGB) else { return nil }
         return (c.redComponent * 255, c.greenComponent * 255, c.blueComponent * 255)
     }
@@ -386,7 +386,7 @@ final class AudiowareWave: NSView {
         if h < 0 { h += 360 }
         return (h, high > 0 ? d / high : 0, high)
     }
-    private static func rgb(h: CGFloat, s: CGFloat, v: CGFloat) -> RGB {
+    private static func fromHSV(h: CGFloat, s: CGFloat, v: CGFloat) -> RGB {
         let c = v * s, x = c * (1 - abs((h / 60).truncatingRemainder(dividingBy: 2) - 1)), m = v - c
         let parts: (CGFloat, CGFloat, CGFloat)
         switch Int(h / 60) % 6 {
