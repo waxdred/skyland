@@ -2,11 +2,13 @@ import AppKit
 import Common
 import SwiftUI
 
-// skyland settings window (`settings` command, alt-i toggles it): the visual settings of
-// the config as sliders, switches and pickers. Every change is checked with the
-// config parser, written to its own line of the config file (comments kept, see
-// tomlLines.swift) and applied at once: config reload, plus the skyland script
-// that owns the setting (theme, media widget, lock screen).
+// skyland settings window (`settings` command, alt-i toggles it), themed with the
+// current skyland theme over a blurred translucent background: the visual settings of
+// the config as sliders, switches and pickers. Changes wait until Save (cmd-s): then
+// they are checked with the config parser, each written to its own line of the
+// config file (comments kept, see tomlLines.swift), the config reloaded once and
+// each owning skyland script run once (theme, media widget, lock, appearance).
+// Moving a slider live rewrote the file and reloaded everything at each step.
 
 struct SettingsCommand: Command {
     let args: SettingsCmdArgs
@@ -98,53 +100,80 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
     ]),
 ]
 
+/// Colors of the settings window: the current skyland theme (theme.css, mode).
+struct SettingsColors {
+    var accent = Color.accentColor, background = Color.black, text = Color.primary, dim = Color.secondary, dark = true
+
+    static func current() -> SettingsColors {
+        let colors = skylandThemeColors()
+        let mode = (try? String(contentsOf: FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/theme-mode"), encoding: .utf8)) ?? "dark"
+        var result = SettingsColors()
+        if let accent = colors["accent"] { result.accent = Color(nsColor: accent) }
+        if let background = colors["bg"] { result.background = Color(nsColor: background) }
+        if let text = colors["fg"] { result.text = Color(nsColor: text) }
+        if let dim = colors["fg_dim"] { result.dim = Color(nsColor: dim) }
+        result.dark = !mode.hasPrefix("light")
+        return result
+    }
+}
+
 @MainActor
 final class SettingsModel: ObservableObject {
-    /// Raw TOML values by field id (`'alt'`, `85`, `true`)
+    /// Raw TOML values by field id (`'alt'`, `85`, `true`), as shown (saved or not)
     @Published var values: [String: String] = [:]
+    /// Changes not written yet: Save writes them all at once (one write, one reload)
+    @Published var pending: [String: String] = [:]
     @Published var error: String? = nil
-    private var pending: [String: Task<Void, Never>] = [:]
+    @Published var saved = false
+    @Published var colors = SettingsColors()
 
     init() { load() }
 
     var configUrl: URL { readConfig(forceConfigUrl: nil).configUrl }
 
+    /// Values from the file; drops unsaved changes (Revert).
     func load() {
         let text = (try? String(contentsOf: configUrl, encoding: .utf8)) ?? ""
         for group in settingGroups {
             for field in group.fields { values[field.id] = tomlValue(text, section: field.section, key: field.key) }
         }
+        pending = [:]
+        error = nil
+        colors = .current()
     }
 
-    /// Debounced so a slider drag writes once it settles.
     func set(_ field: SettingField, _ raw: String) {
         values[field.id] = raw
-        pending[field.id]?.cancel()
-        pending[field.id] = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(250))
-            if Task.isCancelled { return }
-            await write(field, raw)
-        }
+        pending[field.id] = raw
+        saved = false
     }
 
-    private func write(_ field: SettingField, _ raw: String) async {
+    func save() async {
+        guard !pending.isEmpty else { return }
         let url = configUrl
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { error = "cannot read \(url.path)"; return }
-        let newText = tomlSet(text, section: field.section, key: field.key, value: raw)
-        let errors = parseConfig(newText).errors
+        guard var text = try? String(contentsOf: url, encoding: .utf8) else { error = "cannot read \(url.path)"; return }
+        let fields = settingGroups.flatMap(\.fields).filter { pending[$0.id] != nil }
+        for field in fields { text = tomlSet(text, section: field.section, key: field.key, value: pending[field.id]!) }
+        let errors = parseConfig(text).errors
         guard errors.isEmpty else {
             error = errors.map { $0.description(.error) }.joined(separator: "\n")
             return
         }
-        error = nil
         do {
-            try newText.write(to: url.resolvingSymlinksInPath(), atomically: true, encoding: .utf8)
+            try text.write(to: url.resolvingSymlinksInPath(), atomically: true, encoding: .utf8)
         } catch {
             self.error = "cannot write \(url.path): \(error.localizedDescription)"
             return
         }
+        error = nil
+        pending = [:]
         _ = await reloadConfig_nonCancellable()
-        if let after = field.after { runSkylandScript(after) }
+        // each owning script once (theme, media widget, lock, appearance)
+        var scripts: [[String]] = []
+        for field in fields { if let after = field.after, !scripts.contains(after) { scripts.append(after) } }
+        scripts.forEach(runSkylandScript)
+        colors = .current()
+        saved = true
     }
 }
 
@@ -162,6 +191,21 @@ private struct SettingsView: View {
         }
         .padding(.top, 8)
         .frame(minWidth: 620, minHeight: 560)
+        .tint(model.colors.accent)
+        .background(model.colors.background.opacity(0.8)) // the theme over the window blur, a bit see-through
+        .preferredColorScheme(model.colors.dark ? .dark : .light)
+    }
+}
+
+/// `// GAPS` section header in the theme accent.
+private struct SectionHeader: View {
+    let title: String
+    let colors: SettingsColors
+    var body: some View {
+        Text("// " + title.uppercased())
+            .font(.system(.caption, design: .monospaced).weight(.bold))
+            .foregroundStyle(colors.accent)
+            .kerning(1.2)
     }
 }
 
@@ -173,7 +217,7 @@ private struct GeneralView: View {
             if let error = model.error {
                 Text(error).foregroundStyle(.red).font(.callout).textSelection(.enabled)
             }
-            Section("Look") {
+            Section {
                 HStack {
                     Button("Theme…") { runSkylandScript(["skyland-theme", "pick"]) }
                     Button("Wallpaper…") { runSkylandScript(["skyland-wallpaper", "pick"]) }
@@ -181,25 +225,49 @@ private struct GeneralView: View {
                     Spacer()
                     Button("Open config file") { NSWorkspace.shared.open(model.configUrl) }
                 }
-            }
+            } header: { SectionHeader(title: "Look", colors: model.colors) }
             ForEach(settingGroups, id: \.title) { group in
-                Section(group.title) {
+                Section {
                     ForEach(group.fields) { field in row(field) }
-                }
+                } header: { SectionHeader(title: group.title, colors: model.colors) }
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .frame(minWidth: 480, minHeight: 520)
+        .safeAreaInset(edge: .bottom) { saveBar }
+    }
+
+    /// Unsaved changes, Revert, Save (cmd-s)
+    private var saveBar: some View {
+        HStack(spacing: 12) {
+            let count = model.pending.count
+            Text(count > 0 ? "\(count) unsaved change\(count > 1 ? "s" : "")" : model.saved ? "saved" : "")
+                .font(.system(.callout, design: .monospaced))
+                .foregroundStyle(count > 0 ? model.colors.accent : model.colors.dim)
+            Spacer()
+            Button("Revert") { model.load() }
+                .disabled(count == 0)
+            Button("Save") { Task { await model.save() } }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(count == 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
     }
 
     @ViewBuilder
     private func row(_ field: SettingField) -> some View {
         let raw = model.values[field.id]
+        let changed = model.pending[field.id] != nil
+        let label = Text(field.label).foregroundStyle(changed ? model.colors.accent : model.colors.text)
         switch field.kind {
             case .int(let range, let step, let unit):
                 let value = Int(raw ?? "") ?? range.lowerBound
                 HStack {
-                    Text(field.label)
+                    label
                     Slider(
                         // no `step:`, it draws a tick per step; rounded to the step instead
                         value: Binding(get: { Double(value) }, set: {
@@ -208,16 +276,17 @@ private struct GeneralView: View {
                         }),
                         in: Double(range.lowerBound) ... Double(range.upperBound),
                     )
-                    Text("\(value)\(unit)").monospacedDigit().frame(width: 64, alignment: .trailing)
+                    Text("\(value)\(unit)").font(.system(.body, design: .monospaced)).monospacedDigit()
+                        .foregroundStyle(model.colors.dim).frame(width: 70, alignment: .trailing)
                 }
             case .bool:
-                Toggle(field.label, isOn: Binding(get: { raw == "true" }, set: { model.set(field, $0 ? "true" : "false") }))
+                Toggle(isOn: Binding(get: { raw == "true" }, set: { model.set(field, $0 ? "true" : "false") })) { label }
             case .choice(let options):
-                Picker(field.label, selection: Binding(get: { unquote(raw) }, set: { model.set(field, "'\($0)'") })) {
+                Picker(selection: Binding(get: { unquote(raw) }, set: { model.set(field, "'\($0)'") })) {
                     ForEach(options, id: \.self) { Text($0.isEmpty ? "off" : $0).tag($0) }
-                }
+                } label: { label }
             case .text:
-                TextField(field.label, text: Binding(get: { unquote(raw) }, set: { model.set(field, "'\($0)'") }))
+                TextField(text: Binding(get: { unquote(raw) }, set: { model.set(field, "'\($0)'") })) { label }
         }
     }
 
@@ -228,6 +297,9 @@ private struct GeneralView: View {
 }
 
 @MainActor private var settingsWindow: NSWindow? = nil
+@MainActor private let settingsModel = SettingsModel()
+@MainActor private let settingsKeys = KeysModel()
+@MainActor private let settingsRules = RulesModel()
 
 @MainActor
 func showSettingsWindow() {
@@ -236,15 +308,32 @@ func showSettingsWindow() {
         return
     }
     if settingsWindow == nil {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: SettingsModel(), keys: KeysModel(), rules: RulesModel())))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 760),
+                              styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
+                              backing: .buffered, defer: false)
         window.title = "skyland settings"
-        window.setContentSize(NSSize(width: 720, height: 760))
+        window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        // blurred translucent background, the theme color is laid over it by SettingsView
+        let blur = NSVisualEffectView()
+        blur.material = .hudWindow
+        blur.blendingMode = .behindWindow
+        blur.state = .active
+        let host = NSHostingView(rootView: SettingsView(model: settingsModel, keys: settingsKeys, rules: settingsRules))
+        host.translatesAutoresizingMaskIntoConstraints = false
+        blur.addSubview(host)
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: blur.leadingAnchor), host.trailingAnchor.constraint(equalTo: blur.trailingAnchor),
+            host.topAnchor.constraint(equalTo: blur.topAnchor), host.bottomAnchor.constraint(equalTo: blur.bottomAnchor),
+        ])
+        window.contentView = blur
         settingsWindow = window
-    } else if let host = settingsWindow?.contentViewController as? NSHostingController<SettingsView> {
-        host.rootView.model.load() // the file may have changed by hand
-        host.rootView.keys.load()
-        host.rootView.rules.load()
+    } else {
+        settingsModel.load() // the file (or the theme) may have changed meanwhile
+        settingsKeys.load()
+        settingsRules.load()
     }
     guard let window = settingsWindow else { return }
     // on the screen under the mouse; orderFrontRegardless: a background app's activate can be ignored
