@@ -115,9 +115,8 @@ func thumbnail(_ url: URL, maxPixels: Int) -> NSImage? {
     return NSImage(cgImage: image, size: .zero)
 }
 
-/// Color preview of a theme file (`@define-color key #rrggbb;`): a small window
-/// in the theme on its background, the terminal palette, and the theme name.
-func themePreview(_ url: URL) -> NSImage? {
+/// `@define-color key #rrggbb;` of a theme file.
+func themeColors(_ url: URL) -> [String: NSColor]? {
     guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
     var colors: [String: NSColor] = [:]
     let regex = try! NSRegularExpression(pattern: "@define-color\\s+(\\w+)\\s+#([0-9A-Fa-f]{6})")
@@ -125,6 +124,18 @@ func themePreview(_ url: URL) -> NSImage? {
         let key = String(text[Range(match.range(at: 1), in: text)!]), hex = Int(text[Range(match.range(at: 2), in: text)!], radix: 16)!
         colors[key] = NSColor(srgbRed: CGFloat(hex >> 16 & 0xff) / 255, green: CGFloat(hex >> 8 & 0xff) / 255, blue: CGFloat(hex & 0xff) / 255, alpha: 1)
     }
+    return colors
+}
+
+/// The current skyland theme (skyland-theme), for the picker itself; system colors without one.
+let skylandTheme = themeColors(URL(fileURLWithPath: NSHomeDirectory() + "/.cache/skyland/theme.css")) ?? [:]
+let themeFg = skylandTheme["fg"] ?? .labelColor, themeDim = skylandTheme["fg_muted"] ?? .secondaryLabelColor
+let themeAccent = skylandTheme["accent"] ?? .white
+
+/// Color preview of a theme file (`@define-color key #rrggbb;`): a small window
+/// in the theme on its background, the terminal palette, and the theme name.
+func themePreview(_ url: URL) -> NSImage? {
+    guard let colors = themeColors(url) else { return nil }
     func color(_ key: String) -> NSColor { colors[key] ?? .gray }
     let name = url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "43pr-", with: "").replacingOccurrences(of: "-", with: " ")
     return NSImage(size: NSSize(width: 300, height: 190), flipped: true) { rect in
@@ -160,6 +171,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     let maxRows = 14 // ponytail: no scrolling in the theme list, past this rows are hidden until searched
     var panel: KeyPanel!
     var blur: NSVisualEffectView!
+    var content: NSView! // theme tint over the blur, holds the views
     var showingThemes = true
 
     // theme list
@@ -188,6 +200,17 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         blur.layer?.masksToBounds = true
         blur.maskImage = roundedMask(radius: 14)
         panel.contentView = blur
+        content = NSView()
+        content.autoresizingMask = [.width, .height]
+        content.wantsLayer = true
+        content.layer?.cornerRadius = 14
+        content.layer?.backgroundColor = skylandTheme["bg"]?.withAlphaComponent(0.85).cgColor // the blur stays a hint: gray otherwise
+        content.layer?.borderWidth = skylandTheme.isEmpty ? 0 : 1
+        content.layer?.borderColor = themeAccent.withAlphaComponent(0.35).cgColor
+        blur.addSubview(content)
+        if let bg = skylandTheme["bg"]?.usingColorSpace(.sRGB) { // the search field and its text follow a light or dark theme
+            panel.appearance = NSAppearance(named: bg.brightnessComponent < 0.5 ? .darkAqua : .aqua)
+        }
 
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.key(event) == true ? nil : event
@@ -202,22 +225,23 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         let screen = NSScreen.main ?? NSScreen.screens[0]
         panel.setFrame(NSRect(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.midY - size.height / 2,
                               width: size.width, height: size.height), display: true)
+        content.frame = blur.bounds
     }
 
     // MARK: theme list
 
     func showThemes() {
         showingThemes = true
-        blur.subviews.forEach { $0.removeFromSuperview() }
+        content.subviews.forEach { $0.removeFromSuperview() }
         cells = []
         search = NSSearchField()
         search.placeholderString = "theme"
         search.delegate = self
         search.focusRingType = .none
-        blur.addSubview(search)
+        content.addSubview(search)
         let list = NSView()
         list.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(clickedTheme(_:))))
-        blur.addSubview(list)
+        content.addSubview(list)
         filterThemes()
         panel.makeFirstResponder(search)
     }
@@ -233,7 +257,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         let height = spacing + 28 + spacing / 2 + listHeight + spacing
         resize(NSSize(width: width, height: height))
         search.frame = NSRect(x: spacing, y: height - spacing - 28, width: width - 2 * spacing, height: 28)
-        let list = blur.subviews[1]
+        let list = content.subviews[1]
         list.frame = NSRect(x: spacing, y: spacing, width: width - 2 * spacing, height: listHeight)
         list.subviews.forEach { $0.removeFromSuperview() }
         rows = shown.enumerated().map { position, index in
@@ -242,9 +266,10 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             rowView.layer?.cornerRadius = 7
             let name = NSTextField(labelWithString: themes[index].name)
             name.font = .systemFont(ofSize: 15)
+            name.textColor = themeFg
             name.frame = NSRect(x: 10, y: 5, width: rowView.frame.width - 80, height: 20)
             let count = NSTextField(labelWithString: "\(themes[index].files.count)")
-            count.textColor = .secondaryLabelColor
+            count.textColor = themeDim
             count.alignment = .right
             count.frame = NSRect(x: rowView.frame.width - 70, y: 5, width: 60, height: 20)
             rowView.addSubview(name)
@@ -258,7 +283,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     func selectRow(_ index: Int) {
         row = max(0, min(rows.count - 1, index))
         for (i, rowView) in rows.enumerated() {
-            rowView.layer?.backgroundColor = i == row ? NSColor.white.withAlphaComponent(0.18).cgColor : nil
+            rowView.layer?.backgroundColor = i == row ? themeAccent.withAlphaComponent(0.22).cgColor : nil
         }
     }
 
@@ -272,7 +297,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     func showWallpapers(_ theme: Int) {
         showingThemes = false
         files = themes[theme].files
-        blur.subviews.forEach { $0.removeFromSuperview() }
+        content.subviews.forEach { $0.removeFromSuperview() }
         let screen = NSScreen.main ?? NSScreen.screens[0]
         let width = min(screen.visibleFrame.width * 0.85, CGFloat(files.count) * (thumbSize.width + spacing) + spacing)
         let height = thumbSize.height + 2 * spacing
@@ -286,7 +311,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             cell.wantsLayer = true
             cell.layer?.cornerRadius = 10
             cell.layer?.masksToBounds = true
-            cell.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.25).cgColor
+            cell.layer?.backgroundColor = (skylandTheme["bg_card"] ?? .black).withAlphaComponent(0.6).cgColor
             cell.toolTip = file.lastPathComponent
             strip.addSubview(cell)
             DispatchQueue.global(qos: .userInitiated).async {
@@ -299,7 +324,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         scroll.drawsBackground = false
         scroll.hasHorizontalScroller = false
         scroll.documentView = strip
-        blur.addSubview(scroll)
+        content.addSubview(scroll)
         strip.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(clicked(_:))))
         select(files.firstIndex { $0.path == ProcessInfo.processInfo.environment["SKYLAND_PICKER_SELECTED"] } ?? 0) // current one
     }
@@ -308,7 +333,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         selected = max(0, min(files.count - 1, index))
         for (i, cell) in cells.enumerated() {
             cell.layer?.borderWidth = i == selected ? 3 : 0
-            cell.layer?.borderColor = NSColor.white.cgColor
+            cell.layer?.borderColor = themeAccent.cgColor
         }
         scroll.contentView.scrollToVisible(cells[selected].frame.insetBy(dx: -spacing, dy: 0))
     }
