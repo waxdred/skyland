@@ -76,6 +76,7 @@ gaps.outer.left = 8
 # 43PR: rounding = 8, opacity 1.0 override (inactive dimmed here to test the
 # scripting addition, set 100 for the exact 43PR look). Needs `skyland-sa load`.
 [decoration]
+ui-style = 'metal' # skyland's panels (overview, switcher, HUDs, settings, wallpaper picker, media widget): metal | glass (Liquid Glass)
 rounding = 8
 active-opacity = 100
 inactive-opacity = 90

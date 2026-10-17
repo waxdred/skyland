@@ -99,23 +99,9 @@ private final class SwitcherPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true
-        let blur = NSVisualEffectView()
-        blur.material = .hudWindow
-        blur.blendingMode = .behindWindow
-        blur.state = .active
-        // a mask image (not layer.cornerRadius) also shapes the window outline and its
-        // shadow, else a square edge shows (toggle.swift); stretched to any size
-        let radius: CGFloat = 20, edge = radius * 2 + 1
-        let mask = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
-            return true
-        }
-        mask.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
-        mask.resizingMode = .stretch
-        blur.maskImage = mask
-        blur.addSubview(view)
-        contentView = blur
+        let root = makePanelRoot(radius: 20, for: self)
+        root.addSubview(view)
+        contentView = root
         view.onPick = { [weak self] confirm in self?.close(confirm: confirm) }
     }
 
@@ -243,8 +229,10 @@ private final class SwitcherView: NSView {
         let theme = skylandThemeColors()
         let fg = theme["fg"] ?? .white, accent = theme["accent"] ?? .systemBlue
         let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 20, yRadius: 20)
-        (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
-        outline.fill()
+        if !isGlassStyle { // the glass has its own tint
+            (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
+            outline.fill()
+        }
         accent.withAlphaComponent(0.35).setStroke()
         outline.stroke()
 

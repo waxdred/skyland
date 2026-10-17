@@ -56,15 +56,8 @@ private func showStateHud(_ enabled: Bool) {
     panel.ignoresMouseEvents = true
     panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
     panel.appearance = NSAppearance(named: .darkAqua)
-    let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-    glass.material = .hudWindow
-    glass.state = .active
-    // a mask image (not layer.cornerRadius) also shapes the window outline, else a square edge shows
-    glass.maskImage = NSImage(size: size, flipped: false) { rect in
-        NSColor.black.setFill()
-        NSBezierPath(roundedRect: rect, xRadius: 18, yRadius: 18).fill()
-        return true
-    }
+    let glass = makePanelRoot(radius: 18, for: panel) // ui-style
+    glass.frame = NSRect(origin: .zero, size: size)
     panel.contentView = glass
 
     let icon = NSImageView(frame: NSRect(x: 0, y: 52, width: size.width, height: 76))

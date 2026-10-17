@@ -1,6 +1,7 @@
 import AppKit
 import Common
 import ScreenCaptureKit
+import SkylandGlass
 
 // skyland workspace overview, styled after the Hyprland Hyprspace plugin
 // (KDE / macOS-like): a translucent glass strip slides down from the top of
@@ -70,6 +71,8 @@ private func showOverview() {
                                                        Float(anim.windowsBezier.x2), Float(anim.windowsBezier.y2))
         newStrip.animator().setFrameOrigin(final.origin)
         panel.animator().alphaValue = 1
+    } completionHandler: {
+        MainActor.assumeIsolated { strip?.glassMoved() } // glass: its capture where the strip landed
     }
     // Zoom the screen's windows out below the strip
     let stripBottom = monitor.rect.topLeftY + (root.bounds.height - final.minY) + 12
@@ -270,7 +273,7 @@ private final class OverviewBackdrop: NSView {
 private final class OverviewStrip: NSView {
     let monitorRect: Rect, monitorVisible: Rect
     private(set) var workspaces: [Workspace] = []
-    private let blur = NSVisualEffectView()
+    private let blur: NSView = isGlassStyle ? GlassBackground(radius: 20, tint: skylandThemeColors()["bg"]?.withAlphaComponent(0.18)) : NSVisualEffectView()
     private let cardsView = OverviewCards()
     private let radius: CGFloat = 20, padding: CGFloat = 18, spacing: CGFloat = 16, labelHeight: CGFloat = 22
 
@@ -278,10 +281,12 @@ private final class OverviewStrip: NSView {
         self.monitorRect = monitorRect
         self.monitorVisible = monitorVisible
         super.init(frame: .zero)
-        blur.material = .hudWindow
-        blur.blendingMode = .behindWindow
-        blur.state = .active
-        blur.wantsLayer = true
+        if let blur = blur as? NSVisualEffectView {
+            blur.material = .hudWindow
+            blur.blendingMode = .behindWindow
+            blur.state = .active
+            blur.wantsLayer = true
+        }
         addSubview(blur)
         addSubview(cardsView)
     }
@@ -289,6 +294,7 @@ private final class OverviewStrip: NSView {
     required init?(coder: NSCoder) { nil }
 
     func cardsNeedDisplay() { cardsView.needsDisplay = true }
+    func glassMoved() { (blur as? GlassBackground)?.refreshShape() }
     /// Size ratio between a window and its thumbnail in a card.
     private(set) var cardScale: CGFloat = 0.15
     func workspace(at point: NSPoint) -> String? { cardsView.workspace(at: convert(point, to: cardsView)) }
@@ -316,23 +322,11 @@ private final class OverviewStrip: NSView {
         let top = menuBar + barOverlap(barHeight: barHeight, menuBarHeight: menuBar) + 10
         frame = NSRect(x: (root.bounds.width - size.width) / 2, y: root.bounds.height - top - size.height, width: size.width, height: size.height)
         blur.frame = bounds
-        blur.maskImage = roundedMask(radius)
+        (blur as? NSVisualEffectView)?.maskImage = roundedMaskImage(radius: radius)
         cardsView.frame = bounds
         cardScale = cardWidth / monitorRect.width
         cardsView.configure(workspaces: workspaces, columns: columns, cardSize: NSSize(width: cardWidth, height: cardHeight),
                             padding: padding, spacing: spacing, labelHeight: labelHeight, radius: radius)
-    }
-
-    private func roundedMask(_ radius: CGFloat) -> NSImage {
-        let edge = radius * 2 + 1
-        let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
-            return true
-        }
-        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
-        image.resizingMode = .stretch
-        return image
     }
 }
 
@@ -370,8 +364,10 @@ private final class OverviewCards: NSView {
         let fg = theme["fg"] ?? .white, accent = theme["accent"] ?? .systemBlue
         // Theme tint over the blur, then the strip border (Hyprspace panelBorderColor)
         let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: radius, yRadius: radius)
-        (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
-        outline.fill()
+        if !isGlassStyle { // the glass has its own tint
+            (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
+            outline.fill()
+        }
         accent.withAlphaComponent(0.35).setStroke()
         outline.lineWidth = 1
         outline.stroke()

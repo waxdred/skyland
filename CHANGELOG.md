@@ -16,6 +16,13 @@ is also the text of its GitHub release.
   the Dock payload; the older keys keep skyland's look. Preset choice in the settings
   window. Needs the payload (`skyland sa build`, `killall Dock; skyland sa load`).
 
+**Liquid Glass**
+- `[decoration] ui-style = 'metal' | 'glass'` (also in the settings window): skyland's
+  panels (overview, window switcher, mode and on / off HUDs, settings window, wallpaper
+  picker, media widget) in Liquid Glass, the engine of skylandbar: Apple's glass on macOS
+  26, a refraction shader with Screen Recording, Core Animation's backdrop otherwise.
+  `metal` keeps the theme tinted blur.
+
 **Bar height**
 - `bar-height <px>|default` command: a bar (SkylandBar, sketchybar) sends its own height
   over the socket and the windows are laid out below it, over the config's `bar-height`
