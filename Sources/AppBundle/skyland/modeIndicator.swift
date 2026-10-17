@@ -5,9 +5,11 @@ import Common
 // easy to get stuck in. `mode-indicator = 'hud'` (default): a HUD at the bottom of the
 // screen with the mode name and its bindings, while the mode is active. 'bar': the
 // sketchybar item and event (bar.swift). The overview shows itself.
+// Drag the HUD to move it: its place is remembered (UserDefaults).
 
 @MainActor private var modeHud: NSPanel? = nil
 @MainActor private var barShowsMode = false
+@MainActor private var modeHudMoved: NSObjectProtocol? = nil
 
 /// Called by activateMode_nonCancellable.
 @MainActor
@@ -15,12 +17,19 @@ func modeIndicatorChanged(_ mode: String?) {
     let shown = mode.flatMap { $0 == mainModeId || $0 == overviewModeId ? nil : $0 }
     modeHud?.orderOut(nil)
     modeHud = nil
+    modeHudMoved.map(NotificationCenter.default.removeObserver)
+    modeHudMoved = nil
     if config.modeIndicator == "bar" || barShowsMode { // also hides it after a switch to 'hud' / 'off'
         barShowsMode = config.modeIndicator == "bar" && shown != nil
         updateBarMode(barShowsMode ? shown : nil)
     }
     guard let shown, config.modeIndicator == "hud" else { return }
-    modeHud = makeModeHud(shown, bindings: config.modes[shown]?.bindings.values.sorted { $0.descriptionWithKeyNotation < $1.descriptionWithKeyNotation } ?? [])
+    let hud = makeModeHud(shown, bindings: config.modes[shown]?.bindings.values.sorted { $0.descriptionWithKeyNotation < $1.descriptionWithKeyNotation } ?? [])
+    modeHud = hud
+    // dragged by the user (isMovableByWindowBackground): remembered for the next time
+    modeHudMoved = NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: hud, queue: .main) { _ in
+        MainActor.assumeIsolated { UserDefaults.standard.set(NSStringFromPoint(hud.frame.origin), forKey: modeHudOriginKey) }
+    }
 }
 
 @MainActor
@@ -47,14 +56,18 @@ private func makeModeHud(_ mode: String, bindings: [HotkeyBinding]) -> NSPanel {
     label.frame = NSRect(x: 20, y: 16, width: size.width - 40, height: fit.height)
 
     let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main ?? NSScreen.screens[0]
-    let panel = NSPanel(contentRect: NSRect(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.minY + 40,
-                                            width: size.width, height: size.height),
+    var origin = NSPoint(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.minY + 40)
+    if let saved = UserDefaults.standard.string(forKey: modeHudOriginKey).map(NSPointFromString),
+       NSScreen.screens.contains(where: { $0.frame.contains(saved) }) { // the screen it was on may be gone
+        origin = saved
+    }
+    let panel = NSPanel(contentRect: NSRect(origin: origin, size: size),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
     panel.level = .statusBar
     panel.isOpaque = false
     panel.backgroundColor = .clear
-    panel.ignoresMouseEvents = true
     panel.isReleasedWhenClosed = false
+    panel.isMovableByWindowBackground = true
     panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
     panel.appearance = NSAppearance(named: .darkAqua)
     let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
@@ -66,7 +79,17 @@ private func makeModeHud(_ mode: String, bindings: [HotkeyBinding]) -> NSPanel {
         return true
     }
     glass.addSubview(label)
+    let handle = DragHandle(frame: glass.bounds) // over the label, which would take the clicks
+    glass.addSubview(handle)
     panel.contentView = glass
     panel.orderFrontRegardless()
     return panel
+}
+
+private let modeHudOriginKey = "modeHudOrigin"
+
+/// Over the label, which would keep the clicks from moving the window.
+private final class DragHandle: NSView {
+    override var mouseDownCanMoveWindow: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }

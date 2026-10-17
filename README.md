@@ -348,7 +348,8 @@ right, falling back left when fewer screens are plugged).
 
 AeroSpace modes are Hyprland submaps: `alt-shift-r = 'mode resize'` and a
 `[mode.resize.binding]` table. While a mode other than `main` is active,
-`mode-indicator = 'hud'` shows its name and keys at the bottom of the screen. With
+`mode-indicator = 'hud'` shows its name and keys at the bottom of the screen (drag it
+elsewhere, the place is remembered). With
 `'bar'`, the `skyland.mode` sketchybar item (created by `profiles/hypr/sketchybar/skyland.sh`)
 shows it instead, and `skyland_mode` is triggered with `MODE=<name>` (empty back in
 `main`) for your own items:
