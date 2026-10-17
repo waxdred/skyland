@@ -86,6 +86,9 @@ private func show(_ windows: [Window], _ workspace: String, on target: Workspace
         let rect = Rect(topLeftX: area.topLeftX + (area.width - size.width) / 2, topLeftY: area.topLeftY + (area.height - size.height) / 2,
                         width: size.width, height: size.height)
         window.setAxFrame(rect.topLeftCorner, size)
+        // its opacity at once: hidden on the scratchpad workspace it was faded out, and a
+        // fade in on top of the slide looked like a glitch
+        showOpaqueNow(window.windowId, focused: window === windows.first)
         let from = slidingRect(window.windowId) ?? rect.copy(\.topLeftY, monitor.rect.topLeftY - size.height)
         animateScratchpad(window.windowId, from: from, to: rect, toRealFrame: true)
     }
