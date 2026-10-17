@@ -243,6 +243,14 @@ private func sendToPayload(_ lines: [String]) -> [String] {
     return replies.split(separator: "\n").map(String.init)
 }
 
+/// The window's opacity at once, no fade (a scratchpad window sliding in).
+@MainActor
+func showOpaqueNow(_ windowId: UInt32, focused: Bool) {
+    let opacity = focused ? config.decoration.activeOpacity : config.decoration.inactiveOpacity
+    sentOpacity[windowId] = opacity // the next decoration pass sees nothing to fade
+    skylandSa("alpha \(windowId) \(Double(opacity) / 100)") // also stops a running fade
+}
+
 /// A window of a group (accordion with group-bar-height) that is not the shown tab:
 /// fully transparent behind the shown one.
 @MainActor

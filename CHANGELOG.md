@@ -6,6 +6,14 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+**Scratchpads**
+- New `scratchpad toggle [name] [--app <bundle id>] | move [name]` command: the
+  scratchpad windows slide in from the top, floating and centered, and slide back up;
+  done inside skyland (a toggle took 6 to 10 CLI processes, an app start polled the CLI
+  up to 40 times). `skyland scratch …` still works. **Your config**: bind
+  `alt-s = 'scratchpad toggle'` instead of `exec-and-forget skyland scratch toggle`
+  (same for `move` and named ones) to skip the process.
+
 **Performance**
 - Skyland.app and the `aerospace` CLI are built in release mode (they shipped as
   debug builds): half the CPU for a workspace switch, faster CLI queries (sketchybar,

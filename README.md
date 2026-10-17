@@ -324,8 +324,8 @@ right, falling back left when fewer screens are plugged).
 | `alt-l` | light / dark theme | `Super+L` |
 | `alt-shift-l` | theme picker (43PR themes + wallpaper colors) | |
 | `alt-shift-h` | shortcut list (read from the config) | |
-| `alt-s` / `alt-shift-s` | scratchpad: show / hide it here, send the window to it (`alt-space` on a shown one takes it out) | Hyprland `togglespecialworkspace` |
-| `alt-a` | named scratchpad `music`: Spotify, started if needed (`skyland-scratch toggle <name> --app <bundle id>`) | `special:music` |
+| `alt-s` / `alt-shift-s` | scratchpad: slides in / out here, send the window to it (`alt-space` on a shown one takes it out); the `scratchpad` command | Hyprland `togglespecialworkspace` |
+| `alt-a` | named scratchpad `music`: Spotify, started if needed (`scratchpad toggle <name> --app <bundle id>`) | `special:music` |
 | `alt-g` | group: the container becomes tabs (tabs bar on top), again: tiles | `togglegroup` |
 | `alt-shift-t` | master layout on / off for this workspace (remembered) | `layout master` |
 | `alt-shift-enter` | swap the focused window with the master | `swapwithmaster` |

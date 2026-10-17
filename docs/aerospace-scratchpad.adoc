@@ -1,0 +1,41 @@
+= aerospace-scratchpad(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-scratchpad
+// tag::purpose[]
+:manpurpose: Hyprland scratchpads (special workspaces): windows parked out of sight that pop up over the focused workspace
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace scratchpad [-h|--help] toggle [<name>] [--app <app-bundle-id>]
+aerospace scratchpad [-h|--help] move [<name>]
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}. The default scratchpad lives on the hidden workspace `scratch`, a named one
+on `scratch-<name>`.
+
+toggle:: When the scratchpad's windows are shown on the focused workspace, they slide up
+and go back to it. Otherwise they slide down from the top, floating and centered
+(`floating-center-percent`), and the first one is focused. With `--app`, an empty
+scratchpad takes that app's window, starting the app if needed (Hyprland `special:music`
+with a Spotify rule).
+
+move:: Sends the focused window to the scratchpad (hides it).
+
+A shown scratchpad window made tiling (`layout floating tiling`) leaves its scratchpad.
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+--app <app-bundle-id>:: the app whose window an empty scratchpad takes
+
+// end::body[]
