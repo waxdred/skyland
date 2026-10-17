@@ -6,6 +6,12 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+**Shadows**
+- `[decoration] shadow = 'on' | 'off' | 'floating'`: macOS window shadows off, or only on
+  floating windows (Hyprland `decoration:shadow`); each window gets its own shadow back
+  when skyland is turned off or quits. Needs the payload (`skyland sa build`, then
+  `killall Dock; skyland sa load`).
+
 **Smart gaps, workspace rules**
 - `smart-gaps` / `smart-border`: a workspace's single tiled window fills the screen
   below the bar, without border nor rounded corners (Hyprland `w[tv1]` rules, formerly

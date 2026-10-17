@@ -28,8 +28,9 @@ struct Decoration: ConvenienceMutable, Equatable, Sendable {
     var borderRotateMs: Int = 0
     var blur: Int = 0
     var groupBarHeight: Int = 0
+    var shadow = "on" // on | off | floating: only floating windows keep their shadow
 
-    var isEnabled: Bool { rounding > 0 || activeOpacity != 100 || inactiveOpacity != 100 || dimInactive > 0 }
+    var isEnabled: Bool { rounding > 0 || activeOpacity != 100 || inactiveOpacity != 100 || dimInactive > 0 || shadow != "on" }
 }
 
 private let decorationParser: [String: any ParserProtocol<Decoration>] = [
@@ -41,6 +42,12 @@ private let decorationParser: [String: any ParserProtocol<Decoration>] = [
     "border-rotate-ms": Parser(\.borderRotateMs, parseInt),
     "blur": Parser(\.blur, parseInt),
     "group-bar-height": Parser(\.groupBarHeight, parseInt),
+    "shadow": Parser(\.shadow) { raw, backtrace in
+        parseString(raw, backtrace).flatMap { value in
+            ["on", "off", "floating"].contains(value) ? .success(value)
+                : .failure(.init(backtrace, "Expected 'on', 'off' or 'floating', got '\(value)'"))
+        }
+    },
 ]
 
 func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> Decoration {
@@ -60,6 +67,10 @@ func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inou
 // Fades only when the loaded payload says it supports them (asked once per
 // injection); an older payload rejects `fade` and opacity would never change.
 /// Words of the payload's `ping` reply ("ok fade close"), asked once per injection.
+/// Windows whose shadow skyland turned off ([decoration] shadow). Kept when the payload is
+/// injected again: the windows stay shadowless in WindowServer, and the new payload
+/// gives them back the default shadow (it lost the saved one).
+@MainActor private var shadowless: Set<UInt32> = []
 @MainActor private(set) var payloadCapabilities: Set<String> = []
 // Windows already there when skyland starts are not faded in: neither during the
 // startup refresh nor shortly after (windows can be registered a bit later).
@@ -128,6 +139,12 @@ func applyDecorations() {
                 ? "dim \(windowId) \(Double(dim) / 100) \(anim.fadeMs) \(anim.fadeBezier.args) \(Double(from) / 100)"
                 : "dim \(windowId) \(Double(dim) / 100)")
         }
+        // shadow off / floating only (payload `shadow`, which keeps the window's own to give it back)
+        let shadow = deco.shadow == "on" || (deco.shadow == "floating" && window.isFloating)
+        if payloadCapabilities.contains("shadow"), shadow == shadowless.contains(windowId) {
+            if shadow { shadowless.remove(windowId) } else { shadowless.insert(windowId) }
+            skylandSa("shadow \(windowId) \(shadow ? 1 : 0)")
+        }
         let rounding = isSmartBorderless(window) ? -1 : deco.rounding // -1: square (smart border)
         if sentRounding[windowId, default: 0] != rounding {
             sentRounding[windowId] = rounding
@@ -137,6 +154,7 @@ func applyDecorations() {
     sentOpacity = sentOpacity.filter { alive.contains($0.key) }
     sentRounding = sentRounding.filter { alive.contains($0.key) }
     sentDim = sentDim.filter { alive.contains($0.key) }
+    shadowless = shadowless.intersection(alive)
     seenWindows = seenWindows.intersection(alive)
     raisedWindows = raisedWindows.intersection(alive)
     if !newWindows.isEmpty { resendLater(newWindows) }
@@ -164,6 +182,8 @@ func restoreDecorations() {
     for windowId in sentRounding.keys { skylandSa("uncorner \(windowId)", wait: true) }
     for windowId in raisedWindows { skylandSa("layer \(windowId) 0", wait: true) }
     for (windowId, dim) in sentDim where dim > 0 { skylandSa("dim \(windowId) 0", wait: true) }
+    for windowId in shadowless { skylandSa("shadow \(windowId) 1", wait: true) }
+    shadowless = []
     // a transform left by an animation outlives skyland (and Dock): the window
     // would stay drawn at the animated position until its app reopens it
     for windowId in MacWindow.allWindowsMap.keys { skylandSa("untransform \(windowId)", wait: true) }

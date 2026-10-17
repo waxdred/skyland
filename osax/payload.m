@@ -20,6 +20,8 @@
 //       Stepped here every display frame with a window transform, never with a
 //       WindowServer-side animation.
 //   untransform <wid>                  (back to its real frame, stops an animation)
+//   blur <wid> <radius>                (blur behind the window's translucent pixels, 0 = none)
+//   shadow <wid> 0|1                   (0: no shadow, its parameters kept; 1: back as it was)
 //   dim <wid> <amount> [<ms> <x1> <y1> <x2> <y2> <from>]
 //       darken the window, 0 = normal, 1 = black (SLSSetWindowListBrightness, negative
 //       brightness); with a duration, stepped from <from> along the bezier like fade.
@@ -57,6 +59,12 @@ extern CGError SLSSetWindowTransform(int cid, uint32_t wid, CGAffineTransform t)
 extern CGError SLSSetWindowLevel(int cid, uint32_t wid, int level);
 // brightness -1 (black) .. 0 (normal) .. 1 (white), checked on macOS 15.6.1
 extern CGError SLSSetWindowListBrightness(int cid, uint32_t *wids, float *brightness, int count);
+// blur of what is behind the window's translucent pixels; radius 0 = none (checked on 15.6.1)
+extern CGError SLSSetWindowBackgroundBlurRadius(int cid, uint32_t wid, uint32_t radius);
+// shadow: gaussian sigma, density (0 = no shadow), offset, rim (checked on 15.6.1;
+// a titled window reads 32.9, 0.7, 0, 18, 0)
+extern CGError SLSGetWindowShadowAndRimParameters(int cid, uint32_t wid, float *sigma, float *density, int *dx, int *dy, int *rim);
+extern CGError SLSSetWindowShadowAndRimParameters(int cid, uint32_t wid, float sigma, float density, int dx, int dy, int rim);
 // transaction variants, disassembled on 15.6.1 (weak: the direct calls above otherwise)
 extern void SLSTransactionSetWindowTransform(CFTypeRef t, uint32_t wid, int unknown1, int unknown2,
                                              CGAffineTransform transform) __attribute__((weak_import));
@@ -267,12 +275,51 @@ static const char *start_animation(uint32_t wid, double *args, int argc)
     });
 }
 
+// Shadows turned off, with what to restore. ponytail: fixed table, a full one stops saving
+#define MAX_SHADOWS 512
+static struct { uint32_t wid; float sigma, density; int dx, dy, rim; } shadows[MAX_SHADOWS];
+static pthread_mutex_t shadow_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static const char *set_shadow(uint32_t wid, int on)
+{
+    int cid = SLSMainConnectionID();
+    pthread_mutex_lock(&shadow_lock);
+    int found = -1, free_slot = -1;
+    for (int i = 0; i < MAX_SHADOWS; i++) {
+        if (shadows[i].wid == wid) found = i;
+        if (!shadows[i].wid && free_slot < 0) free_slot = i;
+    }
+    const char *reply = "ok\n";
+    if (!on && found < 0) { // save, then off
+        float sigma, density;
+        int dx, dy, rim;
+        if (SLSGetWindowShadowAndRimParameters(cid, wid, &sigma, &density, &dx, &dy, &rim) != kCGErrorSuccess) reply = "err no window\n";
+        else if (free_slot < 0) reply = "err too many windows\n";
+        else {
+            shadows[free_slot].wid = wid;
+            shadows[free_slot].sigma = sigma; shadows[free_slot].density = density;
+            shadows[free_slot].dx = dx; shadows[free_slot].dy = dy; shadows[free_slot].rim = rim;
+            SLSSetWindowShadowAndRimParameters(cid, wid, sigma, 0, dx, dy, rim);
+        }
+    } else if (on && found >= 0) { // back as it was
+        SLSSetWindowShadowAndRimParameters(cid, wid, shadows[found].sigma, shadows[found].density, shadows[found].dx, shadows[found].dy, shadows[found].rim);
+        shadows[found].wid = 0;
+    } else if (on) { // turned off by a payload injected before (Dock restarted): the default shadow
+        float sigma, density;
+        int dx, dy, rim;
+        if (SLSGetWindowShadowAndRimParameters(cid, wid, &sigma, &density, &dx, &dy, &rim) == kCGErrorSuccess && density == 0)
+            SLSSetWindowShadowAndRimParameters(cid, wid, 32.94f, 0.7f, 0, 18, rim);
+    }
+    pthread_mutex_unlock(&shadow_lock);
+    return reply;
+}
+
 static const char *handle(char *line)
 {
     char *save = NULL;
     char *cmd = strtok_r(line, " \n", &save);
     if (!cmd) return "err empty\n";
-    if (strcmp(cmd, "ping") == 0) return "ok fade close layer modal dim vsync batch\n";
+    if (strcmp(cmd, "ping") == 0) return "ok fade close layer modal dim vsync batch blur shadow\n";
 
     char *wid_str = strtok_r(NULL, " \n", &save);
     if (!wid_str) return "err missing wid\n";
@@ -298,6 +345,12 @@ static const char *handle(char *line)
         SLSSetWindowTransform(SLSMainConnectionID(), wid, CGAffineTransformMakeTranslation(-real.origin.x, -real.origin.y));
         return "ok\n";
     }
+
+    if (strcmp(cmd, "blur") == 0 && argc == 1) {
+        if (args[0] < 0 || args[0] > 100) return "err bad radius\n";
+        return SLSSetWindowBackgroundBlurRadius(SLSMainConnectionID(), wid, (uint32_t) args[0]) == kCGErrorSuccess ? "ok\n" : "err no window\n";
+    }
+    if (strcmp(cmd, "shadow") == 0 && argc == 1) return set_shadow(wid, args[0] != 0);
 
     if (strcmp(cmd, "layer") == 0 && argc == 1) {
         // layer <wid> 1|2|0: floating window level (above normal windows, like
