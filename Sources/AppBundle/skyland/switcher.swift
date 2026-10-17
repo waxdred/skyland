@@ -103,9 +103,17 @@ private final class SwitcherPanel: NSPanel {
         blur.material = .hudWindow
         blur.blendingMode = .behindWindow
         blur.state = .active
-        blur.wantsLayer = true
-        blur.layer?.cornerRadius = 20
-        blur.layer?.masksToBounds = true
+        // a mask image (not layer.cornerRadius) also shapes the window outline and its
+        // shadow, else a square edge shows (toggle.swift); stretched to any size
+        let radius: CGFloat = 20, edge = radius * 2 + 1
+        let mask = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+            return true
+        }
+        mask.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+        mask.resizingMode = .stretch
+        blur.maskImage = mask
         blur.addSubview(view)
         contentView = blur
         view.onPick = { [weak self] confirm in self?.close(confirm: confirm) }
