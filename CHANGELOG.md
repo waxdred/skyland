@@ -8,7 +8,8 @@ is also the text of its GitHub release.
 
 **Animations**
 - Hyprland's animation system: `[animations] preset = 'hyprland' | 'slide' | 'gnome' |
-  'vertical' | 'cyberspace'`, and `bezier` / `animation` lines pasted from a hyprland.conf
+  'vertical' | 'cyberspace'` (or several stacked, `['cyberspace', 'gnome']`: the later
+  one replaces the nodes it sets), and `bezier` / `animation` lines pasted from a hyprland.conf
   (tree with inheritance, named curves, `slide`, `slidevert`, `popin`, `gnomed`, `fade`,
   `slidefade`, and skyland's `cyberspace` that rezzes windows in through a white-hot scan
   line). Window open, close, move, workspace and scratchpad switches play as tracks in

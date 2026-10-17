@@ -78,6 +78,7 @@ let package = Package(
             name: "AppBundleTests",
             dependencies: [
                 .target(name: "AppBundle"),
+                .target(name: "SkylandAnimation"),
             ],
             swiftSettings: swiftSettings,
         ),

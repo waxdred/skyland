@@ -26,7 +26,9 @@ struct Animations: ConvenienceMutable, Equatable, Sendable {
     var fadeMs: Int = 0
     var fadeBezier: Bezier = .linear
     // skyland: Hyprland's animation tree (SkylandAnimation, animationTracks.swift)
-    var preset = "" // hyprland | slide | gnome | vertical | cyberspace; '' = from the keys above
+    /// hyprland | slide | gnome | vertical | cyberspace, or several stacked in order (a later
+    /// one replaces the nodes it sets: ['gnome', 'cyberspace']); none = from the keys above
+    var preset: [String] = []
     var bezier: [String] = [] // 'NAME, X0, Y0, X1, Y1', a hyprland.conf `bezier =` line
     var animation: [String] = [] // 'NAME, ONOFF, SPEED, CURVE [, STYLE]', an `animation =` line
 }
@@ -68,7 +70,9 @@ private let animationsParser: [String: any ParserProtocol<Animations>] = [
     "workspaces-bezier": Parser(\.workspacesBezier, parseBezier),
     "fade-ms": Parser(\.fadeMs, parseInt),
     "fade-bezier": Parser(\.fadeBezier, parseBezier),
-    "preset": Parser(\.preset, parseString),
+    "preset": Parser(\.preset) { raw, backtrace in // 'gnome' or ['gnome', 'cyberspace']
+        parseString(raw, backtrace).map { $0.isEmpty ? [] : [$0] }.flatMapError { _ in parseArrayOfStrings(raw, backtrace) }
+    },
     "bezier": Parser(\.bezier, parseArrayOfStrings),
     "animation": Parser(\.animation, parseArrayOfStrings),
 ]

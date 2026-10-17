@@ -8,7 +8,8 @@ import SkylandAnimation
 //
 // [animations]
 // enabled = true
-// preset = 'vertical'                  # hyprland | slide | gnome | vertical | cyberspace
+// preset = 'vertical'                  # hyprland | slide | gnome | vertical | cyberspace,
+//                                      # or stacked: ['gnome', 'cyberspace'] (the later wins node by node)
 // bezier = ['overshot, 0.05, 0.9, 0.1, 1.05']
 // animation = [                        # hyprland.conf lines, over the preset
 //   'windows, 1, 5, overshot, slide',
@@ -18,9 +19,11 @@ import SkylandAnimation
 // Without preset nor lines, the older keys (windows-ms / -bezier, workspaces-*, fade-*) give
 // skyland's look so far: windows pop in from 80%, workspaces slide vertically and fade.
 
-/// The base lines: the preset's, else the older keys.
+/// The base lines: the presets' in order (a later line replaces an earlier one of the same
+/// node or curve), else the older keys.
 private func baseLines(_ a: Animations) -> (bezier: [String], animation: [String]) {
-    if let preset = AnimationPreset.named(a.preset) { return (preset.bezier, preset.animation) }
+    let presets = a.preset.compactMap(AnimationPreset.named)
+    if !presets.isEmpty { return (presets.flatMap(\.bezier), presets.flatMap(\.animation)) }
     let ds = { (ms: Int) in String(Double(ms) / 100) }
     let curve = { (name: String, b: Bezier) in "\(name), \(b.x1), \(b.y1), \(b.x2), \(b.y2)" }
     return (
@@ -44,8 +47,8 @@ private func settings(_ a: Animations) -> (settings: AnimationSettings, diagnost
 /// Config errors of the animation lines (notices about nodes macOS has no use for are left out).
 func animationLineErrors(_ a: Animations) -> [String] {
     var errors = settings(a).diagnostics.filter(\.isError).map(\.description)
-    if !a.preset.isEmpty && AnimationPreset.named(a.preset) == nil {
-        errors.append("Unknown animation preset '\(a.preset)': \(AnimationPreset.all.map(\.name).joined(separator: " | "))")
+    for name in a.preset where AnimationPreset.named(name) == nil {
+        errors.append("Unknown animation preset '\(name)': \(AnimationPreset.all.map(\.name).joined(separator: " | "))")
     }
     return errors
 }
