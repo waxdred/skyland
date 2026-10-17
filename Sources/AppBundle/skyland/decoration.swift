@@ -82,7 +82,9 @@ func applyDecorations() {
     guard TrayMenuModel.shared.isEnabled else { return } // disabled: stock macOS look (restoreDecorations)
     let deco = config.decoration
     let anim = config.animations
-    let wantsFades = anim.enabled && anim.fadeMs > 0
+    // focus / dim fades: fadeSwitch / fadeDim of the animation tree (animationTracks.swift)
+    let switchFade = windowAnimator.settings.resolve(.fadeSwitch), dimFade = windowAnimator.settings.resolve(.fadeDim)
+    let wantsFades = anim.enabled && switchFade.enabled && switchFade.durationMs > 0
     if !deco.isEnabled && !wantsFades && sentOpacity.isEmpty && sentRounding.isEmpty && sentDim.isEmpty && raisedWindows.isEmpty
         && !MacWindow.allWindows.contains(where: \.isFloating) { return }
     var st = stat()
@@ -119,11 +121,14 @@ func applyDecorations() {
         // Hidden in a corner = workspace switched away: fade out while it slides out
         let opacity = (fades && window.isHiddenInCorner) || isHiddenGroupTab(window) ? 0
             : windowId == focusedId ? deco.activeOpacity : deco.inactiveOpacity
-        if fadeIn || sentOpacity[windowId, default: 100] != opacity {
+        // a track that drives the opacity ends at it: nothing to send meanwhile
+        if isAlphaTracked(windowId) {
+            sentOpacity[windowId] = opacity
+        } else if fadeIn || sentOpacity[windowId, default: 100] != opacity {
             sentOpacity[windowId] = opacity
             // one command: if the payload rejects it, nothing changes (never alpha 0 then fade)
             skylandSa(fades
-                ? "fade \(windowId) \(Double(opacity) / 100) \(anim.fadeMs) \(anim.fadeBezier.args)\(fadeIn ? " 0" : "")"
+                ? "fade \(windowId) \(Double(opacity) / 100) \(Int(switchFade.durationMs)) \(switchFade.curve.args)\(fadeIn ? " 0" : "")"
                 : "alpha \(windowId) \(Double(opacity) / 100)")
         }
         let raise = window.isFloating && raiseFloating
@@ -132,11 +137,11 @@ func applyDecorations() {
             skylandSa("layer \(windowId) \(raise ? 1 : 0)")
         }
         let dim = windowId == focusedId ? 0 : min(100, max(0, deco.dimInactive))
-        if payloadCapabilities.contains("dim"), sentDim[windowId, default: 0] != dim {
+        if payloadCapabilities.contains("dim"), sentDim[windowId, default: 0] != dim, !isBrightnessTracked(windowId) {
             let from = sentDim[windowId, default: 0]
             sentDim[windowId] = dim
-            skylandSa(fades && !fadeIn
-                ? "dim \(windowId) \(Double(dim) / 100) \(anim.fadeMs) \(anim.fadeBezier.args) \(Double(from) / 100)"
+            skylandSa(fades && !fadeIn && dimFade.enabled
+                ? "dim \(windowId) \(Double(dim) / 100) \(Int(dimFade.durationMs)) \(dimFade.curve.args) \(Double(from) / 100)"
                 : "dim \(windowId) \(Double(dim) / 100)")
         }
         // shadow off / floating only (payload `shadow`, which keeps the window's own to give it back)

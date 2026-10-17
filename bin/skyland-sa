@@ -20,7 +20,7 @@ case "${1:-}" in
         mkdir -p "$OUT"
         # unlink first: a build once run with sudo leaves root-owned files that
         # the linker cannot overwrite (the directory is ours, so rm works)
-        rm -f "$OUT/payload" "$OUT/loader" "$OUT/bezier_test"
+        rm -f "$OUT/payload" "$OUT/loader" "$OUT/bezier_test" "$OUT/payload_test"
         # Xcode 26 ld emits arm64e ABI v1 (USR01) by default; Dock on macOS 15 is
         # v0 (USR00) and the kernel refuses cross-ABI thread injection, so force v0.
         abi=-Wl,-no_mac_public_arm64e
@@ -29,6 +29,12 @@ case "${1:-}" in
             -o "$OUT/payload"
         xcrun clang osax/loader.m -O2 -arch arm64e -mmacosx-version-min=13.0 -framework Cocoa $abi -o "$OUT/loader"
         xcrun clang osax/bezier_test.c -o "$OUT/bezier_test" && "$OUT/bezier_test"
+        # the animation table and `track`, without SkyLight (stand-in headers, fake clock)
+        if xcrun clang -fblocks -w -I osax/test/stubs osax/test/payload_test.c -o "$OUT/payload_test"; then
+            "$OUT/payload_test"
+        else
+            echo "payload_test not built (osax/test/payload_test.c), the payload itself is" >&2
+        fi
         otool -hv "$OUT/payload" "$OUT/loader" | awk '/ARM64/ {print "abi:", $4}'
         echo "built $OUT/payload $OUT/loader"
         ;;

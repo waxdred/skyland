@@ -1,5 +1,6 @@
 import AppKit
 import Common
+import SkylandAnimation
 
 // skyland: Hyprland scratchpads (special workspaces, togglespecialworkspace), the
 // `scratchpad` command. Their windows live on the hidden workspaces "scratch" /
@@ -19,7 +20,7 @@ extension Workspace {
 /// Scratchpads sliding out: the windows go back to their workspace at the end
 @MainActor private var hiding: [String: (windows: [UInt32], task: Task<Void, Never>)] = [:]
 /// Running slides, to start the next one where the window is now (a toggle during a slide)
-@MainActor private var slides: [UInt32: (from: Rect, to: Rect, start: Date)] = [:]
+@MainActor private var slides: [UInt32: (from: Rect, to: Rect, start: Date, ms: Double, curve: CubicBezier, track: WindowTrack?)] = [:]
 /// An app started for a scratchpad, its first window awaited
 @MainActor private var awaitingApp: [String: Task<Void, Never>] = [:]
 
@@ -101,8 +102,8 @@ private func show(_ windows: [Window], _ workspace: String, on target: Workspace
 @MainActor
 private func hide(_ ids: [UInt32], _ workspace: String) async {
     shownScratchpads[workspace] = nil
-    let anim = config.animations
-    let ms = anim.enabled && payloadCapabilities.contains("close") ? anim.windowsMs : 0
+    let out = windowAnimator.settings.resolve(.specialWorkspaceOut)
+    let ms = config.animations.enabled && out.enabled && payloadCapabilities.contains("track") ? Int(out.durationMs) : 0
     for id in ids {
         guard let window = Window.get(byId: id), let rect = try? await window.getAxRect(.nonCancellable) else { continue }
         let monitor = window.nodeWorkspace?.workspaceMonitor ?? mainMonitorInfo
@@ -141,29 +142,43 @@ private func startAppForScratchpad(_ app: String, _ workspace: String) {
     }
 }
 
-/// `toRealFrame`: the window ends at its real frame (`to`), else it stays shown at `to`
-/// (out of the screen) until `untransform`: it is moved to its hidden workspace a bit
-/// after the slide, and its real frame is still on screen until then (it flashed there).
+/// `toRealFrame`: the window ends at its real frame (`to`), else it stays shown out of the
+/// screen until `untransform`: it is moved to its hidden workspace a bit after the slide,
+/// and its real frame is still on screen until then (it flashed there).
+/// The specialWorkspaceIn / Out animation (style, speed, curve) plays as a payload track;
+/// a toggle during a slide goes on from where the window is, with the same timing.
 @MainActor
 private func animateScratchpad(_ windowId: UInt32, from: Rect, to: Rect, toRealFrame: Bool) {
-    let anim = config.animations
-    guard anim.enabled, anim.windowsMs > 0 else { return }
-    slides[windowId] = (from, to, .now)
-    let target = toRealFrame ? "" : " \(to.topLeftX) \(to.topLeftY) \(to.width) \(to.height) 1"
-    skylandSa("animate \(windowId) \(from.topLeftX) \(from.topLeftY) \(from.width) \(from.height) \(anim.windowsMs) \(anim.windowsBezier.args)\(target)")
+    let spec = windowAnimator.settings.resolve(toRealFrame ? .specialWorkspaceIn : .specialWorkspaceOut)
+    guard config.animations.enabled, spec.enabled, let window = Window.get(byId: windowId) else { return }
     // the window server frame is the sliding one until the end; going out, the window is
     // still focused at its real frame until it is moved away (the border flashed there)
-    pauseAnimatedBorder(ms: anim.windowsMs + (toRealFrame ? 0 : 500))
+    let pause = toRealFrame ? 0 : 500
+    if slidingRect(windowId) == nil,
+       let track = playTrack(toRealFrame ? .specialIn : .specialOut, window, rect: toRealFrame ? to : from, direction: -1,
+                             mode: toRealFrame ? nil : .hold)
+    {
+        slides[windowId] = (from, to, .now, track.durationMs, spec.curve, track)
+        pauseAnimatedBorder(ms: Int(track.durationMs) + pause)
+        return
+    }
+    slides[windowId] = (from, to, .now, spec.durationMs, spec.curve, nil)
+    let c = spec.curve, target = toRealFrame ? "" : " \(to.topLeftX) \(to.topLeftY) \(to.width) \(to.height) 1"
+    skylandSa("animate \(windowId) \(from.topLeftX) \(from.topLeftY) \(from.width) \(from.height) \(Int(spec.durationMs)) \(c.x1) \(c.y1) \(c.x2) \(c.y2)\(target)")
+    pauseAnimatedBorder(ms: Int(spec.durationMs) + pause)
 }
 
 /// Where a sliding window is shown now, nil when it is not sliding.
 @MainActor
 private func slidingRect(_ windowId: UInt32) -> Rect? {
-    let anim = config.animations
-    guard let slide = slides[windowId], anim.windowsMs > 0 else { return nil }
-    let x = Date.now.timeIntervalSince(slide.start) * 1000 / Double(anim.windowsMs)
-    if x >= 1 { slides[windowId] = nil; return nil }
-    let p = CGFloat(anim.windowsBezier.ease(x))
+    guard let slide = slides[windowId], slide.ms > 0 else { return nil }
+    let elapsed = Date.now.timeIntervalSince(slide.start) * 1000
+    if elapsed >= slide.ms { slides[windowId] = nil; return nil }
+    if let track = slide.track { // where the payload shows it now
+        let r = track.state(atMs: elapsed).rect
+        return Rect(topLeftX: r.x, topLeftY: r.y, width: r.width, height: r.height)
+    }
+    let p = CGFloat(Bezier(x1: slide.curve.x1, y1: slide.curve.y1, x2: slide.curve.x2, y2: slide.curve.y2).ease(elapsed / slide.ms))
     let a = slide.from, b = slide.to
     return Rect(topLeftX: a.topLeftX + (b.topLeftX - a.topLeftX) * p, topLeftY: a.topLeftY + (b.topLeftY - a.topLeftY) * p,
                 width: a.width + (b.width - a.width) * p, height: a.height + (b.height - a.height) * p)

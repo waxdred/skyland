@@ -20,6 +20,10 @@ let package = Package(
         .executable(name: "AeroSpaceApp", targets: ["AeroSpaceApp"]),
         // We only need to expose this as a product for xcode
         .library(name: "AppBundle", targets: ["AppBundle"]),
+        // skyland: window animation styles, played by the Dock payload (osax/payload.m `track`)
+        .library(name: "SkylandAnimation", targets: ["SkylandAnimation"]),
+        // skyland: tries the SkylandAnimation styles on a real window
+        .executable(name: "skyland-anim", targets: ["SkylandAnimDemo"]),
     ],
     dependencies: [
         .package(url: "https://github.com/InerziaSoft/ISSoundAdditions.git", exact: "2.0.1"),
@@ -52,6 +56,7 @@ let package = Package(
                 .product(name: "TOMLDecoder", package: "TOMLDecoder"),
                 .target(name: "Common"),
                 .target(name: "PrivateApi"),
+                .target(name: "SkylandAnimation"), // skyland: animation styles as payload tracks
             ],
             swiftSettings: swiftSettings,
         ),
@@ -73,6 +78,27 @@ let package = Package(
             name: "AppBundleTests",
             dependencies: [
                 .target(name: "AppBundle"),
+                .target(name: "SkylandAnimation"),
+            ],
+            swiftSettings: swiftSettings,
+        ),
+        // skyland: Hyprland animation styles as tracks for the Dock payload, Foundation only
+        .target(
+            name: "SkylandAnimation",
+            exclude: ["README.md"],
+            swiftSettings: swiftSettings,
+        ),
+        .executableTarget(
+            name: "SkylandAnimDemo",
+            dependencies: [
+                .target(name: "SkylandAnimation"),
+            ],
+            swiftSettings: swiftSettings,
+        ),
+        .testTarget(
+            name: "SkylandAnimationTests",
+            dependencies: [
+                .target(name: "SkylandAnimation"),
             ],
             swiftSettings: swiftSettings,
         ),
