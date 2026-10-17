@@ -313,7 +313,7 @@ private final class OverviewStrip: NSView {
                           height: 2 * padding + CGFloat(rows) * (cardHeight + labelHeight) + CGFloat(rows - 1) * spacing)
         // Below the menu bar / sketchybar of this screen (Hyprspace reservedArea)
         let menuBar = monitorVisible.topLeftY - monitorRect.topLeftY
-        let top = menuBar + barOverlap(barHeight: config.barHeight, menuBarHeight: menuBar) + 10
+        let top = menuBar + barOverlap(barHeight: barHeight, menuBarHeight: menuBar) + 10
         frame = NSRect(x: (root.bounds.width - size.width) / 2, y: root.bounds.height - top - size.height, width: size.width, height: size.height)
         blur.frame = bounds
         blur.maskImage = roundedMask(radius)

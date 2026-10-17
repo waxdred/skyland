@@ -246,7 +246,7 @@ master-orientation = 'auto'       # left | center | auto (center on ultrawide sc
 master-workspaces = []            # workspaces in the master layout at the very first start        # ...on the side of the cursor (Hyprland smart_split)
 floating-center-percent = 70      # 'layout floating' on a tile: N% of the monitor, centered
 mouse-modifier = 'alt'            # alt + left drag moves, alt + right drag resizes (anywhere on a window)
-bar-height = 32                   # keep windows below sketchybar on every screen (thinner external menu bars)
+bar-height = 32                   # keep windows below sketchybar on every screen (thinner external menu bars); a bar can send it: `aerospace bar-height 36`
 mode-indicator = 'hud'            # binding mode other than main (resize): 'hud' | 'bar' (sketchybar) | 'off'
 key-mapping.preset = 'input-source'  # letters follow the active keyboard layout (FR AZERTY / EN QWERTY)
 

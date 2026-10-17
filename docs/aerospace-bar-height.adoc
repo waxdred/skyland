@@ -1,0 +1,33 @@
+= aerospace-bar-height(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-bar-height
+// tag::purpose[]
+:manpurpose: Height of the bar drawn over the menu bar, sent by the bar itself
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace bar-height [-h|--help] [<px>|default]
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}. A bar (SkylandBar, sketchybar) runs `aerospace bar-height 36` when it
+starts or changes size, and windows are laid out below it on every monitor, like
+`bar-height` in the config, which it replaces until skyland restarts. Only the part
+taller than a monitor's menu bar is reserved.
+
+`default` goes back to the config's `bar-height` (the bar quits). Without argument,
+prints the height in use.
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+// end::body[]
