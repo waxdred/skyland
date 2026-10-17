@@ -45,7 +45,7 @@ func skylandEnabledChanged(_ enabled: Bool) {
 @MainActor
 private func showStateHud(_ enabled: Bool) {
     hud?.orderOut(nil)
-    let size = NSSize(width: 240, height: 120)
+    let size = NSSize(width: 240, height: 140)
     let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main ?? NSScreen.screens[0]
     let panel = NSPanel(contentRect: NSRect(x: screen.frame.midX - size.width / 2, y: screen.frame.midY - size.height / 2,
                                             width: size.width, height: size.height),
@@ -67,11 +67,10 @@ private func showStateHud(_ enabled: Bool) {
     }
     panel.contentView = glass
 
-    let accent = skylandThemeAccent() ?? .controlAccentColor
-    let icon = NSImageView(frame: NSRect(x: 0, y: 52, width: size.width, height: 44))
-    icon.image = NSImage(systemSymbolName: enabled ? "square.grid.2x2.fill" : "macwindow.on.rectangle", accessibilityDescription: nil)
-    icon.symbolConfiguration = .init(pointSize: 34, weight: .semibold)
-    icon.contentTintColor = enabled ? accent : .secondaryLabelColor
+    let icon = NSImageView(frame: NSRect(x: 0, y: 52, width: size.width, height: 76))
+    icon.image = NSApp.applicationIconImage // resources/Skyland.icns
+    icon.imageScaling = .scaleProportionallyUpOrDown
+    icon.alphaValue = enabled ? 1 : 0.35
     glass.addSubview(icon)
     let label = NSTextField(labelWithString: enabled ? "skyland on" : "skyland off")
     label.font = .systemFont(ofSize: 17, weight: .semibold)
@@ -98,13 +97,4 @@ private func showStateHud(_ enabled: Bool) {
             MainActor.assumeIsolated { if generation == hudGeneration { panel.orderOut(nil); hud = nil } }
         }
     }
-}
-
-/// accent of ~/.cache/skyland/theme.css (`@define-color accent #rrggbb;`)
-private func skylandThemeAccent() -> NSColor? {
-    let url = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/theme.css")
-    guard let css = try? String(contentsOf: url, encoding: .utf8),
-          let match = css.firstMatch(of: /@define-color\s+accent\s+#([0-9A-Fa-f]{6})/),
-          let hex = Int(match.1, radix: 16) else { return nil }
-    return NSColor(srgbRed: CGFloat(hex >> 16 & 0xff) / 255, green: CGFloat(hex >> 8 & 0xff) / 255, blue: CGFloat(hex & 0xff) / 255, alpha: 1)
 }

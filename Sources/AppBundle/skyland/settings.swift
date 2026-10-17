@@ -186,12 +186,19 @@ private struct SettingsView: View {
     @AppStorage("skyland.settings.tab") private var tab = "general" // reopens on the last tab
 
     var body: some View {
-        TabView(selection: $tab) {
-            GeneralView(model: model).tabItem { Text("General") }.tag("general")
-            KeysView(model: keys).tabItem { Text("Keys") }.tag("keys")
-            RulesView(model: rules).tabItem { Text("Rules") }.tag("rules")
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 40, height: 40)
+                Text("skyland").font(.system(.title2, design: .monospaced).weight(.bold)).foregroundStyle(model.colors.accent)
+            }
+            .padding(.top, 26) // under the transparent title bar
+            TabView(selection: $tab) {
+                GeneralView(model: model).tabItem { Text("General") }.tag("general")
+                KeysView(model: keys).tabItem { Text("Keys") }.tag("keys")
+                RulesView(model: rules).tabItem { Text("Rules") }.tag("rules")
+            }
+            .padding(.top, 8)
         }
-        .padding(.top, 8)
         .frame(minWidth: 620, minHeight: 560)
         .tint(model.colors.accent)
         .background(model.colors.background.opacity(0.8)) // the theme over the window blur, a bit see-through
