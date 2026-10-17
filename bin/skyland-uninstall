@@ -22,7 +22,7 @@ read -r -p "Continue? [y/N] " answer
 [[ "$answer" == [yY]* ]] || { echo "Nothing removed."; exit 0; }
 
 step "Quit Skyland"
-"$REPO/.build/debug/aerospace" enable off </dev/null >/dev/null 2>&1 # windows back from their hiding corner
+"$REPO/.build/aerospace" enable off </dev/null >/dev/null 2>&1 # windows back from their hiding corner
 pkill -x AeroSpaceApp 2>/dev/null
 pkill -x borders 2>/dev/null
 # wait for its clean exit: it resets window transforms through the payload,

@@ -4,6 +4,14 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## Unreleased
+
+**Performance**
+- Skyland.app and the `aerospace` CLI are built in release mode (they shipped as
+  debug builds): half the CPU for a workspace switch, faster CLI queries (sketchybar,
+  scripts). The CLI moves to `.build/aerospace`; `bin/skyland-build --debug` for
+  development.
+
 ## v0.1.9
 
 **Performance**
