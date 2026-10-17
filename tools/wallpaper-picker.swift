@@ -186,6 +186,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         blur.wantsLayer = true
         blur.layer?.cornerRadius = 14
         blur.layer?.masksToBounds = true
+        blur.maskImage = roundedMask(radius: 14)
         panel.contentView = blur
 
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -359,3 +360,17 @@ app.setActivationPolicy(.accessory)
 let delegate = Picker()
 app.delegate = delegate
 app.run()
+
+/// Resizable rounded rect mask for NSVisualEffectView.maskImage: it also shapes the
+/// window outline and shadow (layer.cornerRadius alone leaves a square edge around).
+func roundedMask(radius: CGFloat) -> NSImage {
+    let edge = radius * 2 + 1
+    let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
+        NSColor.black.setFill()
+        NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+        return true
+    }
+    image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+    image.resizingMode = .stretch
+    return image
+}
