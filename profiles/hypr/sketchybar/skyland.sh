@@ -45,6 +45,16 @@ for i in $(seq 1 12); do
             click_script="$CLI workspace $i"
         "${move[@]}")
 done
+# skyland's icon (resources/Skyland.icns) on the left: replaces the Apple logo
+# item of your sketchybarrc if it has one (its click is kept), else a new item
+logo=(icon.drawing=off background.image=app.com.waxdred.skyland background.image.scale=0.8
+    background.image.drawing=on background.color=0x00000000 width=36)
+if sketchybar --query apple >/dev/null 2>&1; then
+    args+=(--set apple "${logo[@]}")
+else
+    args+=(--remove skyland.logo --add item skyland.logo left --set skyland.logo "${logo[@]}"
+        click_script="$CLI settings" --move skyland.logo before workspace.1)
+fi
 # One hidden item runs the update for all workspaces and the window title
 args+=(--add item skyland left
     --set skyland drawing=off updates=on script="$UPDATE $CLI"

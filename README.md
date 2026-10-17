@@ -1,3 +1,5 @@
+<img src="docs/assets/skyland-icon.png" width="128" align="right" alt="skyland icon">
+
 # skyland
 
 A Hyprland-like tiling window manager for macOS, built as a fork of
