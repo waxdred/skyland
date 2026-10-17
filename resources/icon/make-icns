@@ -1,0 +1,11 @@
+#!/bin/bash
+# Renders the icon at every size macOS wants and packs resources/Skyland.icns.
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+set=$(mktemp -d)/Skyland.iconset
+mkdir -p "$set"
+for n in 16 32 128 256 512; do
+    swift resources/icon/make-icon.swift "$set/icon_${n}x${n}.png" $n
+    swift resources/icon/make-icon.swift "$set/icon_${n}x${n}@2x.png" $((n * 2))
+done
+iconutil -c icns "$set" -o resources/Skyland.icns
