@@ -26,6 +26,7 @@ cp .build/debug/AeroSpaceApp "$app/Contents/MacOS/"
 # in the source tree it was compiled in, which a release zip does not have
 mkdir -p "$app/Contents/Resources"
 cp docs/config-examples/default-config.toml "$app/Contents/Resources/"
+cp resources/Skyland.icns "$app/Contents/Resources/" # resources/icon/make-icns
 # Bundle id must match aeroSpaceAppId (Sources/Common/appMetadata.swift)
 cat > "$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -34,6 +35,7 @@ cat > "$app/Contents/Info.plist" <<EOF
 <dict>
     <key>CFBundleIdentifier</key><string>com.waxdred.skyland</string>
     <key>CFBundleName</key><string>Skyland</string>
+    <key>CFBundleIconFile</key><string>Skyland</string>
     <key>CFBundleExecutable</key><string>AeroSpaceApp</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>LSUIElement</key><true/>
