@@ -11,6 +11,10 @@ is also the text of its GitHub release.
   debug builds): half the CPU for a workspace switch, faster CLI queries (sketchybar,
   scripts). The CLI moves to `.build/aerospace`; `bin/skyland-build --debug` for
   development.
+- Input: alt + drag no longer runs a refresh per mouse event (one at the drop),
+  focus follows mouse does nothing while the cursor stays over the focused window,
+  and the key / mouse taps run on their own thread, so typing and clicking in other
+  apps never wait for skyland.
 
 ## v0.1.9
 

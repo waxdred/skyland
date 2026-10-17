@@ -21,4 +21,4 @@ func isManipulatedWithMouse(_ window: Window) async throws -> Bool {
 /// Same motivation as in monitorFrameNormalized
 /// skyland: during a modifier drag the tap swallows the drag events and
 /// NSEvent.mouseLocation stays at the mouse down point; use the tap's position.
-@MainActor var mouseLocation: CGPoint { skylandMouseDrag?.current ?? NSEvent.mouseLocation.withYAxisFlipped }
+@MainActor var mouseLocation: CGPoint { skylandMouseDrag?.current ?? skylandDropLocation ?? NSEvent.mouseLocation.withYAxisFlipped }

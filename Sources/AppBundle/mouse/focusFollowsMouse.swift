@@ -21,7 +21,19 @@ import AppKit
     focusFollowsMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { @MainActor event in
         let location = event.locationInWindow.withYAxisFlipped
         focusFollowsTask?.cancel()
+        // skyland: still over the focused tile (and no floating window that could be
+        // above it): nothing to do, no AX call. Most mouse moves end here.
+        if let focused = focus.windowOrNil, !focused.isFloating,
+           focused.lastAppliedLayoutPhysicalRect?.contains(location) == true,
+           focused.nodeWorkspace?.floatingWindowsContainer.children.isEmpty == true
+        {
+            focusFollowsTask = nil
+            return
+        }
         focusFollowsTask = Task.startUnstructured { @MainActor in
+            // skyland: act once the mouse rests a moment (a move cancels this task),
+            // not for each of the hundreds of moves per second
+            try await Task.sleep(for: .milliseconds(20))
             guard let token: RunSessionGuard = .isServerEnabled else { return }
             // skyland: the overview and modifier drags own the mouse; following it there
             // focused the window under the cursor on another screen (workspace switch)
@@ -35,20 +47,13 @@ import AppKit
             if await isAxWindowUnderMouse(location) == false { return }
             try checkCancellation()
             let workspace = location.monitorApproximation.activeWorkspace
-            var window: Window? = nil
-            for child in workspace.floatingWindowsContainer.mruChildren {
-                try checkCancellation()
-                guard let child = child as? Window else { continue }
-                guard let rect = try await child.getAxRect(.cancellable) else { continue }
-                if rect.contains(location) {
-                    window = child
-                    break
-                }
-            }
+            // skyland: the window server's topmost window at the point (one query)
+            // instead of an AX frame request per floating window
+            var window = managedWindow(at: location)?.0.takeIf { $0.isFloating && $0.nodeWorkspace == workspace }
             if window == nil {
                 window = location.findWindowRecursively(in: workspace.rootTilingContainer, virtual: false, fullscreenCoversAll: true)
             }
-            if let window {
+            if let window, window != focus.windowOrNil {
                 try await runLightSession(.focusFollowsMouse, token) {
                     _ = window.focusWindow()
                     window.nativeFocus()
