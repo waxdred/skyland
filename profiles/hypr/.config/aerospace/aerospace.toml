@@ -84,6 +84,7 @@ border-width = 2 # focused window border, theme accent gradient (JankyBorders)
 border-rotate-ms = 0 # rotating border gradient, one turn in ms (e.g. 4000, Hyprland borderangle loop), 0 = static JankyBorders border
 blur = 5 # Ghostty background blur (43PR blur size 5)
 group-bar-height = 22 # Hyprland groups: accordion containers get a tabs bar (alt-g)
+shadow = 'on' # on | off | floating: only floating windows keep a shadow (Hyprland decoration:shadow), needs the payload
 
 # 43PR: bezier easeOut 0.05,0.9,0.1,1.0; windows speed 5 (500 ms), workspaces
 # speed 6 (600 ms) with the "default" curve, style slidefadevert; fade speed 4.
