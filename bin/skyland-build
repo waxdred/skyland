@@ -15,7 +15,10 @@ cfg=release
 swiftly run swift build -c $cfg --product AeroSpaceApp
 swiftly run swift build -c $cfg --product aerospace
 bin="$(swiftly run swift build -c $cfg --show-bin-path)"
-cp "$bin/aerospace" .build/aerospace # the CLI every script and sketchybar item calls
+# the CLI every script and sketchybar item calls; rm first: overwriting a signed
+# binary in place gets it killed by macOS (Code Signature Invalid)
+rm -f .build/aerospace
+cp "$bin/aerospace" .build/aerospace
 swiftc -O tools/wallpaper-picker.swift -o .build/skyland-wallpaper-picker
 swiftc -O tools/keys-help.swift -o .build/skyland-keys
 # media widget + its now playing backend (git submodule, BSD-3)
