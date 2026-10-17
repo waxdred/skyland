@@ -4,7 +4,7 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
-## Unreleased
+## v0.2.0
 
 **Animations**
 - Hyprland's animation system: `[animations] preset = 'hyprland' | 'slide' | 'gnome' |
