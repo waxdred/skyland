@@ -116,6 +116,10 @@ private func hide(_ ids: [UInt32], _ workspace: String) async {
         try? await runLightSession(.ax("scratchpad"), token) {
             for id in ids { _ = await moveToWorkspace(id, workspace) }
         }
+        // back to its real frame once it is in its hiding corner (the AX move is applied
+        // asynchronously). ponytail: fixed delay, wait for the window server frame if it ever shows
+        try? await Task.sleep(for: .milliseconds(250))
+        for id in ids where hiding[workspace] == nil && shownScratchpads[workspace]?.contains(id) != true { skylandSa("untransform \(id)") }
     }
     hiding[workspace] = (ids, task)
 }
@@ -137,16 +141,19 @@ private func startAppForScratchpad(_ app: String, _ workspace: String) {
     }
 }
 
-/// `toRealFrame`: the window ends at its real frame (`to`), else it is shown at `to` and
-/// jumps to its real frame at the end (going out).
+/// `toRealFrame`: the window ends at its real frame (`to`), else it stays shown at `to`
+/// (out of the screen) until `untransform`: it is moved to its hidden workspace a bit
+/// after the slide, and its real frame is still on screen until then (it flashed there).
 @MainActor
 private func animateScratchpad(_ windowId: UInt32, from: Rect, to: Rect, toRealFrame: Bool) {
     let anim = config.animations
     guard anim.enabled, anim.windowsMs > 0 else { return }
     slides[windowId] = (from, to, .now)
-    let target = toRealFrame ? "" : " \(to.topLeftX) \(to.topLeftY) \(to.width) \(to.height)"
+    let target = toRealFrame ? "" : " \(to.topLeftX) \(to.topLeftY) \(to.width) \(to.height) 1"
     skylandSa("animate \(windowId) \(from.topLeftX) \(from.topLeftY) \(from.width) \(from.height) \(anim.windowsMs) \(anim.windowsBezier.args)\(target)")
-    pauseAnimatedBorder(ms: anim.windowsMs) // the window server frame is the sliding one until the end
+    // the window server frame is the sliding one until the end; going out, the window is
+    // still focused at its real frame until it is moved away (the border flashed there)
+    pauseAnimatedBorder(ms: anim.windowsMs + (toRealFrame ? 0 : 500))
 }
 
 /// Where a sliding window is shown now, nil when it is not sliding.
