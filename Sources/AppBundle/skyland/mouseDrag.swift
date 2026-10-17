@@ -1,5 +1,6 @@
 import AppKit
 import Common
+import os
 
 // Hyprland `bindm = SUPER, mouse:272, movewindow` / `mouse:273, resizewindow`:
 // with the mouse-modifier held, left drag anywhere on a window moves it, right
@@ -24,7 +25,15 @@ struct MouseDrag {
     var current: CGPoint
 }
 
-@MainActor var skylandMouseDrag: MouseDrag? = nil
+@MainActor var skylandMouseDrag: MouseDrag? = nil {
+    didSet { mouseDragActive.withLock { [active = skylandMouseDrag != nil] in $0 = active } }
+}
+/// skylandMouseDrag != nil, readable from the event tap thread
+private let mouseDragActive = OSAllocatedUnfairLock(initialState: false)
+/// Live feedback of the last drag event, while it runs (see `.leftMouseDragged`)
+@MainActor private var dragFeedback: Task<Void, Never>? = nil
+/// Drop point while mouse up catches up (`mouseLocation`)
+@MainActor var skylandDropLocation: CGPoint? = nil
 
 func parseMouseModifier(_ raw: String) -> CGEventFlags? {
     if raw.isEmpty { return nil }
@@ -42,7 +51,7 @@ func parseMouseModifier(_ raw: String) -> CGEventFlags? {
 }
 
 private let modifierMask: CGEventFlags = [.maskAlternate, .maskCommand, .maskControl, .maskShift]
-@MainActor private var tap: CFMachPort? = nil
+nonisolated(unsafe) private var tap: CFMachPort? = nil // set once at startup
 
 @MainActor
 func startMouseDragTap() {
@@ -50,23 +59,30 @@ func startMouseDragTap() {
     let mask = types.reduce(CGEventMask(0)) { $0 | (1 << $1.rawValue) }
     tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
                             eventsOfInterest: mask, callback: mouseDragCallback, userInfo: nil)
-    guard let tap else { return } // no Accessibility: nothing to do, AeroSpace still works
-    CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
-    CGEvent.tapEnable(tap: tap, enable: true)
+    guard let tap = unsafe tap else { return } // no Accessibility: nothing to do, AeroSpace still works
+    addToEventTapThread(tap)
 }
 
+/// On the event tap thread: a click without a modifier, or a drag that is not
+/// skyland's, goes through without waiting for the main thread.
 private func mouseDragCallback(_: CGEventTapProxy, type: CGEventType, event: CGEvent, _: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
     let location = event.location, flags = event.flags // CGEvent is not Sendable
-    return MainActor.assumeIsolated { handleMouse(type, location, flags) } ? nil : Unmanaged.passUnretained(event)
+    switch type {
+        case .tapDisabledByTimeout, .tapDisabledByUserInput:
+            if let tap = unsafe tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            return Unmanaged.passUnretained(event)
+        case .leftMouseDown, .rightMouseDown:
+            if flags.intersection(modifierMask).isEmpty { return Unmanaged.passUnretained(event) }
+        default:
+            if !mouseDragActive.withLock({ $0 }) { return Unmanaged.passUnretained(event) }
+    }
+    return onMainForTap { handleMouse(type, location, flags) } ? nil : Unmanaged.passUnretained(event)
 }
 
 /// Returns true when the event is consumed.
 @MainActor
 private func handleMouse(_ type: CGEventType, _ location: CGPoint, _ flags: CGEventFlags) -> Bool {
     switch type {
-        case .tapDisabledByTimeout, .tapDisabledByUserInput:
-            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
-            return false
         case .leftMouseDown, .rightMouseDown:
             guard let wanted = parseMouseModifier(config.mouseModifier),
                   flags.intersection(modifierMask) == wanted,
@@ -96,27 +112,57 @@ private func handleMouse(_ type: CGEventType, _ location: CGPoint, _ flags: CGEv
             } else {
                 drag.window.setAxFrame(CGPoint(x: r.minX + dx, y: r.minY + dy), nil)
             }
-            let window = drag.window, resize = drag.resize
-            Task { @MainActor in
-                guard let token: RunSessionGuard = .isServerEnabled else { return }
-                try? await runLightSession(.ax("skylandMouseDrag"), token) {
-                    if resize { try await resizeWithMouse(window) } else { try await moveWithMouse(window) }
-                }
+            updateAnimatedBorder() // the rotating border follows the window
+            // Live feedback only (the tile under the cursor swaps in, the neighbours
+            // resize): no refresh session per drag event, one complete refresh at mouse
+            // up. A drag event that comes while the previous one is laid out is skipped,
+            // the next one (or mouse up) catches up.
+            if dragFeedback != nil || !TrayMenuModel.shared.isEnabled { return true }
+            dragFeedback = Task { @MainActor in
+                await dragFeedbackStep(drag)
+                dragFeedback = nil
             }
             return true
         case .leftMouseUp, .rightMouseUp:
-            guard skylandMouseDrag != nil else { return false }
+            guard let drag = skylandMouseDrag else { return false }
             skylandMouseDrag = nil
-            Task { @MainActor in try? await resetManipulatedWithMouseIfPossible() }
+            let running = dragFeedback
+            Task { @MainActor in
+                await running?.value
+                guard TrayMenuModel.shared.isEnabled else { return }
+                // the last drag events may have been skipped: catch up at the drop point
+                skylandDropLocation = drag.current
+                await dragFeedbackStep(drag)
+                skylandDropLocation = nil
+                // one complete refresh (normalize, layout, decorations) for the whole drag
+                if currentlyManipulatedWithMouseWindowId != nil {
+                    try? await resetManipulatedWithMouseIfPossible()
+                } else {
+                    scheduleCancellableCompleteRefreshSession(.ax("skylandMouseDrag"))
+                }
+            }
             return true
         default:
             return false
     }
 }
 
-/// Topmost window managed by skyland under `point` (global, top-left origin), with its frame.
+/// AeroSpace's mouse handling for the dragged window (tile swap, weights), then the
+/// layout of the workspaces it touches: the other tiles follow the drag live.
 @MainActor
-private func managedWindow(at point: CGPoint) -> (Window, CGRect)? {
+private func dragFeedbackStep(_ drag: MouseDrag) async {
+    let window = drag.window, before = window.nodeWorkspace
+    if drag.resize { try? await resizeWithMouse(window) } else { try? await moveWithMouse(window) }
+    if window.nodeWorkspace != before { normalizeContainers() } // moved to another monitor: no empty container left behind
+    for workspace in Set([before, window.nodeWorkspace].compactMap { $0 }) where workspace.isVisible {
+        try? await workspace.layoutWorkspace()
+    }
+}
+
+/// Topmost window managed by skyland under `point` (global, top-left origin), with its frame.
+/// One window server query instead of an AX round trip per window (focus follows mouse uses it too).
+@MainActor
+func managedWindow(at point: CGPoint) -> (Window, CGRect)? {
     guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return nil }
     // front to back; skyland's own windows (the rotating border above the focused window) don't count
     for info in list where (info[kCGWindowLayer as String] as? Int) == 0 && (info[kCGWindowOwnerPID as String] as? pid_t) != myPid {

@@ -12,30 +12,31 @@ private let arrowKeyCodes: Set<UInt32> = [123, 124, 125, 126] // left, right, do
 
 func isArrowKey(_ key: Key) -> Bool { arrowKeyCodes.contains(key.carbonKeyCode) }
 
-@MainActor private var keyTap: CFMachPort? = nil
+nonisolated(unsafe) private var keyTap: CFMachPort? = nil // set once at startup
 
 @MainActor
 func startArrowKeyTap() {
     keyTap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
                                eventsOfInterest: 1 << CGEventType.keyDown.rawValue, callback: arrowKeyCallback, userInfo: nil)
-    guard let keyTap else { return }
-    CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, keyTap, 0), .commonModes)
-    CGEvent.tapEnable(tap: keyTap, enable: true)
+    guard let keyTap = unsafe keyTap else { return }
+    addToEventTapThread(keyTap)
 }
 
+/// On the event tap thread: any key but an arrow goes through without waiting for the main thread.
 private func arrowKeyCallback(_: CGEventTapProxy, type: CGEventType, event: CGEvent, _: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
+    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        if let keyTap = unsafe keyTap { CGEvent.tapEnable(tap: keyTap, enable: true) }
+        return Unmanaged.passUnretained(event)
+    }
     let keyCode = UInt32(event.getIntegerValueField(.keyboardEventKeycode)), flags = event.flags // CGEvent is not Sendable
-    return MainActor.assumeIsolated { handleArrowKey(type, keyCode, flags) } ? nil : Unmanaged.passUnretained(event)
+    guard type == .keyDown, arrowKeyCodes.contains(keyCode) else { return Unmanaged.passUnretained(event) }
+    return onMainForTap { handleArrowKey(keyCode, flags) } ? nil : Unmanaged.passUnretained(event)
 }
 
 /// Returns true when the key press ran a binding (and is consumed).
 @MainActor
-private func handleArrowKey(_ type: CGEventType, _ keyCode: UInt32, _ flags: CGEventFlags) -> Bool {
-    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-        if let keyTap { CGEvent.tapEnable(tap: keyTap, enable: true) }
-        return false
-    }
-    guard type == .keyDown, !hotkeysSuspended, arrowKeyCodes.contains(keyCode), let mode = activeMode,
+private func handleArrowKey(_ keyCode: UInt32, _ flags: CGEventFlags) -> Bool {
+    guard !hotkeysSuspended, let mode = activeMode,
           let binding = config.modes[mode]?.bindings.values.first(where: {
               $0.keyCode.carbonKeyCode == keyCode && $0.modifiers.intersection(.deviceIndependentFlagsMask).subtracting([.function, .numericPad, .capsLock]) == modifierFlags(flags)
           }) else { return false }
