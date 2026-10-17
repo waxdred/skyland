@@ -1,0 +1,1104 @@
+<!doctype html>
+<!-- skyland Animation Lab: a simulated skyland desktop playing the SkylandAnimation styles.
+     The <core> part of the script is a JS port of Sources/SkylandAnimation (same numbers):
+     keep the two in sync. Open this file in a browser. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body { margin: 0; } [hidden] { display: none !important; }</style>
+<title>Skyland Animation Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a simulated skyland desktop (the subject) beside a compact control deck; stacks on phones.
+   One deliberate dark world: a night desktop, the window colors of skyland's default theme (Catppuccin Mocha). */
+:root {
+  color-scheme: dark;
+  --bg: #090c12;
+  --panel: #10151f;
+  --panel-2: #161d2a;
+  --line: #243044;
+  --fg: #dbe3f0;
+  --muted: #8592a8;
+  --neon: #3ee6ff;
+  --hot: #ff5fd2;
+  --ok: #7ee2a8;
+  /* mock windows: Catppuccin Mocha */
+  --win-base: #1e1e2e;
+  --win-mantle: #181825;
+  --win-surface: #313244;
+  --win-overlay: #45475a;
+  --win-text: #cdd6f4;
+  --win-sub: #a6adc8;
+  --win-mauve: #cba6f7;
+  --win-blue: #89b4fa;
+  --win-green: #a6e3a1;
+  --win-peach: #fab387;
+  --win-red: #f38ba8;
+  --win-yellow: #f9e2af;
+  --font-display: "Chakra Petch", "Eurostile", "Bank Gothic", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(22px, 3vw, 30px);
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-wrap: balance;
+}
+h1 span { color: var(--neon); }
+header p { margin: 0; color: var(--muted); max-width: 70ch; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+@media (max-width: 980px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* the screen */
+.screen {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #05070c;
+  box-shadow: 0 30px 80px -40px rgba(62, 230, 255, 0.35);
+}
+.stage { position: absolute; left: 0; top: 0; width: 1600px; height: 1000px; transform-origin: 0 0; }
+.wallpaper {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 105%, rgba(62, 230, 255, 0.22), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 85% 0%, rgba(255, 95, 210, 0.16), transparent 70%),
+    linear-gradient(180deg, #0a0d18 0%, #0b1020 55%, #071019 100%);
+}
+.grid {
+  position: absolute; left: -40%; right: -40%; bottom: -8%; height: 55%;
+  background-image:
+    linear-gradient(rgba(62, 230, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(62, 230, 255, 0.28) 1px, transparent 1px);
+  background-size: 80px 60px;
+  transform: perspective(500px) rotateX(62deg);
+  transform-origin: 50% 100%;
+  mask-image: linear-gradient(180deg, transparent, #000 60%);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 60%);
+  opacity: 0.55;
+}
+.neighbour {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 10px;
+  background: repeating-linear-gradient(180deg, rgba(255, 95, 210, 0.55) 0 14px, transparent 14px 28px);
+}
+.bar {
+  position: absolute; left: 8px; right: 8px; top: 4px; height: 26px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: rgba(17, 17, 27, 0.82);
+  font-family: var(--font-mono); font-size: 13px; color: var(--win-sub);
+  z-index: 3;
+}
+.bar .ws { width: 26px; height: 20px; display: grid; place-items: center; border-radius: 6px; border: 1px solid var(--win-overlay); }
+.bar .ws.on { color: var(--win-mauve); border-color: var(--win-mauve); background: rgba(203, 166, 247, 0.12); }
+.bar .title { margin-left: 8px; color: var(--win-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .clock { margin-left: auto; color: var(--win-text); }
+
+.win {
+  position: absolute;
+  transform-origin: 0 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--win-base);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.8);
+  will-change: transform, opacity;
+}
+.win.focused { box-shadow: 0 0 0 2px var(--win-mauve), 0 18px 40px -18px rgba(0, 0, 0, 0.8); }
+.win .tb {
+  height: 30px; display: flex; align-items: center; gap: 7px; padding: 0 12px;
+  background: var(--win-mantle);
+  font-family: var(--font-body); font-size: 13px; color: var(--win-sub);
+}
+.win .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--win-overlay); }
+.win .dot:nth-child(1) { background: #f38ba8; } .win .dot:nth-child(2) { background: #f9e2af; } .win .dot:nth-child(3) { background: #a6e3a1; }
+.win .tb b { margin-left: 8px; font-weight: 500; color: var(--win-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win .body { position: absolute; inset: 30px 0 0 0; padding: 14px 16px; font-family: var(--font-mono); font-size: 14px; line-height: 1.55; color: var(--win-text); overflow: hidden; }
+.win .glow { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.term .p { color: var(--win-green); } .term .c { color: var(--win-mauve); } .term .d { color: var(--win-sub); }
+.code .ln { display: flex; gap: 10px; margin-bottom: 7px; align-items: center; }
+.code .n { width: 22px; color: var(--win-overlay); text-align: right; }
+.code i { display: inline-block; height: 9px; border-radius: 5px; }
+.web .hero { height: 34%; border-radius: 8px; background: linear-gradient(135deg, #1f2a44, #3b2a54); margin-bottom: 12px; }
+.web .row { display: flex; gap: 10px; margin-bottom: 10px; }
+.web .card { flex: 1; height: 64px; border-radius: 8px; background: var(--win-surface); }
+.music { display: flex; gap: 14px; align-items: flex-start; }
+.music .art { width: 34%; aspect-ratio: 1; border-radius: 10px; background: radial-gradient(circle at 30% 30%, #ff5fd2, #3a1f5c 60%, #0b1020); flex: none; }
+.music .bars { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 10px; }
+.music .bars span { width: 8px; border-radius: 3px; background: var(--win-green); }
+.chat .msg { display: flex; gap: 10px; margin-bottom: 12px; }
+.chat .av { width: 30px; height: 30px; border-radius: 50%; flex: none; }
+.chat .tx { flex: 1; } .chat .tx i { display: block; height: 9px; border-radius: 5px; background: var(--win-surface); margin-top: 7px; }
+canvas.fx { position: absolute; left: 0; top: 0; width: 1600px; height: 1000px; pointer-events: none; z-index: 2; }
+
+/* control deck */
+.deck { display: grid; gap: 14px; min-width: 0; }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.label { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+button, select {
+  font: inherit; color: var(--fg);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 11px; cursor: pointer;
+}
+button:hover { border-color: #3a4a66; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+.chip { font-family: var(--font-mono); font-size: 13px; }
+.chip[aria-pressed="true"] { border-color: var(--neon); color: var(--neon); background: rgba(62, 230, 255, 0.08); }
+.chip.cyber[aria-pressed="true"] { border-color: var(--hot); color: var(--hot); background: rgba(255, 95, 210, 0.1); }
+.events { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.events button { text-align: left; }
+.events kbd { float: right; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.row2 { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+select { width: 100%; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 6px 10px; font-family: var(--font-mono); font-size: 12px; }
+.seg button[aria-pressed="true"] { background: rgba(62, 230, 255, 0.14); color: var(--neon); }
+label.check { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); cursor: pointer; }
+.swatches { display: inline-flex; gap: 6px; }
+.swatch { width: 22px; height: 22px; border-radius: 50%; padding: 0; border: 2px solid transparent; }
+.swatch[aria-pressed="true"] { border-color: var(--fg); }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+.track dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; font-size: 13px; }
+.track dt { color: var(--muted); }
+.track dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.chart { width: 100%; height: 90px; display: block; background: var(--panel-2); border-radius: 8px; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.cmd { font-family: var(--font-mono); font-size: 11.5px; color: var(--win-sub); background: var(--panel-2); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 96px; overflow: auto; margin: 0; }
+.cmdrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cmdrow button { padding: 4px 9px; font-size: 12px; }
+.notes { color: var(--muted); font-size: 13.5px; max-width: 80ch; }
+.notes code { font-family: var(--font-mono); color: var(--fg); }
+@media (prefers-reduced-motion: reduce) { .screen { box-shadow: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Skyland <span>Animation Lab</span></h1>
+    <p>Le module <code>SkylandAnimation</code> joué dans un bureau simulé : mêmes courbes, mêmes styles et mêmes pistes que celles envoyées au payload du Dock.</p>
+  </header>
+
+  <div class="layout">
+    <div class="screen" id="screen" aria-label="Bureau skyland simulé">
+      <div class="stage" id="stage">
+        <div class="wallpaper"><div class="grid"></div></div>
+        <div class="neighbour" id="neighbour" hidden></div>
+        <div class="bar" aria-hidden="true">
+          <span class="ws on" data-ws="0">1</span><span class="ws" data-ws="1">2</span><span class="ws" data-ws="2">3</span>
+          <span class="title" id="bar-title">Ghostty: ~/skyland</span>
+          <span class="clock" id="clock">09:42</span>
+        </div>
+        <div id="windows"></div>
+        <canvas class="fx" id="fx" width="1600" height="1000"></canvas>
+      </div>
+    </div>
+
+    <div class="deck">
+      <div class="box">
+        <div class="label">Style</div>
+        <div class="chips" id="styles" role="group" aria-label="Style d'animation">
+          <button class="chip" id="style-slide" data-style="slide" aria-pressed="false">slide</button>
+          <button class="chip" id="style-slidevert" data-style="slidevert" aria-pressed="false">slidevert</button>
+          <button class="chip" id="style-popin" data-style="popin 80%" aria-pressed="false">popin 80%</button>
+          <button class="chip" id="style-gnomed" data-style="gnomed" aria-pressed="false">gnomed</button>
+          <button class="chip" id="style-slidefade" data-style="slidefade 20%" aria-pressed="false">slidefade 20%</button>
+          <button class="chip cyber" id="style-cyberspace" data-style="cyberspace" aria-pressed="true">cyberspace</button>
+        </div>
+        <label class="label" for="preset">Ou un preset complet</label>
+        <select id="preset">
+          <option value="">Style seul (choisi au-dessus)</option>
+          <option value="hyprland">hyprland : config par défaut de Hyprland</option>
+          <option value="slide">slide : tout glisse</option>
+          <option value="gnome">gnome : gnomed + slidefade 20%</option>
+          <option value="vertical">vertical : le look actuel de skyland</option>
+          <option value="cyberspace">cyberspace : rez / derez</option>
+        </select>
+      </div>
+
+      <div class="box">
+        <div class="label">Événements</div>
+        <div class="events">
+          <button id="ev-open">Ouvrir <kbd>O</kbd></button>
+          <button id="ev-close">Fermer <kbd>Q</kbd></button>
+          <button id="ev-prev">Workspace ← <kbd>←</kbd></button>
+          <button id="ev-next">Workspace → <kbd>→</kbd></button>
+          <button id="ev-scratch">Scratchpad <kbd>S</kbd></button>
+          <button id="ev-swap">Échanger <kbd>X</kbd></button>
+        </div>
+        <div class="row2">
+          <span class="label">Vitesse</span>
+          <span class="seg" role="group" aria-label="Vitesse">
+            <button id="speed-1" data-speed="1" aria-pressed="true">1×</button>
+            <button id="speed-05" data-speed="0.5" aria-pressed="false">0,5×</button>
+            <button id="speed-025" data-speed="0.25" aria-pressed="false">0,25×</button>
+            <button id="speed-01" data-speed="0.1" aria-pressed="false">0,1×</button>
+          </span>
+        </div>
+        <div class="row2">
+          <label class="check"><input type="checkbox" id="autoplay" checked> Démo auto</label>
+          <label class="check"><input type="checkbox" id="neighbour-toggle"> Écran voisin à droite</label>
+        </div>
+        <div class="row2">
+          <span class="label">Néon</span>
+          <span class="swatches" role="group" aria-label="Couleur du néon cyberspace">
+            <button class="swatch" id="neon-cyan" data-color="#3ee6ff" style="background:#3ee6ff" aria-pressed="true" aria-label="cyan"></button>
+            <button class="swatch" id="neon-pink" data-color="#ff5fd2" style="background:#ff5fd2" aria-pressed="false" aria-label="magenta"></button>
+            <button class="swatch" id="neon-mauve" data-color="#cba6f7" style="background:#cba6f7" aria-pressed="false" aria-label="mauve"></button>
+          </span>
+        </div>
+      </div>
+
+      <div class="box track">
+        <div class="label">Dernière piste envoyée au payload</div>
+        <dl id="track-info"></dl>
+        <canvas class="chart" id="chart" width="620" height="180" aria-label="Opacité et luminosité au fil de la piste"></canvas>
+        <div class="legend"><span><i style="background:var(--neon)"></i>opacité</span><span><i style="background:var(--hot)"></i>luminosité</span><span><i style="background:var(--muted)"></i>hauteur</span></div>
+        <div class="cmdrow"><span class="label">Commande</span><button id="copy">Copier</button></div>
+        <pre class="cmd" id="cmd"></pre>
+      </div>
+    </div>
+  </div>
+
+  <p class="notes">Chaque style donne une piste échantillonnée (rectangle, opacité, luminosité de −1 noir à 1 blanc) que le payload rejoue à la fréquence de l'écran. Ouvrir et fermer suivent <code>windowsIn</code> / <code>windowsOut</code> avec <code>fadeIn</code> / <code>fadeOut</code> ; les workspaces suivent <code>workspacesIn</code> / <code>workspacesOut</code> ; le scratchpad suit <code>specialWorkspace</code>. Avec un écran voisin, un slide complet qui le traverserait devient <code>slidefade 20%</code>. Le cadre néon du style cyberspace est la fenêtre dessinée par skyland autour de la fenêtre animée.</p>
+</div>
+
+<script>
+"use strict";
+// <core> Port of Sources/SkylandAnimation (Swift): same curves, styles, glitches and tracks.
+const mix = (a, b, t) => a * (1 - t) + b * t;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const R = (x, y, w, h) => ({ x, y, w, h });
+const midX = (r) => r.x + r.w / 2, midY = (r) => r.y + r.h / 2, maxX = (r) => r.x + r.w, maxY = (r) => r.y + r.h;
+const rectEq = (a, b) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+const lerpRect = (a, b, t) => R(mix(a.x, b.x, t), mix(a.y, b.y, t), mix(a.w, b.w, t), mix(a.h, b.h, t));
+const scaled = (r, fx, fy) => { const w = r.w * fx, h = r.h * fy; return R(midX(r) - w / 2, midY(r) - h / 2, w, h); };
+const atLeast = (r, m) => {
+  if (r.w >= m && r.h >= m) return r;
+  const w = Math.max(m, r.w), h = Math.max(m, r.h);
+  return R(midX(r) - w / 2, midY(r) - h / 2, w, h);
+};
+const offset = (r, dx, dy) => R(r.x + dx, r.y + dy, r.w, r.h);
+
+function bezierEase(c, x) {
+  const axis = (t, a, b) => ((1 - 3 * b + 3 * a) * t + (3 * b - 6 * a)) * t * t + 3 * a * t;
+  const slope = (t, a, b) => 3 * (1 - 3 * b + 3 * a) * t * t + 2 * (3 * b - 6 * a) * t + 3 * a;
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  let t = x;
+  for (let i = 0; i < 8; i++) {
+    const err = axis(t, c.x1, c.x2) - x, s = slope(t, c.x1, c.x2);
+    if (Math.abs(err) < 1e-7 || Math.abs(s) < 1e-7) break;
+    t -= err / s;
+  }
+  if (t < 0 || t > 1 || Math.abs(axis(t, c.x1, c.x2) - x) > 1e-5) {
+    let lo = 0, hi = 1;
+    t = x;
+    for (let i = 0; i < 40; i++) {
+      if (axis(t, c.x1, c.x2) < x) lo = t; else hi = t;
+      t = (lo + hi) / 2;
+    }
+  }
+  return axis(t, c.y1, c.y2);
+}
+const curve = (x1, y1, x2, y2) => ({ x1, y1, x2, y2 });
+const LINEAR = curve(0, 0, 1, 1), HYPR_DEFAULT = curve(0, 0.75, 0.15, 1);
+
+const PARENT = {
+  global: null, windows: "global", layers: "global", fade: "global", border: "global", borderangle: "global",
+  workspaces: "global", zoomFactor: "global", monitorAdded: "global",
+  windowsIn: "windows", windowsOut: "windows", windowsMove: "windows", layersIn: "layers", layersOut: "layers",
+  fadeIn: "fade", fadeOut: "fade", fadeSwitch: "fade", fadeShadow: "fade", fadeDim: "fade", fadeLayers: "fade",
+  fadePopups: "fade", fadeDpms: "fade", fadeLayersIn: "fadeLayers", fadeLayersOut: "fadeLayers",
+  fadePopupsIn: "fadePopups", fadePopupsOut: "fadePopups",
+  workspacesIn: "workspaces", workspacesOut: "workspaces", specialWorkspace: "workspaces",
+  specialWorkspaceIn: "specialWorkspace", specialWorkspaceOut: "specialWorkspace",
+};
+const STYLED = new Set(["windows", "windowsIn", "windowsOut", "windowsMove", "layers", "layersIn", "layersOut",
+  "workspaces", "workspacesIn", "workspacesOut", "specialWorkspace", "specialWorkspaceIn", "specialWorkspaceOut"]);
+
+function parseStyle(text) {
+  const words = text.split(/[ \t]+/).filter(Boolean);
+  if (!words.length) return null;
+  const [name, ...rest] = words;
+  const pct = (dflt) => {
+    if (!rest.length) return dflt;
+    if (rest.length !== 1 || !rest[0].endsWith("%")) return null;
+    const n = Number(rest[0].slice(0, -1));
+    return rest[0].length > 1 && Number.isFinite(n) && n >= 0 && n <= 100 ? n : null;
+  };
+  switch (name) {
+    case "slide":
+      if (!rest.length) return { kind: "slide", edge: null };
+      return rest.length === 1 && ["top", "bottom", "left", "right"].includes(rest[0]) ? { kind: "slide", edge: rest[0] } : null;
+    case "popin": { const p = pct(80); return p === null ? null : { kind: "popin", percent: p }; }
+    case "slidefade": { const p = pct(20); return p === null ? null : { kind: "slidefade", percent: p, vertical: false }; }
+    case "slidefadevert": { const p = pct(20); return p === null ? null : { kind: "slidefade", percent: p, vertical: true }; }
+    case "slidevert": case "gnomed": case "fade": case "cyberspace": case "once": case "loop":
+      return rest.length ? null : { kind: name };
+    default: return null;
+  }
+}
+function styleName(s) {
+  if (!s) return "(défaut)";
+  switch (s.kind) {
+    case "slide": return s.edge ? "slide " + s.edge : "slide";
+    case "popin": return "popin " + s.percent + "%";
+    case "slidefade": return (s.vertical ? "slidefadevert " : "slidefade ") + s.percent + "%";
+    default: return s.kind;
+  }
+}
+
+function parseSettings(bezierLines, animationLines) {
+  const settings = { enabled: true, curves: { default: HYPR_DEFAULT, linear: LINEAR }, entries: {} };
+  const diagnostics = [];
+  const fields = (line) => line.split("#")[0].split(",").map((f) => f.trim());
+  for (const line of bezierLines) {
+    const f = fields(line);
+    const v = f.slice(1).map(Number);
+    if (f.length !== 5 || !f[0] || v.some((n) => !Number.isFinite(n)) || v[0] < 0 || v[0] > 1 || v[2] < 0 || v[2] > 1) {
+      diagnostics.push("bezier: " + line);
+      continue;
+    }
+    settings.curves[f[0]] = curve(v[0], v[1], v[2], v[3]);
+  }
+  for (const line of animationLines) {
+    const f = fields(line);
+    const node = f[0];
+    if (!(node in PARENT) || f.length < 2 || !["0", "1"].includes(f[1])) { diagnostics.push("animation: " + line); continue; }
+    const entry = { enabled: f[1] === "1", speed: 8, curve: "default", style: null };
+    if (!(f.length === 2 && !entry.enabled)) {
+      const speed = Number(f[2]);
+      if ((f.length !== 4 && f.length !== 5) || !(speed > 0) || !settings.curves[f[3]]) { diagnostics.push("animation: " + line); continue; }
+      entry.speed = speed;
+      entry.curve = f[3];
+      if (f.length === 5 && f[4]) {
+        const style = parseStyle(f[4]);
+        const ok = style && (node === "borderangle" ? ["once", "loop"].includes(style.kind) : STYLED.has(node) && !["once", "loop"].includes(style.kind));
+        if (!ok) { diagnostics.push("animation: " + line); continue; }
+        entry.style = style;
+      }
+    }
+    settings.entries[node] = entry;
+  }
+  return { settings, diagnostics };
+}
+function resolve(settings, node) {
+  for (let n = node; n; n = PARENT[n]) {
+    const e = settings.entries[n];
+    if (e) return { enabled: settings.enabled && e.enabled, durationMs: e.speed * 100, curve: settings.curves[e.curve] || HYPR_DEFAULT, style: e.style };
+  }
+  return { enabled: settings.enabled, durationMs: 800, curve: HYPR_DEFAULT, style: null };
+}
+
+const NODE = { open: "windowsIn", close: "windowsOut", move: "windowsMove", workspaceIn: "workspacesIn", workspaceOut: "workspacesOut", specialIn: "specialWorkspaceIn", specialOut: "specialWorkspaceOut" };
+const isLeaving = (e) => e.type === "close" || e.type === "workspaceOut" || e.type === "specialOut";
+const isSwitch = (e) => ["workspaceIn", "workspaceOut", "specialIn", "specialOut"].includes(e.type);
+const modeOf = (e) => (e.type === "close" ? 2 : e.type === "workspaceOut" || e.type === "specialOut" ? 1 : 0);
+const sampleCount = (ms, rate) => Math.min(240, Math.max(2, Math.ceil(ms / 1000 * rate) + 1));
+const defaultStyle = (e) => (["open", "close", "move"].includes(e.type) ? { kind: "popin", percent: 80 }
+  : e.type === "workspaceIn" || e.type === "workspaceOut" ? { kind: "slide", edge: null } : { kind: "slidevert" });
+const towardSign = (e, c) => (e.type === "workspaceOut" || e.type === "close" ? -c.direction : c.direction);
+function crossedEdge(e, vertical, c) {
+  const toward = towardSign(e, c);
+  return vertical ? (toward > 0 ? "bottom" : "top") : (toward > 0 ? "right" : "left");
+}
+function effectiveStyle(e, style, c) {
+  const chosen = style || defaultStyle(e);
+  if (!isSwitch(e)) return chosen;
+  let vertical, percent;
+  if (chosen.kind === "slide" && !chosen.edge) { vertical = false; percent = 100; }
+  else if (chosen.kind === "slidevert") { vertical = true; percent = 100; }
+  else if (chosen.kind === "slidefade") { vertical = chosen.vertical; percent = chosen.percent; }
+  else return chosen;
+  if (!(percent > 20) || !c.neighbourEdges.has(crossedEdge(e, vertical, c))) return chosen;
+  return { kind: "slidefade", percent: 20, vertical };
+}
+function closestEdge(r, m, avoid, edges) {
+  const d = (edge) => edge === "left" ? midX(r) - m.x : edge === "right" ? maxX(m) - midX(r) : edge === "top" ? midY(r) - m.y : maxY(m) - midY(r);
+  const sorted = edges.map((edge, i) => ({ edge, i })).sort((a, b) => d(a.edge) === d(b.edge) ? a.i - b.i : d(a.edge) - d(b.edge)).map((x) => x.edge);
+  return sorted.find((edge) => !avoid.has(edge)) || sorted[0];
+}
+function beyond(edge, r, m) {
+  switch (edge) {
+    case "left": return R(m.x - r.w, r.y, r.w, r.h);
+    case "right": return R(maxX(m), r.y, r.w, r.h);
+    case "top": return R(r.x, m.y - r.h, r.w, r.h);
+    default: return R(r.x, maxY(m), r.w, r.h);
+  }
+}
+function outsideRect(style, e, c) {
+  const r = c.rect, m = c.monitor, toward = towardSign(e, c);
+  switch (style.kind) {
+    case "popin": return [atLeast(scaled(r, style.percent / 100, style.percent / 100), 1), false];
+    case "gnomed": return [R(r.x, midY(r) - 0.5, r.w, 1), false];
+    case "fade": case "cyberspace": case "once": case "loop": return [r, false];
+    case "slidefade": {
+      const dist = toward * style.percent / 100 * (style.vertical ? m.h : m.w);
+      return [style.vertical ? offset(r, 0, dist) : offset(r, dist, 0), false];
+    }
+    case "slidevert":
+      if (isSwitch(e)) return [offset(r, 0, toward * m.h), false];
+      { const edge = closestEdge(r, m, c.neighbourEdges, ["top", "bottom"]); return [beyond(edge, r, m), c.neighbourEdges.has(edge)]; }
+    case "slide":
+      if (!style.edge && isSwitch(e)) return [offset(r, toward * m.w, 0), false];
+      { const edge = style.edge || closestEdge(r, m, c.neighbourEdges, ["top", "bottom", "left", "right"]); return [beyond(edge, r, m), c.neighbourEdges.has(edge)]; }
+  }
+  return [r, false];
+}
+const fadesItself = (s) => s.kind === "fade" || s.kind === "slidefade";
+const timing = (spec) => ({ ms: Math.max(1, spec.durationMs), curve: spec.curve });
+
+function sampled(windowId, mode, channels, motion, fade, rate, state) {
+  const duration = Math.max(motion ? motion.ms : 0, fade ? fade.ms : 0, 1);
+  const count = sampleCount(duration, rate);
+  const samples = [];
+  for (let i = 0; i < count; i++) {
+    const t = duration * i / (count - 1);
+    samples.push(state(motion ? bezierEase(motion.curve, t / motion.ms) : 1, fade ? bezierEase(fade.curve, t / fade.ms) : 1));
+  }
+  return { windowId, durationMs: duration, mode, channels, samples };
+}
+
+function track(settings, e, c, rate = 60) {
+  if (!settings.enabled || c.rect.w < 1 || c.rect.h < 1) return null;
+  const motion = resolve(settings, NODE[e.type]);
+  if (e.type === "move") {
+    if (!motion.enabled || rectEq(e.from, c.rect)) return null;
+    return Object.assign(sampled(c.windowId, 0, 1, timing(motion), null, rate, (g) => ({ rect: atLeast(lerpRect(e.from, c.rect, g), 1), alpha: c.opacity, brightness: c.brightness })), { style: null });
+  }
+  const style = effectiveStyle(e, motion.style, c);
+  if (motion.enabled && style.kind === "cyberspace") return Object.assign(cyberspaceTrack(e, c, motion, rate), { style });
+  const [outside, slideFades] = outsideRect(style, e, c);
+  const motionTiming = motion.enabled && !rectEq(outside, c.rect) ? timing(motion) : null;
+  const fadeNode = e.type === "open" ? "fadeIn" : e.type === "close" ? "fadeOut" : null;
+  let fadeTiming = null;
+  if (motion.enabled && (fadesItself(style) || slideFades)) fadeTiming = timing(motion);
+  else if (fadeNode && resolve(settings, fadeNode).enabled) fadeTiming = timing(resolve(settings, fadeNode));
+  const channels = (motionTiming ? 1 : 0) | (fadeTiming ? 2 : 0);
+  if (!channels) return null;
+  const leaving = isLeaving(e);
+  const [fromRect, toRect] = leaving ? [c.rect, outside] : [outside, c.rect];
+  const [fromAlpha, toAlpha] = leaving ? [c.opacity, 0] : [0, c.opacity];
+  return Object.assign(sampled(c.windowId, modeOf(e), channels, motionTiming, fadeTiming, rate, (g, a) => ({
+    rect: atLeast(lerpRect(fromRect, toRect, g), 1), alpha: clamp(mix(fromAlpha, toAlpha, a), 0, 1), brightness: c.brightness,
+  })), { style });
+}
+
+// cyberspace
+const MASK = (1n << 64n) - 1n;
+class SplitMix64 {
+  constructor(seed) { this.state = seed & MASK; }
+  next() {
+    this.state = (this.state + 0x9E3779B97F4A7C15n) & MASK;
+    let z = this.state;
+    z = ((z ^ (z >> 30n)) * 0xBF58476D1CE4E5B9n) & MASK;
+    z = ((z ^ (z >> 27n)) * 0x94D049BB133111EBn) & MASK;
+    return z ^ (z >> 31n);
+  }
+  unit() { return Number(this.next() >> 11n) / 9007199254740992; }
+  range(lo, hi) { return lo + (hi - lo) * this.unit(); }
+  sign() { return (this.next() & 1n) === 0n ? -1 : 1; }
+}
+const SALT = { open: 1, close: 2, move: 3, workspaceIn: 4, workspaceOut: 5, specialIn: 6, specialOut: 7 };
+const cyberLine = (r) => Math.max(2, Math.min(6, r.h * 0.012));
+const easeOut = (x) => 1 - Math.pow(1 - clamp(x, 0, 1), 3);
+function glitches(count, lo, hi, strength, last, rng) {
+  const low = Math.max(1, Math.ceil(lo * last)), high = Math.min(last - 1, Math.floor(hi * last));
+  const result = new Map();
+  if (low > high) return result;
+  for (let i = 0; i < count; i++) {
+    const index = low + Number(rng.next() % BigInt(high - low + 1));
+    const dx = rng.sign() * rng.range(0.4, 1) * strength;
+    const alpha = rng.range(0.45, 0.7);
+    const flash = rng.range(0.15, 0.35);
+    result.set(index, { dx, alpha, flash });
+  }
+  return result;
+}
+function cyberspaceTrack(e, c, motion, rate) {
+  const duration = Math.max(1, motion.durationMs);
+  const count = sampleCount(duration, Math.max(rate, 90));
+  const rng = new SplitMix64(((BigInt(c.windowId) * 0x9E3779B97F4A7C15n) & MASK) ^ BigInt(SALT[e.type]));
+  const samples = isLeaving(e) ? derez(e, c, motion.curve, count, rng) : rez(e, c, motion.curve, count, rng);
+  return { windowId: c.windowId, durationMs: duration, mode: modeOf(e), channels: 7, samples };
+}
+function rez(e, c, curv, count, rng) {
+  const target = c.rect, width = target.w, height = target.h, line = cyberLine(target);
+  const wait = e.type === "workspaceIn" ? 0.15 : 0;
+  const streak = isSwitch(e) ? towardSign(e, c) * 0.06 * c.monitor.w : 0;
+  const last = count - 1;
+  const at = (v) => wait + v * (1 - wait);
+  const g = glitches(3, at(0.22), at(0.62), 0.05, last, rng);
+  for (const [k, v] of glitches(2, at(0.68), 0.95, 0.015, last, rng)) if (!g.has(k)) g.set(k, v);
+  const samples = [];
+  for (let index = 0; index <= last; index++) {
+    const u = index / last, v = clamp((u - wait) / (1 - wait), 0, 1);
+    let w, h, alpha, brightness;
+    if (u < wait) { w = 0.08 * width; h = line; alpha = 0; brightness = 0.9; }
+    else if (v < 0.2) {
+      const a = easeOut(v / 0.2);
+      w = mix(0.08, 1, a) * width; h = line;
+      alpha = c.opacity * Math.min(1, a * 1.6);
+      brightness = mix(c.brightness, 0.9, Math.min(1, a * 2));
+    } else if (v < 0.65) {
+      const k = (v - 0.2) / 0.45;
+      w = width; h = mix(line, height, bezierEase(curv, k));
+      alpha = c.opacity; brightness = mix(0.9, 0.25, k);
+    } else {
+      w = width; h = height; alpha = c.opacity;
+      brightness = mix(0.25, c.brightness, easeOut((v - 0.65) / 0.35));
+    }
+    let dx = streak * (1 - v) * (1 - v);
+    const gl = g.get(index);
+    if (gl) { dx += gl.dx * width; alpha *= gl.alpha; brightness += gl.flash; }
+    samples.push({ rect: atLeast(R(midX(target) - w / 2 + dx, midY(target) - h / 2, w, h), 1), alpha: clamp(alpha, 0, 1), brightness: clamp(brightness, -1, 1) });
+  }
+  samples[last] = { rect: target, alpha: c.opacity, brightness: c.brightness };
+  return samples;
+}
+function derez(e, c, curv, count, rng) {
+  const start = c.rect, width = start.w, height = start.h, line = cyberLine(start);
+  const drift = isSwitch(e) ? towardSign(e, c) * 0.06 * c.monitor.w : 0;
+  const last = count - 1;
+  const g = glitches(3, 0.03, 0.25, 0.06, last, rng);
+  const samples = [];
+  for (let index = 0; index <= last; index++) {
+    const u = index / last;
+    let w, h, alpha, brightness;
+    if (u < 0.25) { w = width; h = height; alpha = c.opacity; brightness = mix(c.brightness, 0.5, u / 0.25); }
+    else if (u < 0.65) {
+      const k = (u - 0.25) / 0.4;
+      w = width; h = mix(height, line, bezierEase(curv, k)); alpha = c.opacity; brightness = mix(0.5, 0.9, k);
+    } else {
+      const k = (u - 0.65) / 0.35;
+      w = mix(width, 2, k * k); h = line; alpha = c.opacity * Math.pow(1 - k, 1.5); brightness = 0.9;
+    }
+    let dx = drift * u * u;
+    const gl = g.get(index);
+    if (gl) { dx += gl.dx * width; alpha *= gl.alpha; brightness += gl.flash; }
+    samples.push({ rect: atLeast(R(midX(start) - w / 2 + dx, midY(start) - h / 2, w, h), 1), alpha: clamp(alpha, 0, 1), brightness: clamp(brightness, -1, 1) });
+  }
+  samples[last] = { rect: R(midX(start) - 1 + drift, midY(start) - line / 2, 2, line), alpha: 0, brightness: c.brightness };
+  return samples;
+}
+
+// the payload: linear between samples, mode 0 mapped onto the real frame through the last rect
+function playback(tr, elapsed, real) {
+  const x = elapsed / tr.durationMs, last = tr.samples.length - 1;
+  const pos = (x >= 1 ? 1 : x < 0 ? 0 : x) * last;
+  const i = pos >= last ? last - 1 : Math.floor(pos), f = pos - i;
+  const s = tr.samples[i], n = tr.samples[i + 1];
+  let v = lerpRect(s.rect, n.rect, f);
+  if (tr.mode === 0) {
+    const end = tr.samples[last].rect, sx = real.w / end.w, sy = real.h / end.h;
+    v = R(real.x + (v.x - end.x) * sx, real.y + (v.y - end.y) * sy, v.w * sx, v.h * sy);
+  }
+  const done = x >= 1;
+  return {
+    rect: tr.channels & 1 ? (done && tr.mode !== 2 ? real : v) : null,
+    alpha: tr.channels & 2 ? clamp(mix(s.alpha, n.alpha, f), 0, 1) : null,
+    brightness: tr.channels & 4 ? clamp(mix(s.brightness, n.brightness, f), -1, 1) : null,
+    done,
+  };
+}
+function payloadCommand(tr) {
+  const num = (v, d) => { const t = v.toFixed(d); return Number(t) === 0 ? (0).toFixed(d) : t; };
+  const parts = ["track", tr.windowId, num(tr.durationMs, 1), tr.mode, tr.channels, tr.samples.length];
+  for (const s of tr.samples) parts.push(num(s.rect.x, 1), num(s.rect.y, 1), num(s.rect.w, 1), num(s.rect.h, 1), num(clamp(s.alpha, 0, 1), 3), num(clamp(s.brightness, -1, 1), 3));
+  return parts.join(" ");
+}
+
+const PRESETS = {
+  hyprland: [["easeOutQuint, 0.23, 1, 0.32, 1", "easeInOutCubic, 0.65, 0.05, 0.36, 1", "linear, 0, 0, 1, 1", "almostLinear, 0.5, 0.5, 0.75, 1.0", "quick, 0.15, 0, 0.1, 1"],
+    ["global, 1, 10, default", "border, 1, 5.39, easeOutQuint", "windows, 1, 4.79, easeOutQuint", "windowsIn, 1, 4.1, easeOutQuint, popin 87%", "windowsOut, 1, 1.49, linear, popin 87%",
+      "fadeIn, 1, 1.73, almostLinear", "fadeOut, 1, 1.46, almostLinear", "fade, 1, 3.03, quick", "layers, 1, 3.81, easeOutQuint", "layersIn, 1, 4, easeOutQuint, fade",
+      "layersOut, 1, 1.5, linear, fade", "fadeLayersIn, 1, 1.79, almostLinear", "fadeLayersOut, 1, 1.39, almostLinear", "workspaces, 1, 1.94, almostLinear, fade",
+      "workspacesIn, 1, 1.21, almostLinear, fade", "workspacesOut, 1, 1.94, almostLinear, fade"]],
+  slide: [["overshot, 0.05, 0.9, 0.1, 1.05"], ["windows, 1, 5, overshot, slide", "windowsMove, 1, 4, overshot", "fade, 1, 4, default", "workspaces, 1, 5, overshot, slide", "specialWorkspace, 1, 4, overshot, slidevert"]],
+  gnome: [["ease, 0.25, 0.1, 0.25, 1"], ["windows, 1, 4, ease, gnomed", "windowsMove, 1, 4, ease", "fade, 1, 3, ease", "workspaces, 1, 4, ease, slidefade 20%", "specialWorkspace, 1, 4, ease, slidefadevert 20%"]],
+  vertical: [["easeOut, 0.05, 0.9, 0.1, 1.0"], ["windows, 1, 5, easeOut, popin 80%", "fade, 1, 4, default", "workspaces, 1, 6, default, slidefadevert 100%", "specialWorkspace, 1, 5, easeOut, slidevert"]],
+  cyberspace: [["neon, 0.1, 0.9, 0.2, 1.08"], ["windows, 1, 5.5, neon, cyberspace", "windowsOut, 1, 4.5, neon, cyberspace", "windowsMove, 1, 3.5, neon", "fade, 1, 3, default",
+    "workspaces, 1, 6.5, neon, cyberspace", "specialWorkspace, 1, 5, neon, cyberspace", "borderangle, 1, 30, linear, loop"]],
+};
+// one style for every event (what `skyland-anim <style>` does)
+function styleSettings(style) {
+  return parseSettings(["overshot, 0.05, 0.9, 0.1, 1.05"], [
+    `windows, 1, ${style === "cyberspace" ? 5.5 : 5}, overshot, ${style}`, "windowsMove, 1, 4, overshot", "fade, 1, 3.5, default",
+    `workspaces, 1, ${style === "cyberspace" ? 6.5 : 6}, default, ${style}`, `specialWorkspace, 1, 5, overshot, ${style}`,
+  ]).settings;
+}
+// </core>
+
+// ---- the simulated desktop ----
+const MONITOR = R(0, 0, 1600, 1000);
+const BAR = 32, GAP_OUT = 8, GAP_TOP = 5, GAP_IN = 4;
+const VISIBLE = R(GAP_OUT, BAR + GAP_TOP, 1600 - 2 * GAP_OUT, 1000 - BAR - GAP_TOP - GAP_OUT);
+const ACTIVE_OPACITY = 1, INACTIVE_OPACITY = 0.9;
+const APPS = [
+  { app: "Ghostty", title: "~/skyland", kind: "term" },
+  { app: "Zed", title: "WindowAnimator.swift", kind: "code" },
+  { app: "Brave", title: "hyprland.org/animations", kind: "web" },
+  { app: "Spotify", title: "Ninja Tracks · Cyberspace", kind: "music" },
+  { app: "Discord", title: "#skyland", kind: "chat" },
+  { app: "Ghostty", title: "htop", kind: "term" },
+  { app: "Obsidian", title: "SkyLight private API recon", kind: "code" },
+  { app: "Mail", title: "Inbox", kind: "chat" },
+];
+let nextId = 101, appCursor = 0;
+const state = {
+  ws: 0,
+  workspaces: [[], [], []],
+  focus: null,
+  scratch: null,
+  scratchShown: false,
+  settings: null,
+  styleLabel: "cyberspace",
+  speed: 1,
+  neon: "#3ee6ff",
+  neighbour: false,
+  clock: 0,
+};
+const windowsEl = document.getElementById("windows");
+const fx = document.getElementById("fx").getContext("2d");
+const wins = new Map(); // id -> { id, app, title, kind, el, rect, visible, track, trackStart, onDone, ws }
+const overlays = [];
+
+function contentHTML(kind) {
+  switch (kind) {
+    case "term":
+      return `<div class="term"><div><span class="p">❯</span> skyland list-windows --workspace focused</div><div class="d">101 | Ghostty | ~/skyland</div><div class="d">102 | Zed | WindowAnimator.swift</div><div><span class="p">❯</span> skyland sa send ping</div><div class="c">ok fade close layer modal dim vsync batch track</div><div><span class="p">❯</span> skyland-anim cyberspace open<span class="c">▌</span></div></div>`;
+    case "code": {
+      const colors = ["--win-mauve", "--win-blue", "--win-text", "--win-green", "--win-peach", "--win-sub", "--win-yellow", "--win-blue", "--win-red", "--win-text", "--win-mauve", "--win-sub"];
+      return `<div class="code">${colors.map((c, i) => `<div class="ln"><span class="n">${i + 1}</span><i style="width:${18 + ((i * 37) % 55)}%;background:var(${c})"></i><i style="width:${8 + ((i * 23) % 20)}%;background:var(--win-surface)"></i></div>`).join("")}</div>`;
+    }
+    case "web":
+      return `<div class="web"><div class="hero"></div><div class="row"><div class="card"></div><div class="card"></div></div><div class="row"><div class="card"></div><div class="card"></div><div class="card"></div></div></div>`;
+    case "music":
+      return `<div class="music"><div class="art"></div><div><div style="color:var(--win-text)">Cyberspace</div><div style="color:var(--win-sub)">Ninja Tracks</div><div class="bars">${[30, 55, 80, 45, 70, 35, 60, 90, 40, 65].map((h) => `<span style="height:${h}%"></span>`).join("")}</div></div></div>`;
+    default:
+      return `<div class="chat">${["--win-mauve", "--win-blue", "--win-peach", "--win-green"].map((c, i) => `<div class="msg"><span class="av" style="background:var(${c})"></span><span class="tx"><i style="width:${40 + i * 12}%"></i><i style="width:${70 - i * 9}%"></i></span></div>`).join("")}</div>`;
+  }
+}
+function makeWindow(ws, preset) {
+  const spec = preset || APPS[appCursor++ % APPS.length];
+  const id = nextId++;
+  const el = document.createElement("div");
+  el.className = "win";
+  el.innerHTML = `<div class="tb"><span class="dot"></span><span class="dot"></span><span class="dot"></span><b>${spec.app}: ${spec.title}</b></div><div class="body">${contentHTML(spec.kind)}</div><div class="glow"></div>`;
+  el.hidden = true;
+  windowsEl.appendChild(el);
+  const w = { id, ...spec, el, glow: el.querySelector(".glow"), rect: R(0, 0, 100, 100), visible: false, track: null, ws };
+  wins.set(id, w);
+  return w;
+}
+// dwindle: each new split halves the previous window along its longest side
+function dwindle(count, area) {
+  const rects = [];
+  let rest = area;
+  for (let i = 0; i < count; i++) {
+    if (i === count - 1) { rects.push(rest); break; }
+    if (rest.w >= rest.h) {
+      const w = (rest.w - GAP_IN) / 2;
+      rects.push(R(rest.x, rest.y, w, rest.h));
+      rest = R(rest.x + w + GAP_IN, rest.y, rest.w - w - GAP_IN, rest.h);
+    } else {
+      const h = (rest.h - GAP_IN) / 2;
+      rects.push(R(rest.x, rest.y, rest.w, h));
+      rest = R(rest.x, rest.y + h + GAP_IN, rest.w, rest.h - h - GAP_IN);
+    }
+  }
+  return rects;
+}
+const scratchRect = () => R(1600 * 0.15, BAR + 1000 * 0.12, 1600 * 0.7, 1000 * 0.68);
+function context(w, rect, direction = 1) {
+  return {
+    windowId: w.id, rect, monitor: MONITOR, direction,
+    opacity: state.focus === w.id ? ACTIVE_OPACITY : INACTIVE_OPACITY, brightness: 0,
+    neighbourEdges: new Set(state.neighbour ? ["right"] : []),
+  };
+}
+function play(w, tr, label, onDone) {
+  w.track = tr;
+  w.trackStart = state.clock;
+  w.onDone = onDone || null;
+  if (tr && tr.style && tr.style.kind === "cyberspace") {
+    const around = (tr.mode === 0) ? w.rect : tr.samples[0].rect;
+    overlays.push({ rect: around, start: state.clock, ms: tr.durationMs, leaving: tr.mode !== 0 });
+  }
+  if (tr) showTrack(tr, label);
+  else if (onDone) onDone();
+}
+function relayout(ws, except) {
+  const list = state.workspaces[ws];
+  const rects = dwindle(list.length, VISIBLE);
+  list.forEach((id, i) => {
+    const w = wins.get(id);
+    const old = w.rect;
+    w.rect = rects[i];
+    if (id === except || !w.visible) return;
+    const tr = track(state.settings, { type: "move", from: currentRect(w) || old }, context(w, w.rect));
+    if (tr) play(w, tr, "windowsMove");
+  });
+}
+function currentRect(w) {
+  if (!w.track) return w.rect;
+  const s = playback(w.track, (state.clock - w.trackStart), w.rect);
+  return s.rect || w.rect;
+}
+function focus(id) {
+  state.focus = id;
+  const w = id ? wins.get(id) : null;
+  document.getElementById("bar-title").textContent = w ? `${w.app}: ${w.title}` : "Bureau";
+}
+
+// events
+function openWindow() {
+  const list = state.workspaces[state.ws];
+  if (list.length >= 5) { closeWindow(); return; }
+  const w = makeWindow(state.ws);
+  list.push(w.id);
+  focus(w.id);
+  relayout(state.ws, w.id);
+  w.visible = true;
+  w.el.hidden = false;
+  play(w, track(state.settings, { type: "open" }, context(w, w.rect)), "windowsIn");
+}
+function closeWindow() {
+  const list = state.workspaces[state.ws];
+  if (!list.length) { openWindow(); return; }
+  const open = list.filter((id) => !wins.get(id).closing);
+  if (!open.length) return;
+  const id = open.includes(state.focus) ? state.focus : open[open.length - 1];
+  const w = wins.get(id);
+  w.closing = true;
+  // like skyland's close: the window animates out, then it is gone and the others take its place
+  const done = () => {
+    w.visible = false;
+    w.el.remove();
+    wins.delete(id);
+    const l = state.workspaces[w.ws];
+    l.splice(l.indexOf(id), 1);
+    if (w.ws === state.ws) {
+      if (state.focus === id || state.focus === null) focus(l.length ? l[l.length - 1] : null);
+      relayout(w.ws, null);
+    } else {
+      dwindle(l.length, VISIBLE).forEach((r, i) => { wins.get(l[i]).rect = r; });
+    }
+  };
+  play(w, track(state.settings, { type: "close" }, context(w, currentRect(w))), "windowsOut", done);
+}
+function switchWorkspace(step) {
+  const from = state.ws, to = (from + step + 3) % 3;
+  const direction = to > from ? 1 : -1; // Hyprland orders workspaces by number
+  for (const id of state.workspaces[from]) {
+    const w = wins.get(id);
+    if (w.closing) continue; // it finishes closing where it is
+    play(w, track(state.settings, { type: "workspaceOut" }, context(w, currentRect(w), direction)), "workspacesOut", () => {
+      if (state.ws !== from) { w.visible = false; w.el.hidden = true; }
+    });
+  }
+  state.ws = to;
+  document.querySelectorAll(".bar .ws").forEach((el) => el.classList.toggle("on", Number(el.dataset.ws) === to));
+  const list = state.workspaces[to];
+  const rects = dwindle(list.length, VISIBLE);
+  focus(list.length ? list[list.length - 1] : null);
+  list.forEach((id, i) => {
+    const w = wins.get(id);
+    w.rect = rects[i];
+    w.visible = true;
+    w.el.hidden = false;
+    play(w, track(state.settings, { type: "workspaceIn" }, context(w, w.rect, direction)), "workspacesIn");
+  });
+}
+function toggleScratchpad() {
+  if (!state.scratch) state.scratch = makeWindow(-1, { app: "Ghostty", title: "scratchpad", kind: "term" });
+  const w = state.scratch;
+  w.rect = scratchRect();
+  if (!state.scratchShown) {
+    state.scratchShown = true;
+    w.visible = true;
+    w.el.hidden = false;
+    w.el.style.zIndex = 1;
+    focus(w.id);
+    play(w, track(state.settings, { type: "specialIn" }, context(w, w.rect, -1)), "specialWorkspaceIn");
+  } else {
+    state.scratchShown = false;
+    const list = state.workspaces[state.ws];
+    focus(list.length ? list[list.length - 1] : null);
+    play(w, track(state.settings, { type: "specialOut" }, context(w, currentRect(w), -1)), "specialWorkspaceOut", () => {
+      if (!state.scratchShown) { w.visible = false; w.el.hidden = true; }
+    });
+  }
+}
+function swapWindows() {
+  const list = state.workspaces[state.ws];
+  if (list.length < 2) { openWindow(); return; }
+  const a = 0, b = list.length - 1;
+  [list[a], list[b]] = [list[b], list[a]];
+  relayout(state.ws, null);
+}
+
+// rendering, on the simulation clock (slow motion slows everything)
+const pad2 = (n) => String(n).padStart(2, "0");
+let lastFrame = performance.now();
+function frame(now) {
+  const dt = Math.min(64, now - lastFrame);
+  lastFrame = now;
+  state.clock += dt * state.speed;
+  for (const w of wins.values()) {
+    if (!w.visible) continue;
+    let rect = w.rect;
+    let alpha = state.focus === w.id ? ACTIVE_OPACITY : INACTIVE_OPACITY;
+    let brightness = 0;
+    if (w.track) {
+      const s = playback(w.track, state.clock - w.trackStart, w.rect);
+      if (s.rect) rect = s.rect;
+      if (s.alpha !== null) alpha = s.alpha;
+      if (s.brightness !== null) brightness = s.brightness;
+      if (s.done) {
+        const cb = w.onDone;
+        w.track = null;
+        w.onDone = null;
+        if (cb) cb();
+        if (!w.visible) continue;
+      }
+    }
+    const r = w.rect;
+    w.el.style.left = r.x + "px";
+    w.el.style.top = r.y + "px";
+    w.el.style.width = r.w + "px";
+    w.el.style.height = r.h + "px";
+    w.el.style.transform = `translate(${rect.x - r.x}px, ${rect.y - r.y}px) scale(${rect.w / r.w}, ${rect.h / r.h})`;
+    w.el.style.opacity = alpha;
+    w.glow.style.background = brightness >= 0 ? "#fff" : "#000";
+    w.glow.style.opacity = Math.abs(brightness);
+    w.el.classList.toggle("focused", state.focus === w.id && !w.track);
+  }
+  drawOverlays();
+  drawChart();
+  runScript();
+  const minutes = 9 * 60 + 42 + Math.floor(state.clock / 60000);
+  document.getElementById("clock").textContent = `${pad2(Math.floor(minutes / 60) % 24)}:${pad2(minutes % 60)}`;
+  requestAnimationFrame(frame);
+}
+
+// CyberspaceOverlay: neon frame tracing itself, a scan line, a fading grid
+function roundedRectPath(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawOverlays() {
+  fx.clearRect(0, 0, 1600, 1000);
+  for (let i = overlays.length - 1; i >= 0; i--) {
+    const o = overlays[i];
+    const p = (state.clock - o.start) / o.ms;
+    if (p >= 1) { overlays.splice(i, 1); continue; }
+    if (p < 0) continue;
+    const fade = p < 0.1 ? p / 0.1 : p > 0.7 ? (1 - p) / 0.3 : 1;
+    const m = 6, x = o.rect.x - m, y = o.rect.y - m, w = o.rect.w + 2 * m, h = o.rect.h + 2 * m;
+    const perimeter = 2 * (w + h);
+    const drawn = o.leaving ? 1 - p : Math.min(1, p / 0.35);
+    fx.save();
+    fx.globalAlpha = fade;
+    // grid
+    fx.strokeStyle = state.neon;
+    fx.globalAlpha = fade * 0.16 * (1 - p);
+    fx.lineWidth = 1;
+    fx.beginPath();
+    for (let gx = x + 48; gx < x + w; gx += 48) { fx.moveTo(gx, y); fx.lineTo(gx, y + h); }
+    for (let gy = y + 48; gy < y + h; gy += 48) { fx.moveTo(x, gy); fx.lineTo(x + w, gy); }
+    fx.stroke();
+    // frame
+    fx.globalAlpha = fade;
+    fx.shadowColor = state.neon;
+    fx.shadowBlur = 14;
+    fx.lineWidth = 2.5;
+    fx.setLineDash([perimeter * drawn, perimeter]);
+    roundedRectPath(fx, x, y, w, h, 10);
+    fx.stroke();
+    fx.setLineDash([]);
+    // scan line
+    const sp = o.leaving ? clamp(p / 0.6, 0, 1) : clamp((p - 0.15) / 0.6, 0, 1);
+    if (sp > 0 && sp < 1) {
+      const sy = o.leaving ? y + h - sp * h : y + sp * h;
+      const g = fx.createLinearGradient(0, sy - 14, 0, sy + 14);
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(0.5, state.neon);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      fx.fillStyle = g;
+      fx.globalAlpha = fade * 0.65;
+      fx.fillRect(x, sy - 14, w, 28);
+    }
+    fx.restore();
+  }
+}
+
+// last track panel
+let shown = null;
+function showTrack(tr, label) {
+  shown = { tr, label, start: state.clock };
+  const ch = [tr.channels & 1 ? "cadre" : null, tr.channels & 2 ? "opacité" : null, tr.channels & 4 ? "luminosité" : null].filter(Boolean).join(" + ");
+  const modes = ["enter (sur le cadre réel)", "leave (retour au cadre réel)", "hold (reste à la fin)"];
+  const cmd = payloadCommand(tr);
+  document.getElementById("track-info").innerHTML =
+    `<dt>Nœud</dt><dd>${label}</dd><dt>Style</dt><dd>${styleName(tr.style)}</dd>` +
+    `<dt>Durée</dt><dd>${Math.round(tr.durationMs)} ms</dd><dt>Échantillons</dt><dd>${tr.samples.length}</dd>` +
+    `<dt>Mode</dt><dd>${modes[tr.mode]}</dd><dt>Canaux</dt><dd>${ch}</dd><dt>Taille</dt><dd>${cmd.length} octets</dd>`;
+  document.getElementById("cmd").textContent = cmd.length > 420 ? cmd.slice(0, 420) + " …" : cmd;
+  document.getElementById("cmd").dataset.full = cmd;
+}
+const chart = document.getElementById("chart").getContext("2d");
+function drawChart() {
+  const W = 620, H = 180;
+  chart.clearRect(0, 0, W, H);
+  if (!shown) return;
+  const { tr } = shown;
+  const n = tr.samples.length, maxH = Math.max(...tr.samples.map((s) => s.rect.h));
+  const X = (i) => 10 + (W - 20) * i / (n - 1);
+  const Y = (v, lo, hi) => H - 12 - (H - 24) * (v - lo) / (hi - lo);
+  chart.strokeStyle = "rgba(133,146,168,0.25)";
+  chart.lineWidth = 1;
+  chart.beginPath();
+  for (const v of [0, 0.5, 1]) { chart.moveTo(10, Y(v, 0, 1)); chart.lineTo(W - 10, Y(v, 0, 1)); }
+  chart.stroke();
+  const line = (color, get, lo, hi, width) => {
+    chart.strokeStyle = color;
+    chart.lineWidth = width;
+    chart.beginPath();
+    tr.samples.forEach((s, i) => (i ? chart.lineTo(X(i), Y(get(s), lo, hi)) : chart.moveTo(X(i), Y(get(s), lo, hi))));
+    chart.stroke();
+  };
+  line("#8592a8", (s) => s.rect.h / maxH, 0, 1, 2);
+  line("#ff5fd2", (s) => s.brightness, -1, 1, 2.5);
+  line("#3ee6ff", (s) => s.alpha, 0, 1, 2.5);
+  const p = clamp((state.clock - shown.start) / tr.durationMs, 0, 1);
+  chart.strokeStyle = "#dbe3f0";
+  chart.lineWidth = 1.5;
+  chart.beginPath();
+  chart.moveTo(10 + (W - 20) * p, 6);
+  chart.lineTo(10 + (W - 20) * p, H - 6);
+  chart.stroke();
+}
+
+// automatic demo, on the simulation clock
+const SCRIPT = [["open", 1600], ["open", 1600], ["next", 2000], ["open", 1700], ["prev", 2000], ["scratch", 1700], ["scratch", 1600], ["swap", 1500], ["close", 1700], ["next", 2000], ["next", 2000], ["close", 1600], ["prev", 2000]];
+let scriptIndex = 0, scriptAt = 900;
+function runScript() {
+  if (!document.getElementById("autoplay").checked) { scriptAt = state.clock + 600; return; }
+  if (state.clock < scriptAt) return;
+  const [event, wait] = SCRIPT[scriptIndex % SCRIPT.length];
+  scriptIndex++;
+  scriptAt = state.clock + wait;
+  run(event);
+}
+function run(event) {
+  ({ open: openWindow, close: closeWindow, next: () => switchWorkspace(1), prev: () => switchWorkspace(-1), scratch: toggleScratchpad, swap: swapWindows })[event]();
+}
+
+// controls
+function setStyle(style) {
+  state.styleLabel = style;
+  state.settings = styleSettings(style);
+  document.getElementById("preset").value = "";
+  document.querySelectorAll("#styles .chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.style === style)));
+}
+function setPreset(name) {
+  if (!name) { setStyle(state.styleLabel); return; }
+  const [bezier, animation] = PRESETS[name];
+  state.settings = parseSettings(bezier, animation).settings;
+  document.querySelectorAll("#styles .chip").forEach((b) => b.setAttribute("aria-pressed", "false"));
+}
+document.querySelectorAll("#styles .chip").forEach((b) => b.addEventListener("click", () => setStyle(b.dataset.style)));
+document.getElementById("preset").addEventListener("change", (e) => setPreset(e.target.value));
+const manual = (fn) => () => { document.getElementById("autoplay").checked = false; fn(); };
+document.getElementById("ev-open").addEventListener("click", manual(openWindow));
+document.getElementById("ev-close").addEventListener("click", manual(closeWindow));
+document.getElementById("ev-next").addEventListener("click", manual(() => switchWorkspace(1)));
+document.getElementById("ev-prev").addEventListener("click", manual(() => switchWorkspace(-1)));
+document.getElementById("ev-scratch").addEventListener("click", manual(toggleScratchpad));
+document.getElementById("ev-swap").addEventListener("click", manual(swapWindows));
+document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
+  state.speed = Number(b.dataset.speed);
+  document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+}));
+document.querySelectorAll(".swatch").forEach((b) => b.addEventListener("click", () => {
+  state.neon = b.dataset.color;
+  document.querySelectorAll(".swatch").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+}));
+document.getElementById("neighbour-toggle").addEventListener("change", (e) => {
+  state.neighbour = e.target.checked;
+  document.getElementById("neighbour").hidden = !state.neighbour;
+});
+document.getElementById("copy").addEventListener("click", async () => {
+  const pre = document.getElementById("cmd");
+  try {
+    await navigator.clipboard.writeText(pre.dataset.full || pre.textContent);
+    document.getElementById("copy").textContent = "Copié";
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(pre);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.getElementById("copy").textContent = "Sélectionné";
+  }
+  setTimeout(() => { document.getElementById("copy").textContent = "Copier"; }, 1400);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest("select, input")) return;
+  const map = { o: openWindow, q: closeWindow, s: toggleScratchpad, x: swapWindows, ArrowRight: () => switchWorkspace(1), ArrowLeft: () => switchWorkspace(-1) };
+  const fn = map[e.key];
+  if (fn) { e.preventDefault(); manual(fn)(); }
+});
+
+// fit the 1600 x 1000 stage into the screen
+const screenEl = document.getElementById("screen"), stage = document.getElementById("stage");
+const fit = () => { stage.style.transform = `scale(${screenEl.clientWidth / 1600})`; };
+new ResizeObserver(fit).observe(screenEl);
+fit();
+
+// a realistic start: three workspaces with their windows, the first one shown
+setStyle("cyberspace");
+const seed = [[APPS[0], APPS[1], APPS[2]], [APPS[3], APPS[4]], [APPS[5], APPS[6], APPS[7]]];
+appCursor = 3;
+seed.forEach((apps, ws) => {
+  for (const spec of apps) state.workspaces[ws].push(makeWindow(ws, spec).id);
+  dwindle(apps.length, VISIBLE).forEach((r, i) => { wins.get(state.workspaces[ws][i]).rect = r; });
+});
+for (const id of state.workspaces[0]) { const w = wins.get(id); w.visible = true; w.el.hidden = false; }
+focus(state.workspaces[0][0]);
+if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) document.getElementById("autoplay").checked = false;
+requestAnimationFrame((t) => { lastFrame = t; frame(t); });
+</script>
+</body>
+</html>
