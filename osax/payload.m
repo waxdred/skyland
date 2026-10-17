@@ -23,6 +23,17 @@
 //   dim <wid> <amount> [<ms> <x1> <y1> <x2> <y2> <from>]
 //       darken the window, 0 = normal, 1 = black (SLSSetWindowListBrightness, negative
 //       brightness); with a duration, stepped from <from> along the bezier like fade.
+//   track <wid> <ms> <mode> <channels> <n> (<x> <y> <w> <h> <alpha> <brightness>) * n
+//       play a sampled animation (SkylandAnimation styles, Sources/SkylandAnimation):
+//       n samples evenly spaced over <ms>, linear in between (the curve is in the
+//       samples). channels: 1 frame, 2 alpha, 4 brightness (-1 black .. 1 white),
+//       added up. mode 0: the rects are mapped onto the window's real frame through
+//       the last one (the frame the track ends at: the app may apply a slightly
+//       different one), back to the real frame at the end; 1: screen rects, back to
+//       the real frame at the end (window moved away, workspace switched); 2: screen
+//       rects, stays at the last one (window being closed). A later fade / alpha,
+//       dim, animate / untransform takes its channel over, the track goes on with
+//       the others.
 //
 // Signatures from REA decompilation of SkyLight on macOS 15.6.1 (24G90),
 // see vault note "SkyLight private API recon".
@@ -69,7 +80,10 @@ extern void SLSTransactionSetWindowBrightness(CFTypeRef t, uint32_t wid, float b
 // The display link only runs while the table is not empty.
 // ponytail: one display link (the main display's); windows on another display with
 // a different refresh rate are stepped at the main display's rate.
-enum anim_kind { ANIM_FRAME, ANIM_ALPHA, ANIM_DIM };
+enum anim_kind { ANIM_FRAME, ANIM_ALPHA, ANIM_DIM, ANIM_TRACK };
+enum { TRACK_FRAME = 1, TRACK_ALPHA = 2, TRACK_BRIGHTNESS = 4 };
+enum { TRACK_ENTER = 0, TRACK_LEAVE = 1, TRACK_HOLD = 2 };
+#define MAX_TRACK_SAMPLES 240
 struct anim {
     int used;
     enum anim_kind kind;
@@ -80,6 +94,8 @@ struct anim {
     CGRect from, to;       // ANIM_FRAME: visual rects
     int has_to, hold;
     float value_from, value_to; // ANIM_ALPHA / ANIM_DIM
+    float *samples;        // ANIM_TRACK: nsamples * (x, y, w, h, alpha, brightness), owned
+    int nsamples, mode, channels;
 };
 #define MAX_ANIMS 256
 static struct anim anims[MAX_ANIMS];
@@ -87,6 +103,14 @@ static pthread_mutex_t anim_lock = PTHREAD_MUTEX_INITIALIZER;
 static CVDisplayLinkRef display_link;
 static int display_link_running; // only touched on link_queue
 static dispatch_queue_t link_queue; // serializes CVDisplayLinkStart / Stop
+
+// Frees a slot (and the samples of a track). Called with anim_lock held.
+static void release_anim(struct anim *a)
+{
+    free(a->samples);
+    a->samples = NULL;
+    a->used = 0;
+}
 
 static double now_ms(void)
 {
@@ -119,12 +143,28 @@ static void set_alpha(CFTypeRef t, int cid, uint32_t wid, float alpha)
     else SLSSetWindowAlpha(cid, wid, alpha);
 }
 
+// brightness -1 (black) .. 0 (normal) .. 1 (white)
+static void set_brightness(CFTypeRef t, int cid, uint32_t wid, float brightness)
+{
+    if (t && SLSTransactionSetWindowBrightness) SLSTransactionSetWindowBrightness(t, wid, brightness);
+    else SLSSetWindowListBrightness(cid, &wid, &brightness, 1);
+}
+
 // dim amount 0 (normal) .. 1 (black) = brightness 0 .. -1
 static void set_dim(CFTypeRef t, int cid, uint32_t wid, float amount)
 {
-    float brightness = -amount;
-    if (t && SLSTransactionSetWindowBrightness) SLSTransactionSetWindowBrightness(t, wid, brightness);
-    else SLSSetWindowListBrightness(cid, &wid, &brightness, 1);
+    set_brightness(t, cid, wid, -amount);
+}
+
+static float clampf(float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+// A track rect mapped onto the window's real frame through the track's last rect
+// (the frame it ends at): the app may have applied a slightly different frame.
+static CGRect onto_real(CGRect v, const float *end, CGRect real)
+{
+    double sx = real.size.width / end[2], sy = real.size.height / end[3];
+    return CGRectMake(real.origin.x + (v.origin.x - end[0]) * sx, real.origin.y + (v.origin.y - end[1]) * sy,
+                      v.size.width * sx, v.size.height * sy);
 }
 
 static void stop_link_if_idle(void)
@@ -161,7 +201,7 @@ static CVReturn step(CVDisplayLinkRef link, const CVTimeStamp *now, const CVTime
         // after it starts the animation), then every 4th frame, which also notices
         // a window that is gone
         if (t_now - a->start < 200 || a->frames % 4 == 0) {
-            if (SLSGetWindowBounds(cid, a->wid, &a->real) != kCGErrorSuccess) { a->used = 0; continue; }
+            if (SLSGetWindowBounds(cid, a->wid, &a->real) != kCGErrorSuccess) { release_anim(a); continue; }
         }
         a->frames++;
         double x = (t_now - a->start) / a->ms;
@@ -172,7 +212,7 @@ static CVReturn step(CVDisplayLinkRef link, const CVTimeStamp *now, const CVTime
                     set_transform(t, cid, a->wid, a->hold
                         ? transform_showing(a->real, a->to) // closing window: stays small
                         : CGAffineTransformMakeTranslation(-a->real.origin.x, -a->real.origin.y));
-                    a->used = 0;
+                    release_anim(a);
                     break;
                 }
                 CGRect to = a->has_to ? a->to : a->real;
@@ -188,7 +228,31 @@ static CVReturn step(CVDisplayLinkRef link, const CVTimeStamp *now, const CVTime
             case ANIM_DIM: {
                 float value = a->value_from + (a->value_to - a->value_from) * (float) p;
                 if (a->kind == ANIM_ALPHA) set_alpha(t, cid, a->wid, value); else set_dim(t, cid, a->wid, value);
-                if (x >= 1) a->used = 0;
+                if (x >= 1) release_anim(a);
+                break;
+            }
+            case ANIM_TRACK: {
+                // the two samples around now, linear in between
+                int last = a->nsamples - 1;
+                double pos = (x >= 1 ? 1 : x < 0 ? 0 : x) * last;
+                int i = pos >= last ? last - 1 : (int) pos;
+                double f = pos - i;
+                const float *s = a->samples + 6 * i, *n = s + 6;
+                CGRect v = CGRectMake(s[0] + (n[0] - s[0]) * f, s[1] + (n[1] - s[1]) * f,
+                                      s[2] + (n[2] - s[2]) * f, s[3] + (n[3] - s[3]) * f);
+                if (a->channels & TRACK_FRAME) {
+                    if (a->mode == TRACK_ENTER) v = onto_real(v, a->samples + 6 * last, a->real);
+                    if (x >= 1 && a->mode != TRACK_HOLD) {
+                        set_transform(t, cid, a->wid, CGAffineTransformMakeTranslation(-a->real.origin.x, -a->real.origin.y));
+                    } else if (v.size.width >= 1 && v.size.height >= 1) {
+                        set_transform(t, cid, a->wid, transform_showing(a->real, v));
+                    }
+                }
+                if (a->channels & TRACK_ALPHA) set_alpha(t, cid, a->wid, clampf(s[4] + (n[4] - s[4]) * (float) f, 0, 1));
+                if (a->channels & TRACK_BRIGHTNESS) {
+                    set_brightness(t, cid, a->wid, clampf(s[5] + (n[5] - s[5]) * (float) f, -1, 1));
+                }
+                if (x >= 1) release_anim(a);
                 break;
             }
         }
@@ -211,7 +275,10 @@ static const char *add_anim(struct anim a)
         if (anims[i].used && anims[i].kind == a.kind && anims[i].wid == a.wid) { slot = &anims[i]; break; }
         if (!anims[i].used && !slot) slot = &anims[i];
     }
-    if (slot) *slot = a;
+    if (slot) {
+        release_anim(slot); // the samples of a track it replaces
+        *slot = a;
+    }
     pthread_mutex_unlock(&anim_lock);
     if (!slot) return "err too many animations\n";
     start_link();
@@ -222,7 +289,21 @@ static void cancel_anim(enum anim_kind kind, uint32_t wid)
 {
     pthread_mutex_lock(&anim_lock);
     for (int i = 0; i < MAX_ANIMS; i++) {
-        if (anims[i].used && anims[i].kind == kind && anims[i].wid == wid) anims[i].used = 0;
+        if (anims[i].used && anims[i].kind == kind && anims[i].wid == wid) release_anim(&anims[i]);
+    }
+    pthread_mutex_unlock(&anim_lock);
+}
+
+// A command for a channel a running track drives takes it over: the track goes on
+// with its other channels (an `alpha` during a track: the track keeps the frame).
+static void strip_track(uint32_t wid, int channels)
+{
+    pthread_mutex_lock(&anim_lock);
+    for (int i = 0; i < MAX_ANIMS; i++) {
+        struct anim *a = &anims[i];
+        if (!a->used || a->kind != ANIM_TRACK || a->wid != wid) continue;
+        a->channels &= ~channels;
+        if (!a->channels) release_anim(a);
     }
     pthread_mutex_unlock(&anim_lock);
 }
@@ -231,6 +312,7 @@ static const char *start_fade(uint32_t wid, double *args, int argc)
 {
     if (args[0] < 0 || args[0] > 1 || args[1] <= 0) return "err bad alpha or duration\n";
     if (argc == 7 && (args[6] < 0 || args[6] > 1)) return "err bad start alpha\n";
+    strip_track(wid, TRACK_ALPHA);
     float from = 1;
     if (argc == 7) from = (float) args[6];
     else SLSGetWindowAlpha(SLSMainConnectionID(), wid, &from);
@@ -243,6 +325,7 @@ static const char *start_fade(uint32_t wid, double *args, int argc)
 static const char *start_dim(uint32_t wid, double *args, int argc)
 {
     if (args[0] < 0 || args[0] > 1) return "err bad amount\n";
+    strip_track(wid, TRACK_BRIGHTNESS);
     if (argc == 1) {
         cancel_anim(ANIM_DIM, wid); // stops a running dim fade
         set_dim(NULL, SLSMainConnectionID(), wid, (float) args[0]);
@@ -259,6 +342,7 @@ static const char *start_animation(uint32_t wid, double *args, int argc)
 {
     if (args[2] < 1 || args[3] < 1 || args[4] <= 0) return "err bad rect or duration\n";
     if (argc >= 13 && (args[11] < 1 || args[12] < 1)) return "err bad target rect\n";
+    strip_track(wid, TRACK_FRAME);
     return add_anim((struct anim) {
         .kind = ANIM_FRAME, .wid = wid, .from = CGRectMake(args[0], args[1], args[2], args[3]),
         .ms = args[4], .x1 = args[5], .y1 = args[6], .x2 = args[7], .y2 = args[8],
@@ -267,16 +351,56 @@ static const char *start_animation(uint32_t wid, double *args, int argc)
     });
 }
 
+// track <wid> <ms> <mode> <channels> <n> <samples...>, see the protocol at the top
+static const char *start_track(uint32_t wid, char **save)
+{
+    double head[4];
+    for (int i = 0; i < 4; i++) {
+        char *tok = strtok_r(NULL, " \n", save);
+        if (!tok) return "err bad argument count\n";
+        head[i] = strtod(tok, NULL);
+    }
+    // checked as doubles: casting an out of range double to int is undefined
+    if (!(head[0] > 0 && head[0] < 60000) || !(head[1] >= TRACK_ENTER && head[1] <= TRACK_HOLD)
+        || !(head[2] >= 1 && head[2] <= 7) || !(head[3] >= 2 && head[3] <= MAX_TRACK_SAMPLES)) {
+        return "err bad track header\n";
+    }
+    double ms = head[0];
+    int mode = (int) head[1], channels = (int) head[2], n = (int) head[3];
+    float *samples = malloc(sizeof(float) * 6 * (size_t) n);
+    if (!samples) return "err oom\n";
+    for (int i = 0; i < 6 * n; i++) {
+        char *tok = strtok_r(NULL, " \n", save);
+        if (!tok) { free(samples); return "err bad argument count\n"; }
+        samples[i] = strtof(tok, NULL);
+        if (!isfinite(samples[i])) { free(samples); return "err bad sample\n"; }
+    }
+    if (strtok_r(NULL, " \n", save)) { free(samples); return "err bad argument count\n"; }
+    const float *end = samples + 6 * (n - 1);
+    if (mode == TRACK_ENTER && (end[2] < 1 || end[3] < 1)) { free(samples); return "err bad end rect\n"; }
+    // the track owns what it drives: the window's other animations of it stop
+    if (channels & TRACK_FRAME) cancel_anim(ANIM_FRAME, wid);
+    if (channels & TRACK_ALPHA) cancel_anim(ANIM_ALPHA, wid);
+    if (channels & TRACK_BRIGHTNESS) cancel_anim(ANIM_DIM, wid);
+    const char *reply = add_anim((struct anim) {
+        .kind = ANIM_TRACK, .wid = wid, .ms = ms, .x1 = 0, .y1 = 0, .x2 = 1, .y2 = 1,
+        .samples = samples, .nsamples = n, .mode = mode, .channels = channels,
+    });
+    if (strcmp(reply, "ok\n") != 0) free(samples); // not in the table
+    return reply;
+}
+
 static const char *handle(char *line)
 {
     char *save = NULL;
     char *cmd = strtok_r(line, " \n", &save);
     if (!cmd) return "err empty\n";
-    if (strcmp(cmd, "ping") == 0) return "ok fade close layer modal dim vsync batch\n";
+    if (strcmp(cmd, "ping") == 0) return "ok fade close layer modal dim vsync batch track\n";
 
     char *wid_str = strtok_r(NULL, " \n", &save);
     if (!wid_str) return "err missing wid\n";
     uint32_t wid = (uint32_t) strtoul(wid_str, NULL, 10);
+    if (strcmp(cmd, "track") == 0) return start_track(wid, &save); // more numbers than args[] holds
 
     double args[16];
     int argc = 0;
@@ -293,6 +417,7 @@ static const char *handle(char *line)
     }
     if (strcmp(cmd, "untransform") == 0 && argc == 0) {
         cancel_anim(ANIM_FRAME, wid); // stops a running animation
+        strip_track(wid, TRACK_FRAME);
         CGRect real;
         if (SLSGetWindowBounds(SLSMainConnectionID(), wid, &real) != kCGErrorSuccess) return "err no window\n";
         SLSSetWindowTransform(SLSMainConnectionID(), wid, CGAffineTransformMakeTranslation(-real.origin.x, -real.origin.y));
@@ -320,6 +445,7 @@ static const char *handle(char *line)
         SLSTransactionClearWindowCornerRadius(t, wid);
     } else if (strcmp(cmd, "alpha") == 0 && argc == 1) {
         cancel_anim(ANIM_ALPHA, wid); // stops a running fade
+        strip_track(wid, TRACK_ALPHA);
         SLSTransactionSetWindowAlpha(t, wid, (float) args[0]);
     } else {
         reply = "err bad command or argument count\n";
@@ -345,8 +471,9 @@ static void *serve(void *path)
         int on = 1;
         setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on)); // a client gone early must not kill Dock
         // one or more commands, one per line, one reply per line, until the client
-        // closes its side (an older app sends one line and waits for its reply)
-        char buf[8192];
+        // closes its side (an older app sends one line and waits for its reply).
+        // static: one client at a time, and a track line is up to ~11 KB
+        static char buf[32768];
         size_t len = 0;
         ssize_t n;
         while ((n = read(client, buf + len, sizeof(buf) - 1 - len)) > 0) {
@@ -366,7 +493,9 @@ static void *serve(void *path)
     }
 }
 
+#ifndef SKYLAND_PAYLOAD_TEST
 __attribute__((constructor))
+#endif
 static void load(void)
 {
     link_queue = dispatch_queue_create("skyland-sa display link", DISPATCH_QUEUE_SERIAL);
