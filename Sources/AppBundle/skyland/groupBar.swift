@@ -53,8 +53,10 @@ private func refreshGroupBars() async {
         bars[id] = panel
         // AeroSpace rects: top-left origin on the main screen; AppKit: bottom-left
         let mainHeight = NSScreen.screens.first?.frame.maxY ?? 0
-        panel.setFrame(NSRect(x: rect.topLeftX, y: mainHeight - rect.topLeftY - height, width: rect.width, height: height - 2), display: false)
+        let frame = NSRect(x: rect.topLeftX, y: mainHeight - rect.topLeftY - height, width: rect.width, height: height - 2)
         let view = panel.contentView as! GroupBarView
+        if panel.frame == frame && view.tabs == tabs && panel.isVisible { continue } // nothing to move or redraw
+        panel.setFrame(frame, display: false)
         if view.tabs != tabs { view.tabs = tabs }
         panel.orderFrontRegardless()
     }

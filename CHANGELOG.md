@@ -26,6 +26,10 @@ is also the text of its GitHub release.
   SkyLight transaction: the windows of a workspace switch move together, without
   judder, and one thread instead of one per window. Several payload commands go in
   one connection. Needs `skyland sa build` then `killall Dock; skyland sa load`.
+- Idle: skyland no longer polls the window list all day (the menu bar check runs
+  only while the cursor is near the top of a screen, the system prompt check on app
+  activation and once a second), reads the theme once per change, and decorates
+  once per command: about 0.2% CPU at rest instead of 0.7%.
 
 ## v0.1.9
 
