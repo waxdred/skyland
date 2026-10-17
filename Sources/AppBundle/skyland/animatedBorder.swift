@@ -19,6 +19,10 @@ import QuartzCore
 @MainActor private var borderState = "" // what is on screen: frame, level, colors, settings
 // While windows animate their window server frame is the animated one: no border until then
 @MainActor private var borderPausedUntil = Date.distantPast
+/// Window and frame the border was last drawn around: a frame that changes while the
+/// mouse button is down is a window dragged or resized by the mouse.
+@MainActor private var borderShown: (windowId: UInt32, frame: CGRect)? = nil
+@MainActor private var borderDragMonitor: Any? = nil
 
 /// Hide the border for `ms` (windows animating), then put it back.
 @MainActor
@@ -43,6 +47,24 @@ func updateAnimatedBorder() {
           let window = focus.windowOrNil, !window.isHiddenInCorner, !isHiddenGroupTab(window), !isSmartBorderless(window), !overrides(window.windowId).noBorder,
           let (frame, level) = windowServerFrame(window.windowId)
     else { return hideAnimatedBorder() }
+    // dragged with the mouse (title bar, edges): the border lags behind the window, it
+    // comes back at mouse up (GlobalObserver refresh)
+    if NSEvent.pressedMouseButtons & 1 != 0, let shown = borderShown, shown.windowId == window.windowId, shown.frame != frame {
+        borderWindow?.orderOut(nil)
+        borderState = ""
+        return
+    }
+    borderShown = (window.windowId, frame)
+    // the AX moved events of a title bar drag come ~500 ms late: the first drag events
+    // compare the window server frame, until the border is hidden
+    borderDragMonitor = borderDragMonitor ?? NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { _ in
+        MainActor.assumeIsolated {
+            guard borderWindow?.isVisible == true, let shown = borderShown,
+                  let (frame, _) = windowServerFrame(shown.windowId), frame != shown.frame else { return }
+            borderWindow?.orderOut(nil)
+            borderState = ""
+        }
+    }
     let width = CGFloat(deco.borderWidth)
     let colors = themeBorderColors()
     let state = "\(frame) \(level) \(deco.borderWidth) \(deco.rounding) \(deco.borderRotateMs) \(colors.map(\.hashValue))"

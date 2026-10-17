@@ -16,6 +16,11 @@ is also the text of its GitHub release.
   the Dock payload; the older keys keep skyland's look. Preset choice in the settings
   window. Needs the payload (`skyland sa build`, `killall Dock; skyland sa load`).
 
+**Border**
+- The animated border hides while a window is dragged or resized with the mouse (title
+  bar, edges, or the mouse modifier) instead of lagging behind it, and comes back at
+  mouse up.
+
 **Binding modes**
 - `mode-indicator = 'hud' | 'bar' | 'off'`: a mode other than `main` (Hyprland submap)
   shows its name and keys in a HUD, or in the `skyland.mode` sketchybar item with a

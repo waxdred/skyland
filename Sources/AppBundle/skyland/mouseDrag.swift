@@ -112,7 +112,7 @@ private func handleMouse(_ type: CGEventType, _ location: CGPoint, _ flags: CGEv
             } else {
                 drag.window.setAxFrame(CGPoint(x: r.minX + dx, y: r.minY + dy), nil)
             }
-            updateAnimatedBorder() // the rotating border follows the window
+            hideAnimatedBorder() // it lags behind the window: back with the refresh at mouse up
             // Live feedback only (the tile under the cursor swaps in, the neighbours
             // resize): no refresh session per drag event, one complete refresh at mouse
             // up. A drag event that comes while the previous one is laid out is skipped,
