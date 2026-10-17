@@ -260,6 +260,8 @@ alt-shift-m = 'exec-and-forget skyland-cyberdeck messages' # messages panel, cyb
 alt-shift-d = 'exec-and-forget skyland-cyberdeck hud' # HUD: clock, calendar, connections, system, herdr agents, cyberdeck
 alt-shift-x = 'exec-and-forget skyland-cyberdeck dismiss --all' # dismiss all messages
 alt-tab = 'exec-and-forget skyland lock now' # lock screen (43PR SUPER+Tab, hyprlock)
+alt-backtick = 'switcher next' # window switcher, recent first: hold alt, again moves on, release focuses (hyprswitch)
+alt-shift-backtick = 'switcher prev' # window switcher, backwards
 alt-m = 'exec-and-forget skyland media toggle' # floating media widget
 
 # focus / move / resize (h j k l)

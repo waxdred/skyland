@@ -144,6 +144,7 @@ extension Workspace {
     onFocusChangedRecursionGuard = true
     defer { onFocusChangedRecursionGuard = false }
     if hasFocusChanged {
+        noteRecentWindow(focus.windowOrNil?.windowId)
         _ = await onFocusChanged(.defaultEnv, CmdIoImpl.emptyStdinIgnoringOut, focus)
     }
     if let _prevFocusedWorkspaceName, hasFocusedWorkspaceChanged {

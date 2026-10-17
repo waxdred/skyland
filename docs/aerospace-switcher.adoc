@@ -1,0 +1,40 @@
+= aerospace-switcher(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-switcher
+// tag::purpose[]
+:manpurpose: Window switcher: the windows of every workspace, most recently focused first, with live thumbnails
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace switcher [-h|--help] [next|prev] [--workspace focused|all]
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose} (hyprswitch, `cmd-tab` for windows). Thumbnails need the Screen Recording
+permission (app icons otherwise) and are freed when the switcher closes.
+
+`next` / `prev` bound with a modifier (`alt-backtick = 'switcher next'`) works like
+`cmd-tab`: the switcher opens on the previous window, each press of the binding moves on,
+releasing the modifier focuses the selection.
+
+`switcher` alone stays open: type to filter by app or title, arrows, tab / shift-tab or
+ctrl-h/j/k/l to move, enter or a click to focus, esc to cancel. Run again, it closes.
+
+Picking a window on another workspace switches to that workspace.
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+--workspace focused|all::
+Windows of the focused workspace only, or of every workspace (default).
+
+// end::body[]
