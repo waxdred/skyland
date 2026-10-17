@@ -45,6 +45,13 @@ for i in $(seq 1 12); do
             click_script="$CLI workspace $i"
         "${move[@]}")
 done
+# active binding mode (mode-indicator = 'bar'): shown by skyland while a mode other
+# than main is active; skyland_mode (MODE=<name>, "" back in main) for your own items
+args+=(--add event skyland_mode --remove skyland.mode --add item skyland.mode left
+    --set skyland.mode drawing=off icon.drawing=off label.font="Hack Nerd Font:Bold:13.0"
+        label.color=$MAUVE label.padding_left=8 label.padding_right=8
+        background.color=$SURFACE0 background.border_color=$MAUVE background.border_width=1
+        background.corner_radius=8 background.height=26)
 # skyland's icon (resources/Skyland.icns) on the left: replaces the Apple logo
 # item of your sketchybarrc if it has one (its click is kept), else a new item
 logo=(icon.drawing=off background.image=app.com.waxdred.skyland background.image.scale=0.8

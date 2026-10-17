@@ -46,6 +46,7 @@ struct Config: ConvenienceMutable {
     var masterRatio: Int = 55 // skyland: master width in percent (Hyprland master:mfact)
     var masterOrientation: String = "left" // skyland: left | center | auto (center on ultrawide screens)
     var mouseModifier: String = "" // skyland: modifier for move (left drag) / resize (right drag) anywhere on a window
+    var modeIndicator: String = "hud" // skyland: hud | bar | off, shows a binding mode other than main (Hyprland submap)
     var barHeight: Int = 0 // skyland: height of a bar drawn over the menu bar, windows stay below it on every monitor
     var floatingCenterPercent: Int = 0 // skyland: 'layout floating' on a tile resizes it to N% of the monitor, centered
     var defaultRootContainerOrientation: DefaultContainerOrientation = .auto
