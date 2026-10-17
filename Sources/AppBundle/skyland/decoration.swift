@@ -128,9 +128,10 @@ func applyDecorations() {
                 ? "dim \(windowId) \(Double(dim) / 100) \(anim.fadeMs) \(anim.fadeBezier.args) \(Double(from) / 100)"
                 : "dim \(windowId) \(Double(dim) / 100)")
         }
-        if sentRounding[windowId, default: 0] != deco.rounding {
-            sentRounding[windowId] = deco.rounding
-            skylandSa(deco.rounding > 0 ? "corner \(windowId) \(deco.rounding)" : "uncorner \(windowId)")
+        let rounding = isSmartBorderless(window) ? -1 : deco.rounding // -1: square (smart border)
+        if sentRounding[windowId, default: 0] != rounding {
+            sentRounding[windowId] = rounding
+            skylandSa(rounding > 0 ? "corner \(windowId) \(rounding)" : rounding < 0 ? "corner \(windowId) 0" : "uncorner \(windowId)")
         }
     }
     sentOpacity = sentOpacity.filter { alive.contains($0.key) }

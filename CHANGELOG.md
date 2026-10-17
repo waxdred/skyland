@@ -6,10 +6,20 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+**Smart gaps, workspace rules**
+- `smart-gaps` / `smart-border`: a workspace's single tiled window fills the screen
+  below the bar, without border nor rounded corners (Hyprland `w[tv1]` rules, formerly
+  `no_gaps_when_only`); switches in the settings window.
+- `[workspace-rules.<name>]`: `gaps.outer`, `gaps.inner` and `layout = 'master' | 'dwindle'`
+  per workspace.
+
+
 **Pin**
 - New `pin [on|off|toggle]` command (Hyprland `pin`, `alt-ctrl-p`): a floating window
   stays on screen at the same place on every workspace of its monitor (picture in
   picture, a call, a timer), remembered across restarts, `%{window-is-pinned}`.
+
+
 
 **Trackpad**
 - `[gestures] workspace-swipe`: a 3 (or 4) finger swipe switches the screen under the

@@ -8,9 +8,12 @@ func barOverlap(barHeight: Int, menuBarHeight: CGFloat) -> CGFloat {
 
 extension MonitorInfo {
     @MainActor
-    var visibleRectPaddedByOuterGaps: Rect {
+    var visibleRectPaddedByOuterGaps: Rect { visibleRect(paddedBy: ResolvedGaps(gaps: config.gaps, monitor: self)) }
+
+    /// skyland: padded by given gaps (a workspace's, see workspaceRules.swift)
+    @MainActor
+    func visibleRect(paddedBy gaps: ResolvedGaps) -> Rect {
         let topLeft = visibleRect.topLeftCorner
-        let gaps = ResolvedGaps(gaps: config.gaps, monitor: self)
         // skyland: room for a bar taller than this monitor's menu bar (see barOverlap)
         let top = gaps.outer.top.toDouble() + barOverlap(barHeight: config.barHeight, menuBarHeight: visibleRect.topLeftY - rect.topLeftY)
         return Rect(

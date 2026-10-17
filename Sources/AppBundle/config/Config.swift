@@ -68,6 +68,9 @@ struct Config: ConvenienceMutable {
     var decoration: Decoration = Decoration()
     var animations: Animations = Animations()
     var gestures: Gestures = Gestures() // skyland: [gestures], trackpad workspace swipe
+    var smartGaps = false // skyland: no gaps around a workspace's single tiled window
+    var smartBorder = false // skyland: ...nor border / rounding on it
+    var workspaceRules: [String: WorkspaceRule] = [:] // skyland: [workspace-rules.<name>]
     var theme: ThemeConfig = ThemeConfig()
     var wallpaper: WallpaperConfig = WallpaperConfig()
     var lock: LockConfig = LockConfig()

@@ -47,6 +47,10 @@ key-mapping.preset = 'input-source'
 # sketchybar (32px) overlays the macOS menu bar; bar-height keeps windows below it
 # on screens whose menu bar is thinner (external displays, ~24px)
 bar-height = 32
+# a single tiled window on a workspace: no gaps / no border nor rounding on it
+# (Hyprland `workspace = w[tv1], gapsout:0, gapsin:0`); per workspace: [workspace-rules.<name>]
+smart-gaps = false
+smart-border = false
 gaps.inner.horizontal = 4
 gaps.inner.vertical = 4
 gaps.outer.top = 5

@@ -57,6 +57,7 @@ struct ReloadConfigResult {
         syncStartAtLogin()
         syncFocusFollowsMouse(config)
         syncGestures(config) // skyland
+        applyWorkspaceRuleLayouts() // skyland
         syncConfigFileWatcher()
     }
 

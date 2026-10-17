@@ -67,6 +67,16 @@ struct ResolvedGaps {
         let right: Int
     }
 
+    init(inner: Inner, outer: Outer) {
+        self.inner = inner
+        self.outer = outer
+    }
+
+    /// skyland: the same gaps everywhere (smart gaps: 0)
+    init(inner: Int, outer: Int) {
+        self.init(inner: .init(vertical: inner, horizontal: inner), outer: .init(left: outer, bottom: outer, top: outer, right: outer))
+    }
+
     @MainActor init(gaps: Gaps, monitor: any MonitorInfo) {
         inner = .init(
             vertical: gaps.inner.vertical.getValue(for: monitor),
