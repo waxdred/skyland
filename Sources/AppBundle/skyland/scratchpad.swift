@@ -137,6 +137,7 @@ private func animateScratchpad(_ windowId: UInt32, from: Rect, to: Rect?) {
     guard anim.enabled, anim.windowsMs > 0 else { return }
     let target = to.map { " \($0.topLeftX) \($0.topLeftY) \($0.width) \($0.height)" } ?? ""
     skylandSa("animate \(windowId) \(from.topLeftX) \(from.topLeftY) \(from.width) \(from.height) \(anim.windowsMs) \(anim.windowsBezier.args)\(target)")
+    pauseAnimatedBorder(ms: anim.windowsMs) // the window server frame is the sliding one until the end
 }
 
 @MainActor
