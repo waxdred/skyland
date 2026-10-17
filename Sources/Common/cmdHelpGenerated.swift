@@ -203,6 +203,9 @@ let window_rule_help_generated = """
 let pin_help_generated = """
     USAGE: pin [-h|--help] [--window-id <window-id>] [on|off|toggle]
     """
+let switcher_help_generated = """
+    USAGE: switcher [-h|--help] [next|prev] [--workspace focused|all]
+    """
 let scratchpad_help_generated = """
     USAGE: scratchpad [-h|--help] toggle [<name>] [--app <app-bundle-id>]
        OR: scratchpad [-h|--help] move [<name>]

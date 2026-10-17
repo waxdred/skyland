@@ -340,6 +340,7 @@ right, falling back left when fewer screens are plugged).
 | `alt-shift-d` | HUD: clock, calendar, connections, system, herdr agents ([skyland-cyberdeck](https://github.com/waxdred/skyland-cyberdeck)) | |
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |
+| `alt-backtick`, `alt-shift-backtick` | window switcher: recent windows of every workspace with thumbnails; hold alt, press again to move on, release to focus (`switcher` alone: type to filter) | hyprswitch |
 | `alt-m` | media widget | |
 
 ### Window rules
