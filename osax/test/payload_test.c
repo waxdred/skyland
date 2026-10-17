@@ -71,6 +71,19 @@ void SLSTransactionSetWindowAlpha(CFTypeRef t, uint32_t wid, float alpha) { (voi
 CGError SLSSetWindowAlpha(int cid, uint32_t wid, float alpha) { (void) cid; record_alpha(wid, alpha); return 0; }
 CGError SLSGetWindowAlpha(int cid, uint32_t wid, float *alpha) { (void) cid; *alpha = win(wid)->alpha; return 0; }
 CGError SLSSetWindowLevel(int cid, uint32_t wid, int level) { (void) cid; (void) wid; (void) level; return 0; }
+// blur / shadow (#25): not recorded, the tests don't look at them
+CGError SLSSetWindowBackgroundBlurRadius(int cid, uint32_t wid, uint32_t radius) { (void) cid; (void) wid; (void) radius; return 0; }
+CGError SLSGetWindowShadowAndRimParameters(int cid, uint32_t wid, float *sigma, float *density, int *dx, int *dy, int *rim)
+{
+    (void) cid; (void) wid;
+    *sigma = 32.94f; *density = 0.7f; *dx = 0; *dy = 18; *rim = 0;
+    return 0;
+}
+CGError SLSSetWindowShadowAndRimParameters(int cid, uint32_t wid, float sigma, float density, int dx, int dy, int rim)
+{
+    (void) cid; (void) wid; (void) sigma; (void) density; (void) dx; (void) dy; (void) rim;
+    return 0;
+}
 
 CGError SLSGetWindowBounds(int cid, uint32_t wid, CGRect *frame)
 {
