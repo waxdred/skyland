@@ -6,6 +6,11 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+**Pin**
+- New `pin [on|off|toggle]` command (Hyprland `pin`, `alt-ctrl-p`): a floating window
+  stays on screen at the same place on every workspace of its monitor (picture in
+  picture, a call, a timer), remembered across restarts, `%{window-is-pinned}`.
+
 **Trackpad**
 - `[gestures] workspace-swipe`: a 3 (or 4) finger swipe switches the screen under the
   cursor to the previous / next workspace (Hyprland `workspace_swipe`), with distance,
