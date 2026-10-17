@@ -30,6 +30,10 @@ is also the text of its GitHub release.
   only while the cursor is near the top of a screen, the system prompt check on app
   activation and once a second), reads the theme once per change, and decorates
   once per command: about 0.2% CPU at rest instead of 0.7%.
+- Media widget: no work while nothing plays (the 30 fps timer stops once the wave
+  is flat, and while the widget is hidden), the now playing check backs off to 15 s
+  when paused, the artwork is decoded once per track, and the audio analysis no
+  longer wakes the main thread ~100 times a second.
 
 ## v0.1.9
 

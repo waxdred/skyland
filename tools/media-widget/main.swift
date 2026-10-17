@@ -12,6 +12,7 @@
 import Accelerate
 import AppKit
 import CoreImage
+import os
 import ScreenCaptureKit
 
 let exe = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
@@ -794,12 +795,16 @@ struct Biquad {
     }
 }
 
-/// System audio -> band levels (and, with onWave, the signals of the audioware wave).
+/// System audio -> band levels (and, with followsWave, the signals of the audioware wave).
 /// Runs only between start() and stop().
 final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
     static let fftSize = 1024
     let bandCount: Int
-    let onLevels: ([Float]) -> Void // called on the main queue
+    /// The latest band levels and audioware signals: written on the audio queue ~94 and
+    /// ~30 times a second, read by the 30 fps timer (no main queue hop per block)
+    private let latest = OSAllocatedUnfairLock<(levels: [Float], wave: (low: [Float], mid: [Float])?)>(initialState: ([], nil))
+    var levels: [Float] { latest.withLock { $0.levels } }
+    var wave: (low: [Float], mid: [Float])? { latest.withLock { $0.wave } }
     private var stream: SCStream?
     private let queue = DispatchQueue(label: "skyland-media.audio")
     private var samples: [Float] = []
@@ -808,17 +813,18 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
     private var peak: Float = 1e-3 // auto gain, like cava autosens
     private let tilt: Float = 1.5 // music has less energy up high: band gain (1 + band)^tilt, raise for livelier highs
     private var sampleRate: Double = 48000
-    /// The audio low-passed (~180 Hz) and band-passed (~1 kHz), decimated by 8 (6 kHz),
-    /// the last 768 points of each (oldest first), about 30 times a second, on the main
-    /// queue. Set before start().
-    var onWave: (([Float], [Float]) -> Void)?
+    /// Follow the audio low-passed (~180 Hz) and band-passed (~1 kHz), decimated by 8
+    /// (6 kHz), the last 768 points of each (oldest first) in `wave`. Set before start().
+    var followsWave = false
     private var lowFilter = Biquad(lowpass: 180, q: 0.707, rate: 48000), midFilter = Biquad(bandpass: 1000, q: 0.8, rate: 48000)
     private var lowRing = [Float](repeating: 0, count: 768), midRing = [Float](repeating: 0, count: 768), ringIndex = 0
     private var lowSum: Float = 0, midSum: Float = 0, decimation = 0, sinceWave = 0
+    // DFT buffers, allocated once
+    private var even = [Float](repeating: 0, count: fftSize / 2), odd = [Float](repeating: 0, count: fftSize / 2)
+    private var re = [Float](repeating: 0, count: fftSize / 2), im = [Float](repeating: 0, count: fftSize / 2)
 
-    init(bands: Int, onLevels: @escaping ([Float]) -> Void) {
+    init(bands: Int) {
         bandCount = bands
-        self.onLevels = onLevels
     }
 
     func start() {
@@ -854,13 +860,12 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
             let count = Int(list.first!.mDataByteSize) / MemoryLayout<Float>.size
             let chunk = UnsafeBufferPointer(start: data.assumingMemoryBound(to: Float.self), count: count)
             samples.append(contentsOf: chunk)
-            if onWave != nil { follow(chunk) }
+            if followsWave { follow(chunk) }
         }
         while samples.count >= Self.fftSize {
-            let block = Array(samples.prefix(Self.fftSize))
+            let levels = bands(of: samples[..<Self.fftSize])
             samples.removeFirst(Self.fftSize / 2) // 50% overlap
-            let levels = bands(of: block)
-            DispatchQueue.main.async { self.onLevels(levels) }
+            latest.withLock { $0.levels = levels }
         }
     }
 
@@ -877,18 +882,24 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
             lowSum = 0; midSum = 0; decimation = 0
         }
         sinceWave += chunk.count
-        guard sinceWave >= 1600, let onWave else { return } // 30 times a second at 48 kHz
+        guard sinceWave >= 1600 else { return } // 30 times a second at 48 kHz
         sinceWave = 0
         let low = Array(lowRing[ringIndex...] + lowRing[..<ringIndex]), mid = Array(midRing[ringIndex...] + midRing[..<ringIndex])
-        DispatchQueue.main.async { onWave(low, mid) }
+        latest.withLock { $0.wave = (low, mid) }
     }
 
-    private func bands(of block: [Float]) -> [Float] {
+    private func bands(of block: ArraySlice<Float>) -> [Float] {
         let windowed = vDSP.multiply(block, window)
-        // complexReal DFT input: even samples as real, odd samples as imaginary
-        let even = stride(from: 0, to: Self.fftSize, by: 2).map { windowed[$0] }
-        let odd = stride(from: 1, to: Self.fftSize, by: 2).map { windowed[$0] }
-        var re = [Float](repeating: 0, count: Self.fftSize / 2), im = re
+        // complexReal DFT input: even samples as real, odd samples as imaginary (vDSP_ctoz
+        // splits the interleaved pairs into the preallocated buffers)
+        even.withUnsafeMutableBufferPointer { evenBuf in
+            odd.withUnsafeMutableBufferPointer { oddBuf in
+                var split = DSPSplitComplex(realp: evenBuf.baseAddress!, imagp: oddBuf.baseAddress!)
+                windowed.withUnsafeBytes {
+                    vDSP_ctoz($0.bindMemory(to: DSPComplex.self).baseAddress!, 2, &split, 1, vDSP_Length(Self.fftSize / 2))
+                }
+            }
+        }
         dft.transform(inputReal: even, inputImaginary: odd, outputReal: &re, outputImaginary: &im)
         let binHz = sampleRate / Double(Self.fftSize)
         var levels = [Float](repeating: 0, count: bandCount)
@@ -916,12 +927,13 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let progress = Progress()
     var playButton: NSButton!
     var watchdogTicks = 0
+    var frameTimer: Timer?
+    var quietFrames = 0
+    var artworkKey: String? // base64 of the artwork shown: decoded once per track
     let bars = Bars()
     let wave = AudiowareWave(frame: .zero)
     var shownLevels = [Float](repeating: 0, count: 14)
-    var targetLevels = [Float](repeating: 0, count: 14)
-    lazy var audio = AudioBands(bands: 14) { [weak self] levels in self?.targetLevels = levels }
-    var signals: (low: [Float], mid: [Float])? // audioware: the latest filtered signals
+    let audio = AudioBands(bands: 14)
     var buttons: [NSButton] = []
 
     var state: [String: Any] = [:]
@@ -975,7 +987,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
             wave.frame = glass.bounds
             wave.axisFraction = progress.frame.midY / size.height
             glass.addSubview(wave, positioned: .above, relativeTo: tint)
-            audio.onWave = { [weak self] low, mid in self?.signals = (low, mid) }
+            audio.followsWave = true
         } else {
             glass.addSubview(progress)
         }
@@ -993,22 +1005,8 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         playButton = buttons[1]
         bars.frame = NSRect(x: 254, y: 10, width: size.width - 254 - 16, height: 22)
         if !audioware { glass.addSubview(bars) }
-        // 30 fps: rise at once, fall slowly (cava gravity)
-        Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                let playing = self.state["playing"] as? Bool ?? false
-                for i in self.shownLevels.indices {
-                    let target = playing ? self.targetLevels[i] : 0
-                    self.shownLevels[i] = max(target, self.shownLevels[i] * 0.85)
-                }
-                if audioware {
-                    self.wave.advance(levels: self.shownLevels, playing: playing, wave: playing ? self.signals : nil) // silent or paused: flat line
-                } else if self.bars.levels != self.shownLevels {
-                    self.bars.levels = self.shownLevels
-                }
-            }
-        }
+        panel.orderFrontRegardless()
+        startFrames()
 
         applyTheme()
         render()
@@ -1019,11 +1017,49 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
             MainActor.assumeIsolated {
                 self?.updateProgress()
                 self?.applyThemeIfChanged()
-                self?.watchdogTicks += 1
-                if (self?.watchdogTicks ?? 0) % 8 == 0 { self?.checkStream() } // every 4 s
+                guard let self else { return }
+                self.watchdogTicks += 1
+                // every 4 s while playing, every 15 s otherwise (no perl every 4 s all day)
+                if self.watchdogTicks % (self.state["playing"] as? Bool == true ? 8 : 30) == 0 { self.checkStream() }
             }
         }
-        panel.orderFrontRegardless()
+    }
+
+    // MARK: frames
+
+    /// 30 fps while something plays, and 4 s more for the bars and the wave to settle;
+    /// stopped while the panel is hidden (another space, covered).
+    func startFrames() {
+        quietFrames = 0
+        guard frameTimer == nil, panel.occlusionState.contains(.visible) else { return }
+        frameTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.frame() }
+        }
+    }
+
+    func stopFrames() {
+        frameTimer?.invalidate()
+        frameTimer = nil
+    }
+
+    /// One frame: rise at once, fall slowly (cava gravity)
+    func frame() {
+        let playing = state["playing"] as? Bool ?? false
+        let target = playing ? audio.levels : []
+        for i in shownLevels.indices {
+            shownLevels[i] = max(target.indices.contains(i) ? target[i] : 0, shownLevels[i] * 0.85)
+        }
+        if audioware {
+            wave.advance(levels: shownLevels, playing: playing, wave: playing ? audio.wave : nil) // silent or paused: flat line
+        } else if bars.levels != shownLevels {
+            bars.levels = shownLevels
+        }
+        quietFrames = playing ? 0 : quietFrames + 1
+        if quietFrames > 120 { stopFrames() }
+    }
+
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        if panel.occlusionState.contains(.visible) { startFrames() } else { stopFrames() }
     }
 
     // MARK: theme
@@ -1139,13 +1175,18 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         } else {
             source.stringValue = ""
         }
-        if let b64 = state["artworkData"] as? String, let data = Data(base64Encoded: b64) {
-            artwork.image = NSImage(data: data).map(squared) // a 16:9 video thumbnail fills the square
+        if let b64 = state["artworkData"] as? String {
+            if b64 != artworkKey, let data = Data(base64Encoded: b64) { // the stream resends it with every message
+                artworkKey = b64
+                artwork.image = NSImage(data: data).map(squared) // a 16:9 video thumbnail fills the square
+            }
         } else if state["title"] == nil {
+            artworkKey = nil
             artwork.image = NSImage(systemSymbolName: "music.note", accessibilityDescription: nil)
         }
         playButton.image = NSImage(systemSymbolName: playing ? "pause.fill" : "play.fill", accessibilityDescription: nil)
         if playing { audio.start() } else { audio.stop() } // capture only while something plays
+        startFrames() // plays, or settles back to flat
         updateProgress()
     }
 
