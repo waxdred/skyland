@@ -71,7 +71,7 @@ func runLightSession<T>(
         updateFocusCache(nativeFocused)
         let focusBefore = focus.windowOrNil
 
-        await refreshModel_nonCancellable()
+        await refreshModel_nonCancellable(decorate: false) // skyland: decorations once, after the command
         let result = try await body()
         await refreshModel_nonCancellable()
 
@@ -109,7 +109,7 @@ struct RunSessionGuard: Sendable {
 }
 
 @MainActor
-func refreshModel_nonCancellable() async {
+func refreshModel_nonCancellable(decorate: Bool = true) async {
     if refreshSessionEvent?.isFocusFollowsMouse == true {
         await checkOnFocusChangedCallbacks_nonCancellable()
     } else {
@@ -117,6 +117,7 @@ func refreshModel_nonCancellable() async {
         await checkOnFocusChangedCallbacks_nonCancellable()
         normalizeContainers()
     }
+    if !decorate { return }
     applyDecorations()
     saveWorkspaceMemory()
     refreshOverview()

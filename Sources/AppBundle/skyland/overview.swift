@@ -489,12 +489,39 @@ extension Rect {
     fileprivate var args: String { "\(topLeftX) \(topLeftY) \(width) \(height)" }
 }
 
-/// `@define-color key #rrggbb;` of the current skyland theme (~/.cache/skyland/theme.css).
+private let themeCssPath = NSHomeDirectory() + "/.cache/skyland/theme.css"
+@MainActor private var themeCache: [String: NSColor]? = nil
+@MainActor private var themeWatch: DispatchSourceFileSystemObject? = nil
+
+/// `@define-color key #rrggbb;` of the current skyland theme (~/.cache/skyland/theme.css),
+/// read once per change of the file (a watcher drops the cache).
+@MainActor
 func skylandThemeColors() -> [String: NSColor] {
-    let url = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/theme.css")
-    guard let css = try? String(contentsOf: url, encoding: .utf8) else { return [:] }
+    if let themeCache { return themeCache }
+    let colors = readThemeColors()
+    let fd = open(themeCssPath, O_EVTONLY)
+    guard fd >= 0 else { return colors } // no theme file yet: read again next time
+    themeCache = colors
+    let watch = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .extend, .delete, .rename], queue: .main)
+    watch.setEventHandler {
+        MainActor.assumeIsolated { // dropped with the cache, armed again by the next read (the file may be a new one)
+            themeCache = nil
+            themeWatch?.cancel()
+            themeWatch = nil
+        }
+    }
+    watch.setCancelHandler { close(fd) }
+    watch.resume()
+    themeWatch = watch
+    return colors
+}
+
+private let themeColorRegex = try! NSRegularExpression(pattern: #"@define-color\s+([A-Za-z0-9_]+)\s+#([0-9A-Fa-f]{6})\s*;"#)
+
+private func readThemeColors() -> [String: NSColor] {
+    guard let css = try? String(contentsOfFile: themeCssPath, encoding: .utf8) else { return [:] }
     var result: [String: NSColor] = [:]
-    let regex = try! NSRegularExpression(pattern: #"@define-color\s+([A-Za-z0-9_]+)\s+#([0-9A-Fa-f]{6})\s*;"#)
+    let regex = themeColorRegex
     for m in regex.matches(in: css, range: NSRange(css.startIndex..., in: css)) {
         guard let k = Range(m.range(at: 1), in: css), let h = Range(m.range(at: 2), in: css), let v = UInt32(css[h], radix: 16) else { continue }
         result[String(css[k])] = NSColor(srgbRed: CGFloat(v >> 16 & 0xff) / 255, green: CGFloat(v >> 8 & 0xff) / 255, blue: CGFloat(v & 0xff) / 255, alpha: 1)

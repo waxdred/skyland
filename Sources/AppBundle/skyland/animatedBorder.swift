@@ -17,7 +17,6 @@ import QuartzCore
 @MainActor private var borderGradient: CAGradientLayer?
 @MainActor private var borderMask: CAShapeLayer?
 @MainActor private var borderState = "" // what is on screen: frame, level, colors, settings
-@MainActor private var borderColors: (date: Date, colors: [CGColor])?
 // While windows animate their window server frame is the animated one: no border until then
 @MainActor private var borderPausedUntil = Date.distantPast
 
@@ -124,15 +123,10 @@ private func windowServerFrame(_ windowId: UInt32) -> (CGRect, Int)? {
     return (frame, info[kCGWindowLayer as String] as? Int ?? 0)
 }
 
-/// accent -> highlight -> accent of the current theme, read again when theme.css changes.
+/// accent -> highlight -> accent of the current theme (skylandThemeColors caches it).
 @MainActor private func themeBorderColors() -> [CGColor] {
-    let url = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/theme.css")
-    let date = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date) ?? .distantPast
-    if let cached = borderColors, cached.date == date { return cached.colors }
     let theme = skylandThemeColors()
     let accent = theme["accent"] ?? .controlAccentColor
     let highlight = theme["highlight"] ?? accent
-    let colors = [accent.cgColor, highlight.cgColor, accent.cgColor]
-    borderColors = (date, colors)
-    return colors
+    return [accent.cgColor, highlight.cgColor, accent.cgColor]
 }

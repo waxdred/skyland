@@ -106,7 +106,7 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
 struct SettingsColors {
     var accent = Color.accentColor, background = Color.black, text = Color.primary, dim = Color.secondary, dark = true
 
-    static func current() -> SettingsColors {
+    @MainActor static func current() -> SettingsColors {
         let colors = skylandThemeColors()
         let mode = (try? String(contentsOf: FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/theme-mode"), encoding: .utf8)) ?? "dark"
         var result = SettingsColors()

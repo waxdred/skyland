@@ -11,14 +11,19 @@ private let promptOwners: Set<String> = [
     "CoreServicesUIAgent", "LocalAuthenticationRemoteService", "AccessibilityUIServer",
 ]
 
-/// System prompt windows on screen, refreshed every 0.3 s.
+/// System prompt windows on screen: checked when an app becomes active (a prompt
+/// mostly takes the focus) and every second for the ones that don't.
 @MainActor private(set) var systemPromptWindows: Set<UInt32> = []
 @MainActor private var promptTimer: Timer? = nil
 
 @MainActor
 func startSystemPromptWatch() {
     guard promptTimer == nil else { return }
-    promptTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
+    promptTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+        MainActor.assumeIsolated { checkSystemPrompts() }
+    }
+    promptTimer?.tolerance = 0.2 // lets macOS group the wake ups
+    NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { _ in
         MainActor.assumeIsolated { checkSystemPrompts() }
     }
 }
