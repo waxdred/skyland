@@ -6,6 +6,15 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+**Animations**
+- Hyprland's animation system: `[animations] preset = 'hyprland' | 'slide' | 'gnome' |
+  'vertical' | 'cyberspace'`, and `bezier` / `animation` lines pasted from a hyprland.conf
+  (tree with inheritance, named curves, `slide`, `slidevert`, `popin`, `gnomed`, `fade`,
+  `slidefade`, and skyland's `cyberspace` that rezzes windows in through a white-hot scan
+  line). Window open, close, move, workspace and scratchpad switches play as tracks in
+  the Dock payload; the older keys keep skyland's look. Preset choice in the settings
+  window. Needs the payload (`skyland sa build`, `killall Dock; skyland sa load`).
+
 **Shadows**
 - `[decoration] shadow = 'on' | 'off' | 'floating'`: macOS window shadows off, or only on
   floating windows (Hyprland `decoration:shadow`); each window gets its own shadow back

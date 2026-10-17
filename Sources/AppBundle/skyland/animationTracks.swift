@@ -1,0 +1,108 @@
+import AppKit
+import Common
+import SkylandAnimation
+
+// skyland: Hyprland's animation tree (Sources/SkylandAnimation, issue #33): a window event
+// becomes a track (rect, opacity, brightness sampled over the animation) that the Dock
+// payload plays at the display rate (`track`).
+//
+// [animations]
+// enabled = true
+// preset = 'vertical'                  # hyprland | slide | gnome | vertical | cyberspace
+// bezier = ['overshot, 0.05, 0.9, 0.1, 1.05']
+// animation = [                        # hyprland.conf lines, over the preset
+//   'windows, 1, 5, overshot, slide',
+//   'workspaces, 1, 6, default, slidefade 20%',
+// ]
+//
+// Without preset nor lines, the older keys (windows-ms / -bezier, workspaces-*, fade-*) give
+// skyland's look so far: windows pop in from 80%, workspaces slide vertically and fade.
+
+/// The base lines: the preset's, else the older keys.
+private func baseLines(_ a: Animations) -> (bezier: [String], animation: [String]) {
+    if let preset = AnimationPreset.named(a.preset) { return (preset.bezier, preset.animation) }
+    let ds = { (ms: Int) in String(Double(ms) / 100) }
+    let curve = { (name: String, b: Bezier) in "\(name), \(b.x1), \(b.y1), \(b.x2), \(b.y2)" }
+    return (
+        [curve("skylandWindows", a.windowsBezier), curve("skylandWorkspaces", a.workspacesBezier), curve("skylandFade", a.fadeBezier)],
+        [
+            "windows, \(a.windowsMs > 0 ? 1 : 0), \(ds(max(a.windowsMs, 1))), skylandWindows, popin 80%",
+            "workspaces, \(a.workspacesMs > 0 ? 1 : 0), \(ds(max(a.workspacesMs, 1))), skylandWorkspaces, slidefadevert 100%",
+            "fade, \(a.fadeMs > 0 ? 1 : 0), \(ds(max(a.fadeMs, 1))), skylandFade",
+            "specialWorkspace, \(a.windowsMs > 0 ? 1 : 0), \(ds(max(a.windowsMs, 1))), skylandWindows, slidevert",
+        ],
+    )
+}
+
+private func settings(_ a: Animations) -> (settings: AnimationSettings, diagnostics: [AnimationDiagnostic]) {
+    let base = baseLines(a)
+    var (settings, diagnostics) = AnimationSettings.parse(bezier: base.bezier + a.bezier, animation: base.animation + a.animation)
+    settings.enabled = a.enabled
+    return (settings, diagnostics)
+}
+
+/// Config errors of the animation lines (notices about nodes macOS has no use for are left out).
+func animationLineErrors(_ a: Animations) -> [String] {
+    var errors = settings(a).diagnostics.filter(\.isError).map(\.description)
+    if !a.preset.isEmpty && AnimationPreset.named(a.preset) == nil {
+        errors.append("Unknown animation preset '\(a.preset)': \(AnimationPreset.all.map(\.name).joined(separator: " | "))")
+    }
+    return errors
+}
+
+@MainActor private var animatorCache: (key: Animations, animator: WindowAnimator)? = nil
+
+/// The animator of the current config (rebuilt when [animations] changes).
+@MainActor
+var windowAnimator: WindowAnimator {
+    if let cache = animatorCache, cache.key == config.animations { return cache.animator }
+    let animator = WindowAnimator(settings: settings(config.animations).settings)
+    animatorCache = (config.animations, animator)
+    return animator
+}
+
+/// Windows whose opacity / brightness a track drives until the date: the decoration pass
+/// does not fade them meanwhile (it would take the channel over).
+@MainActor private var alphaTracked: [UInt32: Date] = [:]
+@MainActor private var brightnessTracked: [UInt32: Date] = [:]
+@MainActor func isAlphaTracked(_ windowId: UInt32) -> Bool { (alphaTracked[windowId] ?? .distantPast) > .now }
+@MainActor func isBrightnessTracked(_ windowId: UInt32) -> Bool { (brightnessTracked[windowId] ?? .distantPast) > .now }
+
+extension AnimRect {
+    init(_ r: Rect) { self.init(x: r.topLeftX, y: r.topLeftY, width: r.width, height: r.height) }
+}
+
+/// Plays `event` on the window through the payload; nil when it is off (or the payload has
+/// no `track`). `rect`: where the window ends (coming in) or is (leaving); `direction` +1
+/// towards a higher workspace, -1 a lower one (a scratchpad: -1, from the top).
+@MainActor
+@discardableResult
+func playTrack(_ event: WindowEvent, _ window: Window, rect: Rect, direction: Double = 1, mode: WindowTrack.Mode? = nil) -> WindowTrack? {
+    guard config.animations.enabled, payloadCapabilities.contains("track") else { return nil }
+    let monitor = window.nodeWorkspace?.workspaceMonitor ?? mainMonitorInfo
+    let screen = AnimRect(monitor.rect)
+    let deco = config.decoration
+    let opacity = Double(window === focus.windowOrNil ? deco.activeOpacity : deco.inactiveOpacity) / 100
+    let context = WindowContext(windowId: window.windowId, rect: AnimRect(rect), monitor: screen, direction: direction,
+                                opacity: opacity, neighbourEdges: screen.neighbourEdges(among: monitorInfos.map { AnimRect($0.rect) }))
+    let animator = windowAnimator
+    guard var track = animator.track(for: event, context) else { return nil }
+    if let mode { track.mode = mode }
+    skylandSa(track.payloadCommand)
+    let until = Date.now + track.durationMs / 1000
+    if track.channels.contains(.alpha) { alphaTracked[window.windowId] = until }
+    if track.channels.contains(.brightness) { brightnessTracked[window.windowId] = until }
+    if track.channels.contains(.frame) { pauseAnimatedBorder(ms: Int(track.durationMs)) }
+    let style = animator.effectiveStyle(event, animator.settings.resolve(event.node).style, context)
+    if style == .cyberspace {
+        let accent = skylandThemeColors()["accent"]?.cgColor ?? NSColor.controlAccentColor.cgColor
+        CyberspaceOverlay.play(around: context.rect, durationMs: track.durationMs, leaving: event.isLeaving, color: accent,
+                               level: window.isFloating ? Int(CGWindowLevelForKey(.floatingWindow)) : 0, above: window.windowId)
+    }
+    return track
+}
+
+extension CubicBezier {
+    /// The payload's `x1 y1 x2 y2` arguments
+    var args: String { "\(x1) \(y1) \(x2) \(y2)" }
+}

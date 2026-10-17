@@ -67,7 +67,7 @@ if [[ -x "$loader" ]]; then ok "scripting addition installed"; else opt "scripti
 reply="$(echo ping | nc -U -w1 "/tmp/skyland-sa_$(whoami).socket" 2>/dev/null)"
 if [[ "$reply" == ok* ]]; then
     ok "payload loaded in Dock (${reply#ok })"
-    [[ "$reply" == *layer* ]] || opt "old payload (no floating on top)" "skyland sa build && killall Dock && sleep 3 && skyland sa load"
+    [[ "$reply" == *track* ]] || opt "old payload (no animation tracks, floating on top...)" "skyland sa build && killall Dock && sleep 3 && skyland sa load"
 elif [[ -x "$loader" ]]; then
     bad "payload not loaded (after a reboot or killall Dock)" "skyland sa load"
 fi

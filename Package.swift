@@ -56,6 +56,7 @@ let package = Package(
                 .product(name: "TOMLDecoder", package: "TOMLDecoder"),
                 .target(name: "Common"),
                 .target(name: "PrivateApi"),
+                .target(name: "SkylandAnimation"), // skyland: animation styles as payload tracks
             ],
             swiftSettings: swiftSettings,
         ),

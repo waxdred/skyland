@@ -77,6 +77,7 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
     ]),
     ("Animations", [
         SettingField(section: "animations", key: "enabled", label: "Enabled", kind: .bool),
+        SettingField(section: "animations", key: "preset", label: "Preset", kind: .choice(["", "hyprland", "slide", "gnome", "vertical", "cyberspace"])),
         SettingField(section: "animations", key: "windows-ms", label: "Windows", kind: .int(0 ... 1500, step: 50, unit: "ms")),
         SettingField(section: "animations", key: "workspaces-ms", label: "Workspaces", kind: .int(0 ... 1500, step: 50, unit: "ms")),
         SettingField(section: "animations", key: "fade-ms", label: "Fades", kind: .int(0 ... 1500, step: 50, unit: "ms")),

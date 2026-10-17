@@ -1,5 +1,6 @@
 import AppKit
 import Common
+import SkylandAnimation
 
 // Hyprland-like window animations, stepped by the scripting addition with
 // window transforms (see `animate` in osax/payload.m).
@@ -24,6 +25,10 @@ struct Animations: ConvenienceMutable, Equatable, Sendable {
     var workspacesBezier: Bezier = .linear
     var fadeMs: Int = 0
     var fadeBezier: Bezier = .linear
+    // skyland: Hyprland's animation tree (SkylandAnimation, animationTracks.swift)
+    var preset = "" // hyprland | slide | gnome | vertical | cyberspace; '' = from the keys above
+    var bezier: [String] = [] // 'NAME, X0, Y0, X1, Y1', a hyprland.conf `bezier =` line
+    var animation: [String] = [] // 'NAME, ONOFF, SPEED, CURVE [, STYLE]', an `animation =` line
 }
 
 struct Bezier: Equatable, Sendable {
@@ -63,10 +68,15 @@ private let animationsParser: [String: any ParserProtocol<Animations>] = [
     "workspaces-bezier": Parser(\.workspacesBezier, parseBezier),
     "fade-ms": Parser(\.fadeMs, parseInt),
     "fade-bezier": Parser(\.fadeBezier, parseBezier),
+    "preset": Parser(\.preset, parseString),
+    "bezier": Parser(\.bezier, parseArrayOfStrings),
+    "animation": Parser(\.animation, parseArrayOfStrings),
 ]
 
 func parseAnimations(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout ConfigParserContext) -> Animations {
-    parseTable(raw, Animations(), animationsParser, backtrace, &c)
+    let animations = parseTable(raw, Animations(), animationsParser, backtrace, &c)
+    for error in animationLineErrors(animations) { c.errors.append(.init(backtrace, error)) } // bad lines, unknown preset
+    return animations
 }
 
 /// The config parser has no float type, so a curve is written like in Hyprland: "x1, y1, x2, y2".
@@ -121,17 +131,17 @@ func noteShownWorkspace(on monitor: MonitorInfo, _ workspace: Workspace) {
 @MainActor
 func animateSlideOut(_ window: Window, from rect: Rect) {
     let anim = config.animations
-    guard anim.enabled, anim.workspacesMs > 0, window.lastAppliedLayoutPhysicalRect != nil,
-          let workspace = window.nodeWorkspace else { return }
+    guard anim.enabled, window.lastAppliedLayoutPhysicalRect != nil, let workspace = window.nodeWorkspace else { return }
     let monitor = workspace.workspaceMonitor
     if let shown = swipeHandoff.removeValue(forKey: window.windowId) { // a swipe: on from the fingers
         let to = Rect(topLeftX: rect.topLeftX + swipeLeave.x, topLeftY: rect.topLeftY + swipeLeave.y, width: rect.width, height: rect.height)
-        skylandSa("animate \(window.windowId) \(shown.args) \(anim.workspacesMs) \(anim.workspacesBezier.args) \(to.args)")
+        let spec = windowAnimator.settings.resolve(.workspacesOut)
+        guard spec.enabled else { return }
+        skylandSa("animate \(window.windowId) \(shown.args) \(Int(spec.durationMs)) \(spec.curve.args) \(to.args)")
         return
     }
-    let sign = workspaceSlideSign(from: workspace.name, to: monitor.activeWorkspace.name)
-    let to = rect.copy(\.topLeftY, rect.topLeftY - sign * monitor.rect.height)
-    skylandSa("animate \(window.windowId) \(rect.args) \(anim.workspacesMs) \(anim.workspacesBezier.args) \(to.args)")
+    // its workspace is switched away: workspacesOut
+    playTrack(.workspaceOut, window, rect: rect, direction: workspaceSlideSign(from: workspace.name, to: monitor.activeWorkspace.name))
 }
 
 /// Hyprland windowsOut: before skyland closes a window (close command), it
@@ -139,13 +149,8 @@ func animateSlideOut(_ window: Window, from rect: Rect) {
 /// (cmd-w, red button) are gone before skyland knows, so they are not animated.
 @MainActor
 func animateClose(_ window: Window) async {
-    let anim = config.animations
-    guard anim.enabled, anim.windowsMs > 0, payloadCapabilities.contains("close"),
-          let rect = window.lastAppliedLayoutPhysicalRect else { return }
-    let ms = anim.windowsMs, bezier = anim.windowsBezier
-    skylandSa("animate \(window.windowId) \(rect.args) \(ms) \(bezier.args) \(centeredRect(in: rect, percent: 80).args) 1")
-    skylandSa("fade \(window.windowId) 0 \(ms) \(bezier.args)")
-    try? await Task.sleep(for: .milliseconds(ms))
+    guard let rect = window.lastAppliedLayoutPhysicalRect, let track = playTrack(.close, window, rect: rect) else { return }
+    try? await Task.sleep(for: .milliseconds(Int(track.durationMs))) // windowsOut (+ fadeOut), then it closes
 }
 
 /// The app may refuse to close (unsaved changes dialog): give the window back
@@ -175,30 +180,21 @@ func markUnhiddenForAnimation(_ windowId: UInt32) {
 /// is the tile it had before (nil for a window that was never laid out).
 @MainActor
 func animateLayoutChange(_ window: Window, from previous: Rect?, to target: Rect) {
-    let anim = config.animations
-    guard anim.enabled else { return }
-    let from: Rect
-    let ms: Int
-    let bezier: Bezier
+    guard config.animations.enabled else { return }
     if let shown = swipeHandoff.removeValue(forKey: window.windowId) { // a swipe: on from the fingers
         unhiddenWindows.remove(window.windowId)
-        from = shown
-        (ms, bezier) = (anim.workspacesMs, anim.workspacesBezier)
-    } else if unhiddenWindows.remove(window.windowId) != nil {
+        let spec = windowAnimator.settings.resolve(.workspacesIn)
+        guard spec.enabled else { return }
+        skylandSa("animate \(window.windowId) \(shown.args) \(Int(spec.durationMs)) \(spec.curve.args)")
+        pauseAnimatedBorder(ms: Int(spec.durationMs))
+    } else if unhiddenWindows.remove(window.windowId) != nil { // its workspace is shown: workspacesIn
         let monitor = window.nodeWorkspace?.workspaceMonitor ?? mainMonitorInfo
-        let sign = slideSign[monitor.rect.topLeftCorner] ?? 1
-        from = target.copy(\.topLeftY, target.topLeftY + sign * monitor.rect.height)
-        (ms, bezier) = (anim.workspacesMs, anim.workspacesBezier)
-    } else if let previous {
+        playTrack(.workspaceIn, window, rect: target, direction: slideSign[monitor.rect.topLeftCorner] ?? 1)
+    } else if let previous { // moved or resized: windowsMove
         if previous.topLeftX == target.topLeftX && previous.topLeftY == target.topLeftY
             && previous.width == target.width && previous.height == target.height { return }
-        from = previous
-        (ms, bezier) = (anim.windowsMs, anim.windowsBezier)
-    } else {
-        from = centeredRect(in: target, percent: 80) // Hyprland `popin 80%`
-        (ms, bezier) = (anim.windowsMs, anim.windowsBezier)
+        playTrack(.move(from: AnimRect(previous)), window, rect: target)
+    } else { // new window: windowsIn (+ fadeIn)
+        playTrack(.open, window, rect: target)
     }
-    if ms <= 0 { return }
-    skylandSa("animate \(window.windowId) \(from.args) \(ms) \(bezier.args)")
-    pauseAnimatedBorder(ms: ms) // the window server frame is the animated one until the end
 }

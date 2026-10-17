@@ -91,6 +91,12 @@ shadow = 'on' # on | off | floating: only floating windows keep a shadow (Hyprla
 # Hyprland speed is in ds (1 = 100 ms). Needs the payload: skyland-sa build/load.
 [animations]
 enabled = true
+# Hyprland's animation tree (Sources/SkylandAnimation): a preset, and / or hyprland.conf
+# lines over it. Presets: hyprland | slide | gnome | vertical | cyberspace. Without them,
+# the keys below give skyland's look (popin 80%, workspaces slide vertically).
+# preset = 'slide'
+# bezier = ['overshot, 0.05, 0.9, 0.1, 1.05']
+# animation = ['windows, 1, 5, overshot, slide', 'workspaces, 1, 6, default, slidefade 20%']
 windows-ms = 500
 windows-bezier = '0.05, 0.9, 0.1, 1.0'
 workspaces-ms = 600
