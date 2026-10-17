@@ -9,7 +9,7 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 UPDATE="$DIR/update.sh"
-CLI="$(cd "$DIR/../../.." && pwd)/.build/debug/aerospace"
+CLI="$(cd "$DIR/../../.." && pwd)/.build/aerospace"
 
 # Same icons and Catppuccin colors as the sketchybarrc / plugins/space.sh
 ICONS=("󰇧" "󰭻" "󰩃" "󰚩" "" "󰝚" "󰉋" "󰆼" "" "󰘙" "󰀵" "󰆺")

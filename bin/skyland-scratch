@@ -10,7 +10,7 @@
 # A shown scratchpad window made tiling (alt-space) leaves its scratchpad.
 set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
-A() { "$REPO/.build/debug/aerospace" "$@" </dev/null; }
+A() { "$REPO/.build/aerospace" "$@" </dev/null; }
 
 action="${1:-toggle}"; shift || true
 name="" app=""

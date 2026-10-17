@@ -24,6 +24,6 @@ case "${1:-help}" in
             shift
             exec "$script" "$@"
         fi
-        exec "$REPO/.build/debug/aerospace" "$@"
+        exec "$REPO/.build/aerospace" "$@"
         ;;
 esac

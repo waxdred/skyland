@@ -4,11 +4,18 @@
 # Signed with the skyland-codesign identity (bin/skyland-cert) when present, so
 # Accessibility stays granted across rebuilds; falls back to ad-hoc, which must
 # be re-granted after every rebuild. Override with SKYLAND_SIGN_IDENTITY.
+# Release configuration (-O, whole module); `--debug` or SKYLAND_DEBUG=1 for a debug
+# build while developing.
+# usage: skyland-build [--debug]
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")/.."
 
-swiftly run swift build --product AeroSpaceApp
-swiftly run swift build --product aerospace
+cfg=release
+[[ "${1:-}" == --debug || "${SKYLAND_DEBUG:-}" == 1 ]] && cfg=debug
+swiftly run swift build -c $cfg --product AeroSpaceApp
+swiftly run swift build -c $cfg --product aerospace
+bin="$(swiftly run swift build -c $cfg --show-bin-path)"
+cp "$bin/aerospace" .build/aerospace # the CLI every script and sketchybar item calls
 swiftc -O tools/wallpaper-picker.swift -o .build/skyland-wallpaper-picker
 swiftc -O tools/keys-help.swift -o .build/skyland-keys
 # media widget + its now playing backend (git submodule, BSD-3)
@@ -21,7 +28,7 @@ swiftc -O tools/media-widget/main.swift -o .build/skyland-media
 app=.build/Skyland.app
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS"
-cp .build/debug/AeroSpaceApp "$app/Contents/MacOS/"
+cp "$bin/AeroSpaceApp" "$app/Contents/MacOS/"
 # default config read at startup (Bundle.main): a debug build else looks for it
 # in the source tree it was compiled in, which a release zip does not have
 mkdir -p "$app/Contents/Resources"
@@ -45,4 +52,4 @@ EOF
 identity=-
 security find-identity -v -p codesigning | grep -q '"skyland-codesign"' && identity=skyland-codesign
 codesign --force --sign "${SKYLAND_SIGN_IDENTITY:-$identity}" --entitlements resources/AeroSpace.entitlements "$app"
-echo "built $app"
+echo "built $app ($cfg)"
