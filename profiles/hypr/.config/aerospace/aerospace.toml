@@ -220,6 +220,7 @@ alt-f = 'fullscreen --no-outer-gaps' # fullscreen (43PR fullscreen mode 0)
 alt-space = 'layout floating tiling' # float at 70%, centered (43PR SUPER+Space)
 alt-s = 'scratchpad toggle' # scratchpad (Hyprland special workspace)
 alt-shift-s = 'scratchpad move' # send window to the scratchpad
+alt-ctrl-p = 'pin' # pin: a floating window on every workspace (Hyprland pin)
 alt-a = 'scratchpad toggle music --app com.spotify.client' # named scratchpad: Spotify (special:music)
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
 alt-g = 'layout accordion tiles' # togglegroup: the window's container becomes a group of tabs, or tiles again

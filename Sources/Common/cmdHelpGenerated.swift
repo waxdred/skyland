@@ -192,6 +192,9 @@ let group_focus_help_generated = """
 let master_help_generated = """
     USAGE: master [-h|--help] (on|off|toggle|swap|focus)
     """
+let pin_help_generated = """
+    USAGE: pin [-h|--help] [--window-id <window-id>] [on|off|toggle]
+    """
 let scratchpad_help_generated = """
     USAGE: scratchpad [-h|--help] toggle [<name>] [--app <app-bundle-id>]
        OR: scratchpad [-h|--help] move [<name>]

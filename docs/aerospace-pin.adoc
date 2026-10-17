@@ -1,0 +1,34 @@
+= aerospace-pin(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-pin
+// tag::purpose[]
+:manpurpose: Hyprland pin: keep a floating window on screen on every workspace of its monitor
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace pin [-h|--help] [--window-id <window-id>] [on|off|toggle]
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose} (picture in picture, a video call, a timer). Pinning makes the window
+floating; it then goes along with every workspace switch of its monitor, at the same
+place, and stays pinned when moved to another monitor. Unpinned, it stays on the current
+workspace as a normal floating window. Pinned windows are remembered across skyland
+restarts. `%{window-is-pinned}` in `list-windows`.
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+--window-id <window-id>::
+include::./util/window-id-flag-desc.adoc[]
+
+// end::body[]

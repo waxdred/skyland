@@ -113,6 +113,7 @@ func refreshModel_nonCancellable(decorate: Bool = true) async {
     if refreshSessionEvent?.isFocusFollowsMouse == true {
         await checkOnFocusChangedCallbacks_nonCancellable()
     } else {
+        followPinnedWindows() // skyland: before the layout, with the workspace each monitor shows
         Workspace.garbageCollectUnusedWorkspaces()
         await checkOnFocusChangedCallbacks_nonCancellable()
         normalizeContainers()
