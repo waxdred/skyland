@@ -1,6 +1,7 @@
-<img src="docs/assets/skyland-icon.png" width="128" align="right" alt="skyland icon">
-
-# skyland
+<p align="center">
+  <img src="docs/assets/skyland-icon.png" width="64" alt="Skyland icon" />
+  <strong>skyland</strong>
+</p>
 
 A Hyprland-like tiling window manager for macOS, built as a fork of
 [AeroSpace](https://github.com/nikitabobko/AeroSpace), with the look and
