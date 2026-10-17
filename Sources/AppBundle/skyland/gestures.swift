@@ -1,5 +1,6 @@
 import AppKit
 import Common
+import os
 
 // skyland: Hyprland gestures:workspace_swipe, first version: a swipe with N fingers on the
 // trackpad switches the screen under the cursor to its previous / next workspace once
@@ -41,27 +42,43 @@ func parseGestures(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout 
     parseTable(raw, Gestures(), gesturesParser, backtrace, &c)
 }
 
-@MainActor private var gestureMonitor: Any? = nil
-/// The swipe in progress: where the fingers started (along its axis), and if it switched already
-@MainActor private var swipe: (start: CGFloat, switched: Bool)? = nil
+// A listen-only session event tap on gesture events (NSEvent global monitors do not get
+// the touches). On the main run loop: on another thread NSEvent(cgEvent:).allTouches()
+// comes back empty. Listen-only, it never holds any input back.
+nonisolated(unsafe) private var gestureTap: CFMachPort? = nil // created once
+/// The swipe in progress: where the fingers started (along its axis), and if it switched
+/// already; only touched by the tap callback (main run loop)
+nonisolated(unsafe) private var swipe: (start: CGFloat, switched: Bool)? = nil
+/// The config read by the tap callback (set at reload)
+private let swipeConfig = OSAllocatedUnfairLock<Gestures>(initialState: Gestures())
 
-/// On at startup and on config reload when `workspace-swipe` is on.
+/// At startup and on config reload.
 @MainActor
 func syncGestures(_ config: Config) {
-    if config.gestures.workspaceSwipe == (gestureMonitor != nil) { return }
-    if let gestureMonitor {
-        NSEvent.removeMonitor(gestureMonitor)
-        swipe = nil
+    swipeConfig.withLock { $0 = config.gestures }
+    guard config.gestures.workspaceSwipe, gestureTap == nil else { return }
+    gestureTap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly,
+                                   eventsOfInterest: 1 << CGEventMask(NSEvent.EventType.gesture.rawValue), callback: gestureCallback, userInfo: nil)
+    if let tap = unsafe gestureTap {
+        CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
     }
-    gestureMonitor = config.gestures.workspaceSwipe
-        ? NSEvent.addGlobalMonitorForEvents(matching: .gesture) { event in MainActor.assumeIsolated { handleGesture(event) } }
-        : nil
 }
 
-@MainActor
-private func handleGesture(_ event: NSEvent) {
-    let g = config.gestures, vertical = g.direction == "vertical"
-    let touching = event.allTouches().filter { $0.phase != .ended && $0.phase != .cancelled }
+private func gestureCallback(_: CGEventTapProxy, type: CGEventType, event: CGEvent, _: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
+    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        if let tap = unsafe gestureTap { CGEvent.tapEnable(tap: tap, enable: true) }
+        return Unmanaged.passUnretained(event)
+    }
+    let g = swipeConfig.withLock { $0 }
+    guard g.workspaceSwipe, let ns = NSEvent(cgEvent: event) else { return Unmanaged.passUnretained(event) }
+    handleGesture(ns.allTouches(), g)
+    return Unmanaged.passUnretained(event)
+}
+
+private func handleGesture(_ touches: Set<NSTouch>, _ g: Gestures) {
+    let vertical = g.direction == "vertical"
+    let touching = touches.filter { $0.phase != .ended && $0.phase != .cancelled }
     // another finger count (fingers landing one by one, lifted): a new swipe once there are N
     guard touching.count == g.fingers, let size = touching.first?.deviceSize, size.width > 0 else {
         swipe = nil
@@ -69,7 +86,7 @@ private func handleGesture(_ event: NSEvent) {
     }
     let along = touching.map { vertical ? $0.normalizedPosition.y * size.height : $0.normalizedPosition.x * size.width }
     let position = along.reduce(0, +) / CGFloat(along.count)
-    guard let current = swipe else {
+    guard let current = unsafe swipe else {
         swipe = (position, false)
         return
     }
@@ -78,13 +95,14 @@ private func handleGesture(_ event: NSEvent) {
     swipe = (current.start, true) // one switch per swipe
     var next = vertical ? travel > 0 : travel < 0 // the trackpad's y goes up
     if g.invert { next.toggle() }
+    let direction = next
     Task { @MainActor in
         guard let token: RunSessionGuard = .isServerEnabled else { return }
         try? await runLightSession(.hotkeyBinding, token) {
             // the screen under the cursor, not the focused one
             let shown = mouseLocation.monitorApproximation.activeWorkspace
             if shown != focus.workspace { _ = shown.focusWorkspace() }
-            _ = await runInternal("workspace \(next ? "next" : "prev")")
+            _ = await runInternal("workspace \(direction ? "next" : "prev")")
         }
     }
 }
