@@ -39,8 +39,7 @@ func refreshOverview() {
 @MainActor
 private func showOverview() {
     let monitor = focus.workspace.workspaceMonitor
-    let screen = NSScreen.screens.first { abs($0.frame.minX - monitor.rect.topLeftX) < 1 && abs($0.frame.width - monitor.rect.width) < 1 }
-        ?? NSScreen.main ?? NSScreen.screens[0]
+    let screen = nsScreen(of: monitor)
     let panel = panel ?? makePanel()
     panel.setFrame(screen.frame, display: false)
     let root = panel.contentView!
@@ -50,7 +49,12 @@ private func showOverview() {
     strip = newStrip
     root.addSubview(newStrip)
     newStrip.layoutCards()
-    captureThumbnails(of: newStrip.workspaces)
+    let ids = Set(newStrip.workspaces.flatMap { $0.allLeafWindowsRecursive.map(\.windowId) })
+    captureWindowThumbnails(ids) { windowId, image in
+        guard isOverviewOpen else { return } // closed meanwhile: thumbnails stay freed
+        thumbnails[windowId] = image
+        strip?.cardsNeedDisplay()
+    }
 
     let anim = config.animations
     let duration = anim.enabled ? min(0.45, Double(anim.windowsMs) / 1000) : 0
@@ -124,10 +128,10 @@ private func zoomIn() -> Int {
 
 // MARK: thumbnails (ScreenCaptureKit)
 
+/// One capture per window, 640 px wide at most, handed over as it comes (overview, switcher).
 @MainActor
-private func captureThumbnails(of workspaces: [Workspace]) {
+func captureWindowThumbnails(_ ids: Set<UInt32>, _ onImage: @escaping @MainActor (UInt32, NSImage) -> Void) {
     guard #available(macOS 14, *) else { return }
-    let ids = Set(workspaces.flatMap { $0.allLeafWindowsRecursive.map(\.windowId) })
     Task { @MainActor in
         // Asks for Screen Recording permission the first time; without it the cards keep app icons
         guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) else { return }
@@ -139,11 +143,32 @@ private func captureThumbnails(of workspaces: [Workspace]) {
             configuration.height = Int(scWindow.frame.height * scale)
             configuration.showsCursor = false
             configuration.captureResolution = .nominal // a 640 px thumbnail needs no Retina capture
-            guard let image = try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration) else { continue }
-            thumbnails[scWindow.windowID] = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
-            strip?.cardsNeedDisplay()
+            guard let image = try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration),
+                  !isTransparent(image) else { continue } // windows of hidden workspaces come back empty: app icon
+            onImage(scWindow.windowID, NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height)))
         }
     }
+}
+
+/// Every pixel transparent, checked on an 8x8 copy.
+private func isTransparent(_ image: CGImage) -> Bool {
+    var pixels = [UInt8](repeating: 0, count: 8 * 8 * 4)
+    let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+        guard let context = CGContext(data: buffer.baseAddress, width: 8, height: 8, bitsPerComponent: 8, bytesPerRow: 32,
+                                      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: 8, height: 8))
+        return true
+    }
+    return drawn && stride(from: 3, to: pixels.count, by: 4).allSatisfy { pixels[$0] < 8 }
+}
+
+@MainActor
+func nsScreen(of monitor: MonitorInfo) -> NSScreen {
+    let rect = monitor.rect
+    let match = NSScreen.screens.first { (screen: NSScreen) -> Bool in
+        abs(screen.frame.minX - rect.topLeftX) < 1 && abs(screen.frame.width - rect.width) < 1
+    }
+    return match ?? NSScreen.main ?? NSScreen.screens[0]
 }
 
 // MARK: views

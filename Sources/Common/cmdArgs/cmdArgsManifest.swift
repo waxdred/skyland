@@ -41,6 +41,7 @@ public enum CmdKind: String, CaseIterable, Equatable, Sendable {
     case master // skyland
     case scratchpad // skyland
     case pin // skyland
+    case switcher // skyland
     case windowRule = "window-rule" // skyland
     case runCallback = "run-callback"
     case split
@@ -74,6 +75,8 @@ func initSubcommands() -> [String: any SubCommandParserProtocol] {
                 result[kind.rawValue] = SubCommandParser(ScratchpadCmdArgs.init)
             case .pin:
                 result[kind.rawValue] = SubCommandParser(PinCmdArgs.init)
+            case .switcher:
+                result[kind.rawValue] = SubCommandParser(SwitcherCmdArgs.init)
             case .windowRule:
                 result[kind.rawValue] = SubCommandParser(WindowRuleCmdArgs.init)
             case .close:
