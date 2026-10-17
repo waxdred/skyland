@@ -53,12 +53,7 @@ public protocol GlassRenderer: AnyObject {
 }
 
 public enum GlassEngine {
-    static var systemAvailable: Bool {
-        #if compiler(>=6.2)
-            if #available(macOS 26.0, *) { return true }
-        #endif
-        return false
-    }
+    static var systemAvailable: Bool { Glass.effectView != nil }
 
     private static var said = Set<String>()
     private static var asked = false
@@ -262,13 +257,15 @@ private final class BackdropShapeLayer: CALayer {
 
 // MARK: system glass views
 
-/// Liquid Glass (`glass=on|clear` on the bar, popups and backgrounds): NSGlassEffectView on
-/// macOS 26 built with Xcode 26, a blurred NSVisualEffectView before.
+/// Liquid Glass: NSGlassEffectView on macOS 26, a blurred NSVisualEffectView before.
+/// skyland: Apple's classes are looked up at run time (properties through KVC), so this
+/// builds with any SDK, the macOS 15 one of CI included.
 enum Glass {
+    static let effectView = NSClassFromString("NSGlassEffectView") as? NSView.Type
+    static let containerView = NSClassFromString("NSGlassEffectContainerView") as? NSView.Type
+
     static func makeView() -> NSView {
-        #if compiler(>=6.2)
-            if #available(macOS 26.0, *) { return NSGlassEffectView() }
-        #endif
+        if let effectView { return effectView.init(frame: .zero) }
         let view = NSVisualEffectView()
         view.material = .hudWindow
         view.blendingMode = .behindWindow
@@ -284,38 +281,30 @@ enum Glass {
     static func makeContainer() -> (container: NSView, holder: NSView) {
         let holder = FlippedHolder()
         holder.autoresizingMask = [.width, .height]
-        #if compiler(>=6.2)
-            if #available(macOS 26.0, *) {
-                let container = NSGlassEffectContainerView()
-                holder.frame = container.bounds
-                container.contentView = holder
-                return (container, holder)
-            }
-        #endif
+        if let containerView {
+            let container = containerView.init(frame: .zero)
+            holder.frame = container.bounds
+            container.setValue(holder, forKey: "contentView")
+            return (container, holder)
+        }
         return (holder, holder)
     }
 
     /// The merging distance of the container a holder is in.
     static func setSpacing(_ holder: NSView, _ spacing: Double) {
-        #if compiler(>=6.2)
-            if #available(macOS 26.0, *), let container = holder.superview as? NSGlassEffectContainerView,
-               container.spacing != spacing
-            {
-                container.spacing = spacing
-            }
-        #endif
+        guard let containerView, let container = holder.superview, container.isKind(of: containerView),
+              (container.value(forKey: "spacing") as? Double) != spacing else { return }
+        container.setValue(spacing, forKey: "spacing")
     }
 
     /// `style`: regular | clear; `tint`: the background's color.
     static func update(_ view: NSView, style: String, tint: GlassColor, cornerRadius: Double) {
-        #if compiler(>=6.2)
-            if #available(macOS 26.0, *), let glass = view as? NSGlassEffectView {
-                glass.cornerRadius = cornerRadius
-                glass.tintColor = tint.alpha > 0 ? tint.nsColor : nil
-                glass.style = style == "clear" ? .clear : .regular
-                return
-            }
-        #endif
+        if let effectView, view.isKind(of: effectView) {
+            view.setValue(cornerRadius, forKey: "cornerRadius")
+            view.setValue(tint.alpha > 0 ? tint.nsColor : nil, forKey: "tintColor")
+            view.setValue(style == "clear" ? 1 : 0, forKey: "style") // NSGlassEffectView.Style: regular 0, clear 1
+            return
+        }
         view.layer?.cornerRadius = cornerRadius
         view.layer?.cornerCurve = .continuous // Apple's shapes: no circular corners
         view.layer?.masksToBounds = true
