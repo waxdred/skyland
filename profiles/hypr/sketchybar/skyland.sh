@@ -4,8 +4,8 @@
 # load, also a sketchybar restart), and by `skyland-env` after `sketchybar --reload`.
 # Replaces the space.* items by skyland workspaces 1-12 and points window_title
 # at skyland.
-# Updates come from skyland: see on-focus-changed / exec-on-workspace-change in
-# profiles/hypr/.config/aerospace/aerospace.toml.
+# skyland pushes the updates itself (Sources/AppBundle/skyland/bar.swift); update.sh
+# runs on skyland_update (skyland-theme apply, this script).
 set -euo pipefail
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 UPDATE="$DIR/update.sh"
@@ -58,8 +58,9 @@ fi
 # One hidden item runs the update for all workspaces and the window title
 args+=(--add item skyland left
     --set skyland drawing=off updates=on script="$UPDATE $CLI"
-    --subscribe skyland skyland_update front_app_switched)
-sketchybar --query window_title >/dev/null 2>&1 && args+=(--set window_title script="$UPDATE $CLI" update_freq=0)
+    --subscribe skyland skyland_update)
+# the title comes from skyland: no script of its own (it ran on front_app_switched)
+sketchybar --query window_title >/dev/null 2>&1 && args+=(--set window_title script="" update_freq=0)
 sketchybar "${args[@]}"
 # recolors the whole bar with the current [theme] file, then triggers skyland_update
 "$DIR/../../../bin/skyland-theme" apply || sketchybar --trigger skyland_update

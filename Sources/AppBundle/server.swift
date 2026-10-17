@@ -32,6 +32,9 @@ func toggleReleaseServerIfDebug(_ state: EnableCmdArgs.State) async {
     _ = await connection.readNonAtomic()
 }
 
+/// skyland: commands that only read the model (see newConnection)
+private let readOnlyCommands: Set<CmdKind> = [.listApps, .listExecEnvVars, .listModes, .listMonitors, .listWindows, .listWorkspaces, .config, .echo]
+
 private let serverVersionAndHash = "\(aeroSpaceAppVersion) \(gitHash)"
 
 private func newConnection(_ connection: NWConnection) async { // todo add exit codes
@@ -85,21 +88,27 @@ private func newConnection(_ connection: NWConnection) async { // todo add exit 
                 await answerToClient(exitCode: err.exitCode, stderr: err.msg)
                 continue
             case .cmd(let command):
+                let run: @Sendable @MainActor () async -> ServerAnswer = {
+                    let env = CmdEnv.init(
+                        windowId: request.windowId.flattenOptional(),
+                        workspaceName: request.workspace.flattenOptional(),
+                    )
+                    let cmdResult = await command.run(env, CmdStdin(request.stdin))
+                    return ServerAnswer(
+                        exitCode: cmdResult.exitCode.rawValue,
+                        stdout: cmdResult.stdout.joined(separator: "\n"),
+                        stderr: cmdResult.stderr.joined(separator: "\n"),
+                        serverVersionAndHash: serverVersionAndHash,
+                    )
+                }
                 var answer: ServerAnswer =
+                    // skyland: a query changes nothing, it reads the model the sessions
+                    // keep up to date: no session (AX focus query, two model refreshes,
+                    // layout, then a complete refresh) for each `list-workspaces` of the bar
+                    // and the scripts
+                    readOnlyCommands.contains(command.info.kind) ? await run() :
                     await Result {
-                        try await runLightSession(.socketServer(command.args), token) { () throws in
-                            let env = CmdEnv.init(
-                                windowId: request.windowId.flattenOptional(),
-                                workspaceName: request.workspace.flattenOptional(),
-                            )
-                            let cmdResult = await command.run(env, CmdStdin(request.stdin))
-                            return ServerAnswer(
-                                exitCode: cmdResult.exitCode.rawValue,
-                                stdout: cmdResult.stdout.joined(separator: "\n"),
-                                stderr: cmdResult.stderr.joined(separator: "\n"),
-                                serverVersionAndHash: serverVersionAndHash,
-                            )
-                        }
+                        try await runLightSession(.socketServer(command.args), token) { () throws in await run() }
                     }
                     .get { err in
                         ServerAnswer(
