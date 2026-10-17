@@ -176,7 +176,7 @@ private func moveToWorkspace(_ windowId: UInt32, _ workspace: String) async -> B
 
 /// Runs a command inside the current session, as a binding would.
 @MainActor
-private func runInternal(_ command: String) async -> Bool {
+func runInternal(_ command: String) async -> Bool {
     guard case .cmd(let shell) = parseCommand(command, allowExecAndForget: false, allowEval: false) else { return false }
     return await shell.run(.defaultEnv, .emptyStdin).exitCode.rawValue == 0
 }
