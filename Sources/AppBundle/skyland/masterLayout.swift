@@ -34,6 +34,12 @@ private var masters: Set<String> {
 @MainActor
 func isMasterWorkspace(_ workspace: Workspace) -> Bool { masters.contains(workspace.name) }
 
+/// skyland: workspace rules (`layout = 'master' | 'dwindle'`)
+@MainActor
+func setMasterWorkspace(_ name: String, _ on: Bool) {
+    if on != masters.contains(name) { if on { masters.insert(name) } else { masters.remove(name) } }
+}
+
 /// Window order of a master workspace, master first: the tree order is not enough
 /// once the master sits in the middle (center orientation).
 @MainActor private var orders: [String: [UInt32]] = [:]

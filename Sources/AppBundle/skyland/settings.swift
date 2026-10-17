@@ -60,6 +60,8 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
     ("Layout", [
         SettingField(section: "", key: "dwindle", label: "Dwindle", kind: .bool),
         SettingField(section: "", key: "dwindle-smart-split", label: "Smart split (follows the cursor)", kind: .bool),
+        SettingField(section: "", key: "smart-gaps", label: "No gaps around a single window", kind: .bool),
+        SettingField(section: "", key: "smart-border", label: "No border on a single window", kind: .bool),
         SettingField(section: "", key: "floating-center-percent", label: "Floating size", kind: .int(30 ... 100, step: 5, unit: "%")),
         SettingField(section: "", key: "focus-follows-mouse.enabled", label: "Focus follows mouse", kind: .bool),
         SettingField(section: "", key: "mouse-modifier", label: "Mouse move / resize key", kind: .choice(["alt", "cmd", "ctrl", "ctrl-alt", ""])),
