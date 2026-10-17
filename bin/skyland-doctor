@@ -35,6 +35,24 @@ if [[ "${windows:-0}" -gt 0 ]]; then ok "manages $windows windows (Accessibility
 elif pgrep -xq AeroSpaceApp; then opt "no window managed" "no app open, or Accessibility not granted to Skyland"; fi
 opt "Screen Recording for Skyland: check it by hand (System Settings > Privacy & Security)" "gives the overview live thumbnails, the media widget bars and cyberdeck's audio"
 
+# trackpad swipe vs the macOS gesture with as many fingers (2 = on: full-screen apps /
+# Mission Control), built-in and Magic Trackpad
+if [[ "$("$REPO/bin/skyland-config" gestures workspace-swipe)" == true ]]; then
+    fingers="$("$REPO/bin/skyland-config" gestures workspace-swipe-fingers)"
+    axis=Horiz; [[ "$("$REPO/bin/skyland-config" gestures workspace-swipe-direction)" == vertical ]] && axis=Vert
+    word=Three; [[ "${fingers:-3}" == 4 ]] && word=Four
+    conflict=""
+    for domain in com.apple.AppleMultitouchTrackpad com.apple.driver.AppleBluetoothMultitouch.trackpad; do
+        [[ "$(defaults read "$domain" "Trackpad${word}Finger${axis}SwipeGesture" 2>/dev/null)" == 2 ]] && conflict=1
+    done
+    gesture="Swipe between full-screen applications"; [[ $axis == Vert ]] && gesture="Mission Control / App Exposé"
+    if [[ -n "$conflict" ]]; then
+        opt "trackpad: macOS also uses the ${fingers:-3}-finger $( [[ $axis == Vert ]] && echo vertical || echo horizontal ) swipe" "System Settings > Trackpad > More Gestures: $gesture to 4 fingers or off (or workspace-swipe-fingers = 4)"
+    else
+        ok "trackpad: ${fingers:-3}-finger swipe free for workspaces"
+    fi
+fi
+
 section "Window effects (optional: corners, opacity, animations, floating on top)"
 sip="$(csrutil status 2>/dev/null)"
 if grep -q "Filesystem Protections: disabled" <<<"$sip" && grep -q "Debugging Restrictions: disabled" <<<"$sip"; then

@@ -93,6 +93,17 @@ workspaces-bezier = '0.0, 0.75, 0.15, 1.0'
 fade-ms = 400
 fade-bezier = '0.0, 0.75, 0.15, 1.0'
 
+# Hyprland gestures:workspace_swipe: swipe with 3 fingers between the workspaces of the
+# screen under the cursor (turn macOS "Swipe between full-screen applications" off, or
+# use 4 fingers; `skyland doctor` checks it)
+[gestures]
+workspace-swipe = true
+workspace-swipe-fingers = 3 # 3 | 4
+workspace-swipe-direction = 'horizontal' # | 'vertical'
+workspace-swipe-distance = 200 # finger travel in points of a whole switch
+workspace-swipe-cancel-ratio = 50 # percent of the distance that switches
+workspace-swipe-invert = false
+
 # 43PR themes as GTK colors.css files (`@define-color key #rrggbb;`), applied
 # to sketchybar and Ghostty by bin/skyland-theme. All 18 43PR presets are in
 # ~/.config/skyland/themes; copy one to customize.

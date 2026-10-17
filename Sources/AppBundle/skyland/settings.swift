@@ -80,6 +80,14 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
         SettingField(section: "animations", key: "windows-bezier", label: "Windows curve", kind: .text),
         SettingField(section: "animations", key: "workspaces-bezier", label: "Workspaces curve", kind: .text),
     ]),
+    ("Trackpad", [
+        SettingField(section: "gestures", key: "workspace-swipe", label: "Swipe between workspaces", kind: .bool),
+        SettingField(section: "gestures", key: "workspace-swipe-fingers", label: "Fingers", kind: .int(3 ... 4, step: 1, unit: "")),
+        SettingField(section: "gestures", key: "workspace-swipe-direction", label: "Direction", kind: .choice(["horizontal", "vertical"])),
+        SettingField(section: "gestures", key: "workspace-swipe-distance", label: "Distance", kind: .int(50 ... 500, step: 10, unit: "pt")),
+        SettingField(section: "gestures", key: "workspace-swipe-cancel-ratio", label: "Switches past", kind: .int(10 ... 100, step: 5, unit: "%")),
+        SettingField(section: "gestures", key: "workspace-swipe-invert", label: "Invert", kind: .bool),
+    ]),
     ("Wallpaper", [
         SettingField(section: "wallpaper", key: "dynamic-colors", label: "Colors from the wallpaper", kind: .bool, after: ["skyland-theme", "apply"]),
         SettingField(section: "wallpaper", key: "auto-mode", label: "Light / dark from the wallpaper", kind: .bool),

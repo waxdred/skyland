@@ -172,6 +172,7 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     "gaps": Parser(\.gaps, parseGaps),
     "decoration": Parser(\.decoration, parseDecoration),
     "animations": Parser(\.animations, parseAnimations),
+    "gestures": Parser(\.gestures, parseGestures),
     "theme": Parser(\.theme, parseTheme),
     "wallpaper": Parser(\.wallpaper, parseWallpaper),
     "lock": Parser(\.lock, parseLock),
