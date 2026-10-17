@@ -14,14 +14,19 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **dwindle** layout, split side following the cursor (`smart_split`), `togglesplit`
 - **move and resize with the mouse** anywhere on a window (`alt` + drag), tiles swap on drop
 - **window decoration**: rounded corners, active/inactive opacity, dim inactive windows, focused window **border** in the theme accent (optionally rotating), Ghostty blur; floating windows stay on top
-- **bezier animations**: tiles slide, new windows pop in, closing windows shrink and fade, `slidefadevert` workspace switch, fades
+- **Hyprland animations**: presets (`hyprland`, `slide`, `gnome`, `vertical`, `cyberspace`: windows rez in through a scan line), stackable, or `bezier` / `animation` lines pasted from a hyprland.conf; open, close, move, workspace and scratchpad switches
+- **Liquid Glass** (`[decoration] ui-style = 'glass'`, or Metal / Glass in the settings window): overview, window switcher, HUDs, settings, wallpaper picker and media widget in refractive glass, the engine of [skylandbar](#skylandbar)
+- **window switcher** (`alt-<` / `alt-backtick`, held like `cmd-tab`): recent windows of every workspace with live thumbnails, type to filter
 - **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**, light or dark picked from the wallpaper brightness
-- **wallpaper picker**, **sketchybar** integration, **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars or an Audioware-style light wave (`[media] style`)
+- **wallpaper picker**, **[skylandbar](#skylandbar)** or **sketchybar** (the bar tells skyland its height), **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars or an Audioware-style light wave (`[media] style`)
 - **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
 - **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, plus **Keys** (record a key, edit command and description, duplicates and macOS shortcuts flagged) and **Rules** (float / tile / workspace per app, from the running apps) tabs; applied live and written to the config with its comments kept
 - **master layout** per workspace (`alt-shift-t`): one big window and a stack on the side (master in the middle on ultrawide screens), `alt-shift-enter` swaps with the master (Hyprland `master`, `swapwithmaster`)
 - **groups** (`alt-g`): a container becomes tabs with a tabs bar, `alt-n` cycles, `alt-ctrl-h/j/k/l` groups with a neighbour (Hyprland `togglegroup`, `changegroupactive`, `moveintogroup`)
-- **scratchpads** (`alt-s`, named ones like `alt-a` = Spotify), **window rules** (floating utilities, apps sent to a workspace)
+- **scratchpads** (`alt-s`, named ones like `alt-a` = Spotify), **pin** (`alt-ctrl-p`: a floating window on every workspace)
+- **window rules**: floating utilities, apps sent to a workspace, and Hyprland's windowrule v2 with `window-rule` (size, position, center, opacity, rounding, no border / dim / animation)
+- **binding modes** (Hyprland submaps): a HUD lists the keys of the active one, like the `resize` mode on `alt-shift-r`
+- **trackpad swipe** between workspaces, the windows follow the fingers; **smart gaps** and per workspace gaps and layout
 - **window management on/off** (`alt-r`) with a HUD, windows back to stock macOS while off
 - **shortcut cheat sheet** (`alt-shift-h`) read from the config
 - windows **keep their workspace** across restarts
@@ -29,7 +34,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 
 What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
-![skyland demo: dwindle tiling with a rotating border and dimmed inactive windows, alt + mouse move and resize, groups with a tabs bar, master layout, theme picker and themes, wallpaper with automatic light / dark, cyberdeck launcher and messages, overview, cheat sheet, settings window](docs/screenshots/demo.gif)
+![skyland demo: windows rez in with the cyberspace animation, tiles swapped, the window switcher in metal then in Liquid Glass, the resize mode HUD, a window rule (floating, centered, translucent), the overview, settings window and pickers in glass, a wallpaper picked and the colors following, themes, the media widget, windows closing, under skylandbar](docs/screenshots/demo.gif)
 
 <table>
 <tr>
@@ -49,6 +54,27 @@ Screenshots are framed with `tools/frame-screenshot.swift`
 
 > Clone it anywhere: bindings call the `skyland` CLI, and skyland puts its own
 > `bin/` (and `~/.local/bin`) on the PATH of `exec-and-forget` commands.
+
+## skylandbar
+
+[skylandbar](https://github.com/waxdred/skylandBar) is skyland's status bar, in a separate
+repo: it speaks [SketchyBar](https://github.com/FelixKratz/SketchyBar)'s language, so
+sketchybar configs and plugins run unchanged, and adds what a skyland bar needs:
+
+- **Liquid Glass** items, groups and popups (Apple's glass on macOS 26, a refraction
+  shader on older macOS), a selection lens that flows between workspaces, a glass notch
+- **skyland built in**: workspaces with their apps, the focused window title, mode and
+  focus events from skyland's socket, no `exec-on-workspace-change` script
+- **windows below it**: it tells skyland its height (`bar-height`), no value to keep in sync
+- a **TOML config** (`skylandbar.toml`) next to sketchybarrc and SbarLua, live reload,
+  colors from the skyland theme
+
+<p align="center"><img src="docs/screenshots/skylandbar.png" alt="skylandbar: Liquid Glass workspaces with their apps, glass status capsules and the notch"></p>
+
+```sh
+git clone https://github.com/waxdred/skylandBar.git && cd skylandBar
+swift build -c release && .build/release/skylandbar   # quit sketchybar first
+```
 
 ## skyland-cyberdeck
 

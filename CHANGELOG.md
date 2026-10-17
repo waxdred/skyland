@@ -40,6 +40,12 @@ is also the text of its GitHub release.
   `skyland_mode` event (`MODE=<name>`). Example `resize` mode on `alt-shift-r` in the hypr
   profile.
 
+**Window switcher**
+- `switcher [next|prev] [--workspace focused|all]` (`alt-backtick`): windows of every
+  workspace, most recently focused first, with live thumbnails (app icons without Screen
+  Recording). Held like `cmd-tab`, releasing the modifier focuses the selection;
+  `switcher` alone stays open and filters as you type. Thumbnails freed on close.
+
 **Window rules**
 - `window-rule` command, Hyprland's windowrule v2 for `on-window-detected`: `size` /
   `move` (points or % of the screen), `center`, `opacity <active> [<inactive>]`,
