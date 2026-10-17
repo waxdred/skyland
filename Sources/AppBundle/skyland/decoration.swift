@@ -83,6 +83,7 @@ func applyDecorations() {
         sentDim = [:]
         raisedWindows = []
         payloadCapabilities = Set((skylandSa("ping", wait: true) ?? "").split(whereSeparator: \.isWhitespace).map(String.init))
+        setSkylandSaBatches(payloadCapabilities.contains("batch"))
     }
     let fades = wantsFades && payloadCapabilities.contains("fade")
     let startedAt = firstApplyDate ?? .now
@@ -176,34 +177,70 @@ private let skylandSaSocketPath = "/tmp/skyland-sa_\(NSUserName()).socket"
 
 /// Fire-and-forget by default; with `wait` it returns the payload reply
 /// ("ok ..." or "err ..."), nil when the scripting addition is not loaded.
+/// Fire-and-forget lines of one burst (a refresh, a layout) go in one connection
+/// when the payload takes several commands per connection ("batch").
 @discardableResult
 func skylandSa(_ line: String, wait: Bool = false) -> String? {
-    let send: @Sendable () -> String? = {
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        if fd < 0 { return nil }
-        defer { close(fd) }
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        withUnsafeMutableBytes(of: &addr.sun_path) { buf in
-            _ = skylandSaSocketPath.utf8CString.withUnsafeBytes { src in
-                unsafe memcpy(buf.baseAddress!, src.baseAddress!, min(src.count, buf.count - 1))
-            }
+    if wait {
+        return skylandSaQueue.sync {
+            flushSkylandSa() // keeps the order
+            return sendToPayload([line]).first
         }
-        let connected = withUnsafePointer(to: &addr) {
-            unsafe $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                unsafe connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        if connected != 0 { return nil } // scripting addition not loaded
-        let msg = line + "\n"
-        _ = msg.withCString { unsafe write(fd, $0, strlen($0)) }
-        var reply = [UInt8](repeating: 0, count: 64)
-        let count = unsafe read(fd, &reply, reply.count)
-        return count > 0 ? String(decoding: reply.prefix(count), as: UTF8.self) : nil
     }
-    if wait { return skylandSaQueue.sync(execute: send) }
-    skylandSaQueue.async { _ = send() }
+    skylandSaQueue.async {
+        pendingLines.append(line)
+        // first line of a burst: flush once the main thread is done queueing it
+        if pendingLines.count == 1 { DispatchQueue.main.async { skylandSaQueue.async { flushSkylandSa() } } }
+    }
     return nil
+}
+
+/// The loaded payload takes several commands per connection (its ping says "batch")
+func setSkylandSaBatches(_ batches: Bool) { skylandSaQueue.async { payloadBatches = batches } }
+
+// only touched on skylandSaQueue
+nonisolated(unsafe) private var pendingLines: [String] = []
+nonisolated(unsafe) private var payloadBatches = false
+
+private func flushSkylandSa() {
+    if pendingLines.isEmpty { return }
+    let lines = pendingLines
+    pendingLines = []
+    if payloadBatches { sendToPayload(lines) } else { for line in lines { sendToPayload([line]) } }
+}
+
+/// One connection: the lines, then their replies (empty when the payload is not loaded).
+@discardableResult
+private func sendToPayload(_ lines: [String]) -> [String] {
+    let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+    if fd < 0 { return [] }
+    defer { close(fd) }
+    var on: Int32 = 1
+    unsafe setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+    var addr = sockaddr_un()
+    addr.sun_family = sa_family_t(AF_UNIX)
+    withUnsafeMutableBytes(of: &addr.sun_path) { buf in
+        _ = skylandSaSocketPath.utf8CString.withUnsafeBytes { src in
+            unsafe memcpy(buf.baseAddress!, src.baseAddress!, min(src.count, buf.count - 1))
+        }
+    }
+    let connected = withUnsafePointer(to: &addr) {
+        unsafe $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+            unsafe connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+        }
+    }
+    if connected != 0 { return [] } // scripting addition not loaded
+    let msg = lines.map { $0 + "\n" }.joined()
+    _ = msg.withCString { unsafe write(fd, $0, strlen($0)) }
+    if lines.count > 1 { shutdown(fd, SHUT_WR) } // the payload reads until the end, an older one reads one line
+    var replies = ""
+    var buf = [UInt8](repeating: 0, count: 4096)
+    while replies.filter({ $0 == "\n" }).count < lines.count {
+        let count = unsafe read(fd, &buf, buf.count)
+        if count <= 0 { break }
+        replies += String(decoding: buf.prefix(count), as: UTF8.self)
+    }
+    return replies.split(separator: "\n").map(String.init)
 }
 
 /// A window of a group (accordion with group-bar-height) that is not the shown tab:

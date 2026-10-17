@@ -21,6 +21,11 @@ is also the text of its GitHub release.
   no longer run a refresh session. **Your config**: drop
   `exec-and-forget sketchybar --trigger skyland_update` from `on-focus-changed` and
   the `exec-on-workspace-change` line (they still work, but cost for nothing).
+- Animations: the Dock payload steps every running animation (slides, fades, dim)
+  in one loop synced to the display, and applies each frame of all windows in one
+  SkyLight transaction: the windows of a workspace switch move together, without
+  judder, and one thread instead of one per window. Several payload commands go in
+  one connection. Needs `skyland sa build` then `killall Dock; skyland sa load`.
 
 ## v0.1.9
 

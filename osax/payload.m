@@ -2,22 +2,23 @@
 // Dock owns the universal SkyLight connection, so window changes issued from
 // here apply to every app's windows (from any other process they are ignored).
 //
-// Protocol: one text line per connection on /tmp/skyland-sa_$USER.socket,
-// reply "ok\n" or "err <reason>\n".
+// Protocol: text lines on /tmp/skyland-sa_$USER.socket, one command per line and
+// one reply per line, "ok\n" or "err <reason>\n"; several lines per connection
+// ("batch" in ping), or one (older apps).
 //   ping                               (replies "ok fade close": capabilities, old payloads reply less)
 //   corner <wid> <radius>
 //   uncorner <wid>                     (back to the system radius)
 //   alpha <wid> <alpha>                (cancels a running fade)
 //   fade <wid> <alpha> <ms> <x1> <y1> <x2> <y2> [<from>]
 //       step the alpha from its current value (or <from>) along the bezier, like yabai's
-//       opacity_fade: SLSSetWindowAlpha every 8 ms, no WindowServer fade.
+//       opacity_fade: stepped every display frame, no WindowServer fade.
 //   animate <wid> <x> <y> <w> <h> <ms> <x1> <y1> <x2> <y2> [<tx> <ty> <tw> <th> [hold]]
 //       show the window at rect (x,y,w,h) then move it to its real frame over
 //       <ms> following the cubic bezier (x1,y1,x2,y2). With a target rect it moves
 //       there instead and jumps to its real frame at the end (slide-out of a
 //       window being hidden), or stays there with hold = 1 (window being closed).
-//       Stepped here with SLSSetWindowTransform, never with a WindowServer-side
-//       animation.
+//       Stepped here every display frame with a window transform, never with a
+//       WindowServer-side animation.
 //   untransform <wid>                  (back to its real frame, stops an animation)
 //   dim <wid> <amount> [<ms> <x1> <y1> <x2> <y2> <from>]
 //       darken the window, 0 = normal, 1 = black (SLSSetWindowListBrightness, negative
@@ -28,7 +29,10 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
+#include <CoreVideo/CoreVideo.h>
+#include <dispatch/dispatch.h>
 #include <pthread.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,48 +57,36 @@ extern CGError SLSSetWindowTransform(int cid, uint32_t wid, CGAffineTransform t)
 extern CGError SLSSetWindowLevel(int cid, uint32_t wid, int level);
 // brightness -1 (black) .. 0 (normal) .. 1 (white), checked on macOS 15.6.1
 extern CGError SLSSetWindowListBrightness(int cid, uint32_t *wids, float *brightness, int count);
+// transaction variants, disassembled on 15.6.1 (weak: the direct calls above otherwise)
+extern void SLSTransactionSetWindowTransform(CFTypeRef t, uint32_t wid, int unknown1, int unknown2,
+                                             CGAffineTransform transform) __attribute__((weak_import));
+extern void SLSTransactionSetWindowBrightness(CFTypeRef t, uint32_t wid, float brightness) __attribute__((weak_import));
 
-// Latest animation generation per window: a newer `animate` on the same window
-// takes over and the older stepping thread stops without touching it.
-// ponytail: fixed table, slot reuse by hash; collisions only cancel early.
-// Frame (transform) and alpha animations are tracked separately: a window can
-// slide and fade at the same time.
-#define ANIM_SLOTS 512
-struct anim_table { struct { uint32_t wid; uint64_t gen; } slots[ANIM_SLOTS]; };
-static struct anim_table frame_anims, alpha_anims, dim_anims;
+// All running animations (window frame, alpha, dim) live in one table, stepped by
+// one CVDisplayLink callback in sync with the display: every window of a workspace
+// switch changes in the same frame, through one SkyLight transaction per frame.
+// A newer animation of the same kind on the same window replaces the running one.
+// The display link only runs while the table is not empty.
+// ponytail: one display link (the main display's); windows on another display with
+// a different refresh rate are stepped at the main display's rate.
+enum anim_kind { ANIM_FRAME, ANIM_ALPHA, ANIM_DIM };
+struct anim {
+    int used;
+    enum anim_kind kind;
+    uint32_t wid;
+    double start, ms, x1, y1, x2, y2;
+    int frames;
+    CGRect real;           // the window's real frame, re-read now and then
+    CGRect from, to;       // ANIM_FRAME: visual rects
+    int has_to, hold;
+    float value_from, value_to; // ANIM_ALPHA / ANIM_DIM
+};
+#define MAX_ANIMS 256
+static struct anim anims[MAX_ANIMS];
 static pthread_mutex_t anim_lock = PTHREAD_MUTEX_INITIALIZER;
-static uint64_t anim_counter;
-
-static uint64_t anim_claim(struct anim_table *table, uint32_t wid)
-{
-    pthread_mutex_lock(&anim_lock);
-    uint64_t gen = ++anim_counter;
-    table->slots[wid % ANIM_SLOTS].wid = wid;
-    table->slots[wid % ANIM_SLOTS].gen = gen;
-    pthread_mutex_unlock(&anim_lock);
-    return gen;
-}
-
-static int anim_current(struct anim_table *table, uint32_t wid, uint64_t gen)
-{
-    pthread_mutex_lock(&anim_lock);
-    int current = table->slots[wid % ANIM_SLOTS].wid == wid && table->slots[wid % ANIM_SLOTS].gen == gen;
-    pthread_mutex_unlock(&anim_lock);
-    return current;
-}
-
-// The window transform maps screen points to window points; at rest it is a
-// translation by -origin. Showing a window of real frame `real` at `visual`:
-// p -> (p - visual.origin) * real.size / visual.size.
-static void show_at(int cid, uint32_t wid, CGRect real, CGRect visual)
-{
-    CGAffineTransform t = CGAffineTransformConcat(
-        CGAffineTransformMakeTranslation(-visual.origin.x, -visual.origin.y),
-        CGAffineTransformMakeScale(real.size.width / visual.size.width, real.size.height / visual.size.height));
-    SLSSetWindowTransform(cid, wid, t);
-}
-
-struct animation { uint32_t wid; uint64_t gen; CGRect from, to; int has_to, hold; double ms, x1, y1, x2, y2; };
+static CVDisplayLinkRef display_link;
+static int display_link_running; // only touched on link_queue
+static dispatch_queue_t link_queue; // serializes CVDisplayLinkStart / Stop
 
 static double now_ms(void)
 {
@@ -103,121 +95,176 @@ static double now_ms(void)
     return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
 }
 
-static void *animate(void *arg)
+// The window transform maps screen points to window points; at rest it is a
+// translation by -origin. Showing a window of real frame `real` at `visual`:
+// p -> (p - visual.origin) * real.size / visual.size.
+static CGAffineTransform transform_showing(CGRect real, CGRect visual)
 {
-    struct animation a = *(struct animation *) arg;
-    free(arg);
-    int cid = SLSMainConnectionID();
-    double start = now_ms();
-    CGRect real;
-    for (;;) {
-        if (!anim_current(&frame_anims, a.wid, a.gen)) return NULL; // a newer animation owns the window
-        if (SLSGetWindowBounds(cid, a.wid, &real) != kCGErrorSuccess) return NULL; // window gone
-        double x = (now_ms() - start) / a.ms;
-        if (x >= 1) {
-            if (a.hold) { show_at(cid, a.wid, real, a.to); return NULL; } // closing window: stay small
-            break;
-        }
-        // without a target the real frame is read every frame: the app may apply it late
-        CGRect to = a.has_to ? a.to : real;
-        double p = bezier_ease(x, a.x1, a.y1, a.x2, a.y2);
-        CGRect v = CGRectMake(
-            a.from.origin.x + (to.origin.x - a.from.origin.x) * p,
-            a.from.origin.y + (to.origin.y - a.from.origin.y) * p,
-            a.from.size.width + (to.size.width - a.from.size.width) * p,
-            a.from.size.height + (to.size.height - a.from.size.height) * p);
-        if (v.size.width >= 1 && v.size.height >= 1) show_at(cid, a.wid, real, v);
-        usleep(8000); // ~120 Hz
-    }
-    SLSSetWindowTransform(cid, a.wid, CGAffineTransformMakeTranslation(-real.origin.x, -real.origin.y));
-    return NULL;
+    return CGAffineTransformConcat(
+        CGAffineTransformMakeTranslation(-visual.origin.x, -visual.origin.y),
+        CGAffineTransformMakeScale(real.size.width / visual.size.width, real.size.height / visual.size.height));
 }
 
-// alpha fade, or with `dim` set a brightness fade (to / from are dim amounts)
-struct fade { uint32_t wid; uint64_t gen; float to, from; int has_from, dim; double ms, x1, y1, x2, y2; };
+// Transaction setters when this SkyLight has them (checked on 15.6.1: wid, two
+// ints yabai passes as 0, the transform), else the direct calls, one per window.
+static void set_transform(CFTypeRef t, int cid, uint32_t wid, CGAffineTransform transform)
+{
+    if (t && SLSTransactionSetWindowTransform) SLSTransactionSetWindowTransform(t, wid, 0, 0, transform);
+    else SLSSetWindowTransform(cid, wid, transform);
+}
 
-static void set_dim(int cid, uint32_t wid, float amount)
+static void set_alpha(CFTypeRef t, int cid, uint32_t wid, float alpha)
+{
+    if (t) SLSTransactionSetWindowAlpha(t, wid, alpha);
+    else SLSSetWindowAlpha(cid, wid, alpha);
+}
+
+// dim amount 0 (normal) .. 1 (black) = brightness 0 .. -1
+static void set_dim(CFTypeRef t, int cid, uint32_t wid, float amount)
 {
     float brightness = -amount;
-    SLSSetWindowListBrightness(cid, &wid, &brightness, 1);
+    if (t && SLSTransactionSetWindowBrightness) SLSTransactionSetWindowBrightness(t, wid, brightness);
+    else SLSSetWindowListBrightness(cid, &wid, &brightness, 1);
 }
 
-static void *fade(void *arg)
+static void stop_link_if_idle(void)
 {
-    struct fade f = *(struct fade *) arg;
-    free(arg);
+    dispatch_async(link_queue, ^{
+        pthread_mutex_lock(&anim_lock);
+        int idle = 1;
+        for (int i = 0; i < MAX_ANIMS && idle; i++) idle = !anims[i].used;
+        pthread_mutex_unlock(&anim_lock);
+        // outside the lock: Stop waits for a running callback, which takes the lock
+        if (idle && display_link_running) { CVDisplayLinkStop(display_link); display_link_running = 0; }
+    });
+}
+
+static void start_link(void)
+{
+    dispatch_async(link_queue, ^{
+        if (!display_link_running && CVDisplayLinkStart(display_link) == kCVReturnSuccess) display_link_running = 1;
+    });
+}
+
+static CVReturn step(CVDisplayLinkRef link, const CVTimeStamp *now, const CVTimeStamp *out, CVOptionFlags flags_in,
+                     CVOptionFlags *flags_out, void *context)
+{
     int cid = SLSMainConnectionID();
-    float from = f.from;
-    if (!f.has_from) SLSGetWindowAlpha(cid, f.wid, &from);
-    double start = now_ms();
-    CGRect bounds;
-    for (;;) {
-        if (!anim_current(f.dim ? &dim_anims : &alpha_anims, f.wid, f.gen)) return NULL; // a newer one owns the window
-        if (SLSGetWindowBounds(cid, f.wid, &bounds) != kCGErrorSuccess) return NULL; // window gone
-        double x = (now_ms() - start) / f.ms;
-        if (x >= 1) break;
-        float value = from + (f.to - from) * (float) bezier_ease(x, f.x1, f.y1, f.x2, f.y2);
-        if (f.dim) set_dim(cid, f.wid, value); else SLSSetWindowAlpha(cid, f.wid, value);
-        usleep(8000);
+    double t_now = now_ms();
+    CFTypeRef t = SLSTransactionCreate(cid);
+    int active = 0;
+    pthread_mutex_lock(&anim_lock);
+    for (int i = 0; i < MAX_ANIMS; i++) {
+        struct anim *a = &anims[i];
+        if (!a->used) continue;
+        // the real frame: every frame at first (the app applies the new frame a bit
+        // after it starts the animation), then every 4th frame, which also notices
+        // a window that is gone
+        if (t_now - a->start < 200 || a->frames % 4 == 0) {
+            if (SLSGetWindowBounds(cid, a->wid, &a->real) != kCGErrorSuccess) { a->used = 0; continue; }
+        }
+        a->frames++;
+        double x = (t_now - a->start) / a->ms;
+        double p = x >= 1 ? 1 : bezier_ease(x, a->x1, a->y1, a->x2, a->y2);
+        switch (a->kind) {
+            case ANIM_FRAME: {
+                if (x >= 1) {
+                    set_transform(t, cid, a->wid, a->hold
+                        ? transform_showing(a->real, a->to) // closing window: stays small
+                        : CGAffineTransformMakeTranslation(-a->real.origin.x, -a->real.origin.y));
+                    a->used = 0;
+                    break;
+                }
+                CGRect to = a->has_to ? a->to : a->real;
+                CGRect v = CGRectMake(
+                    a->from.origin.x + (to.origin.x - a->from.origin.x) * p,
+                    a->from.origin.y + (to.origin.y - a->from.origin.y) * p,
+                    a->from.size.width + (to.size.width - a->from.size.width) * p,
+                    a->from.size.height + (to.size.height - a->from.size.height) * p);
+                if (v.size.width >= 1 && v.size.height >= 1) set_transform(t, cid, a->wid, transform_showing(a->real, v));
+                break;
+            }
+            case ANIM_ALPHA:
+            case ANIM_DIM: {
+                float value = a->value_from + (a->value_to - a->value_from) * (float) p;
+                if (a->kind == ANIM_ALPHA) set_alpha(t, cid, a->wid, value); else set_dim(t, cid, a->wid, value);
+                if (x >= 1) a->used = 0;
+                break;
+            }
+        }
+        active += a->used;
     }
-    if (f.dim) set_dim(cid, f.wid, f.to); else SLSSetWindowAlpha(cid, f.wid, f.to);
-    return NULL;
+    pthread_mutex_unlock(&anim_lock);
+    if (t) { SLSTransactionCommit(t, 0); CFRelease(t); }
+    if (!active) stop_link_if_idle();
+    return kCVReturnSuccess;
+}
+
+// Adds (or replaces the running animation of the same kind on the same window).
+static const char *add_anim(struct anim a)
+{
+    a.used = 1;
+    a.start = now_ms();
+    pthread_mutex_lock(&anim_lock);
+    struct anim *slot = NULL;
+    for (int i = 0; i < MAX_ANIMS; i++) {
+        if (anims[i].used && anims[i].kind == a.kind && anims[i].wid == a.wid) { slot = &anims[i]; break; }
+        if (!anims[i].used && !slot) slot = &anims[i];
+    }
+    if (slot) *slot = a;
+    pthread_mutex_unlock(&anim_lock);
+    if (!slot) return "err too many animations\n";
+    start_link();
+    return "ok\n";
+}
+
+static void cancel_anim(enum anim_kind kind, uint32_t wid)
+{
+    pthread_mutex_lock(&anim_lock);
+    for (int i = 0; i < MAX_ANIMS; i++) {
+        if (anims[i].used && anims[i].kind == kind && anims[i].wid == wid) anims[i].used = 0;
+    }
+    pthread_mutex_unlock(&anim_lock);
 }
 
 static const char *start_fade(uint32_t wid, double *args, int argc)
 {
     if (args[0] < 0 || args[0] > 1 || args[1] <= 0) return "err bad alpha or duration\n";
     if (argc == 7 && (args[6] < 0 || args[6] > 1)) return "err bad start alpha\n";
-    struct fade *f = malloc(sizeof(*f));
-    if (!f) return "err oom\n";
-    *f = (struct fade) {
-        .wid = wid, .gen = anim_claim(&alpha_anims, wid), .to = (float) args[0],
+    float from = 1;
+    if (argc == 7) from = (float) args[6];
+    else SLSGetWindowAlpha(SLSMainConnectionID(), wid, &from);
+    return add_anim((struct anim) {
+        .kind = ANIM_ALPHA, .wid = wid, .value_from = from, .value_to = (float) args[0],
         .ms = args[1], .x1 = args[2], .y1 = args[3], .x2 = args[4], .y2 = args[5],
-        .has_from = argc == 7, .from = argc == 7 ? (float) args[6] : 1,
-    };
-    pthread_t thread;
-    if (pthread_create(&thread, NULL, fade, f) != 0) { free(f); return "err thread\n"; }
-    pthread_detach(thread);
-    return "ok\n";
+    });
 }
 
 static const char *start_dim(uint32_t wid, double *args, int argc)
 {
     if (args[0] < 0 || args[0] > 1) return "err bad amount\n";
-    uint64_t gen = anim_claim(&dim_anims, wid); // stops a running dim fade
     if (argc == 1) {
-        set_dim(SLSMainConnectionID(), wid, (float) args[0]);
+        cancel_anim(ANIM_DIM, wid); // stops a running dim fade
+        set_dim(NULL, SLSMainConnectionID(), wid, (float) args[0]);
         return "ok\n";
     }
     if (args[1] <= 0 || args[6] < 0 || args[6] > 1) return "err bad duration or start amount\n";
-    struct fade *f = malloc(sizeof(*f));
-    if (!f) return "err oom\n";
-    *f = (struct fade) {
-        .wid = wid, .gen = gen, .to = (float) args[0], .dim = 1, .has_from = 1, .from = (float) args[6],
+    return add_anim((struct anim) {
+        .kind = ANIM_DIM, .wid = wid, .value_from = (float) args[6], .value_to = (float) args[0],
         .ms = args[1], .x1 = args[2], .y1 = args[3], .x2 = args[4], .y2 = args[5],
-    };
-    pthread_t thread;
-    if (pthread_create(&thread, NULL, fade, f) != 0) { free(f); return "err thread\n"; }
-    pthread_detach(thread);
-    return "ok\n";
+    });
 }
 
 static const char *start_animation(uint32_t wid, double *args, int argc)
 {
     if (args[2] < 1 || args[3] < 1 || args[4] <= 0) return "err bad rect or duration\n";
     if (argc >= 13 && (args[11] < 1 || args[12] < 1)) return "err bad target rect\n";
-    struct animation *a = malloc(sizeof(*a));
-    if (!a) return "err oom\n";
-    *a = (struct animation) {
-        .wid = wid, .gen = anim_claim(&frame_anims, wid), .from = CGRectMake(args[0], args[1], args[2], args[3]),
+    return add_anim((struct anim) {
+        .kind = ANIM_FRAME, .wid = wid, .from = CGRectMake(args[0], args[1], args[2], args[3]),
         .ms = args[4], .x1 = args[5], .y1 = args[6], .x2 = args[7], .y2 = args[8],
         .has_to = argc >= 13, .to = argc >= 13 ? CGRectMake(args[9], args[10], args[11], args[12]) : CGRectZero,
         .hold = argc == 14 && args[13] != 0,
-    };
-    pthread_t thread;
-    if (pthread_create(&thread, NULL, animate, a) != 0) { free(a); return "err thread\n"; }
-    pthread_detach(thread);
-    return "ok\n";
+    });
 }
 
 static const char *handle(char *line)
@@ -225,7 +272,7 @@ static const char *handle(char *line)
     char *save = NULL;
     char *cmd = strtok_r(line, " \n", &save);
     if (!cmd) return "err empty\n";
-    if (strcmp(cmd, "ping") == 0) return "ok fade close layer modal dim\n";
+    if (strcmp(cmd, "ping") == 0) return "ok fade close layer modal dim vsync batch\n";
 
     char *wid_str = strtok_r(NULL, " \n", &save);
     if (!wid_str) return "err missing wid\n";
@@ -245,7 +292,7 @@ static const char *handle(char *line)
         return argc == 9 || argc == 13 || argc == 14 ? start_animation(wid, args, argc) : "err bad argument count\n";
     }
     if (strcmp(cmd, "untransform") == 0 && argc == 0) {
-        anim_claim(&frame_anims, wid); // stops a running animation
+        cancel_anim(ANIM_FRAME, wid); // stops a running animation
         CGRect real;
         if (SLSGetWindowBounds(SLSMainConnectionID(), wid, &real) != kCGErrorSuccess) return "err no window\n";
         SLSSetWindowTransform(SLSMainConnectionID(), wid, CGAffineTransformMakeTranslation(-real.origin.x, -real.origin.y));
@@ -272,7 +319,7 @@ static const char *handle(char *line)
     } else if (strcmp(cmd, "uncorner") == 0 && argc == 0) {
         SLSTransactionClearWindowCornerRadius(t, wid);
     } else if (strcmp(cmd, "alpha") == 0 && argc == 1) {
-        anim_claim(&alpha_anims, wid); // stops a running fade
+        cancel_anim(ANIM_ALPHA, wid); // stops a running fade
         SLSTransactionSetWindowAlpha(t, wid, (float) args[0]);
     } else {
         reply = "err bad command or argument count\n";
@@ -295,11 +342,25 @@ static void *serve(void *path)
     for (;;) {
         int client = accept(fd, NULL, NULL);
         if (client < 0) continue;
-        char buf[1024] = {0};
-        ssize_t n = read(client, buf, sizeof(buf) - 1);
-        if (n > 0) {
-            const char *reply = handle(buf);
-            write(client, reply, strlen(reply));
+        int on = 1;
+        setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on)); // a client gone early must not kill Dock
+        // one or more commands, one per line, one reply per line, until the client
+        // closes its side (an older app sends one line and waits for its reply)
+        char buf[8192];
+        size_t len = 0;
+        ssize_t n;
+        while ((n = read(client, buf + len, sizeof(buf) - 1 - len)) > 0) {
+            len += (size_t) n;
+            char *line = buf, *nl;
+            while ((nl = memchr(line, '\n', (size_t) (buf + len - line)))) {
+                *nl = 0;
+                const char *reply = handle(line);
+                write(client, reply, strlen(reply));
+                line = nl + 1;
+            }
+            len = (size_t) (buf + len - line);
+            memmove(buf, line, len);
+            if (len == sizeof(buf) - 1) len = 0; // a line too long: dropped
         }
         close(client);
     }
@@ -308,6 +369,9 @@ static void *serve(void *path)
 __attribute__((constructor))
 static void load(void)
 {
+    link_queue = dispatch_queue_create("skyland-sa display link", DISPATCH_QUEUE_SERIAL);
+    CVDisplayLinkCreateWithActiveCGDisplays(&display_link);
+    CVDisplayLinkSetOutputCallback(display_link, step, NULL);
     static char path[104];
     // Dock runs as the logged-in user, so $USER matches the client side
     const char *user = getenv("USER");
