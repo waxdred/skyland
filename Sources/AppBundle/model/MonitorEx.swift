@@ -15,7 +15,7 @@ extension MonitorInfo {
     func visibleRect(paddedBy gaps: ResolvedGaps) -> Rect {
         let topLeft = visibleRect.topLeftCorner
         // skyland: room for a bar taller than this monitor's menu bar (see barOverlap)
-        let top = gaps.outer.top.toDouble() + barOverlap(barHeight: config.barHeight, menuBarHeight: visibleRect.topLeftY - rect.topLeftY)
+        let top = gaps.outer.top.toDouble() + barOverlap(barHeight: barHeight, menuBarHeight: visibleRect.topLeftY - rect.topLeftY)
         return Rect(
             topLeftX: topLeft.x + gaps.outer.left.toDouble(),
             topLeftY: topLeft.y + top,

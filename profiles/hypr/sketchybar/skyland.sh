@@ -69,5 +69,8 @@ args+=(--add item skyland left
 # the title comes from skyland: no script of its own (it ran on front_app_switched)
 sketchybar --query window_title >/dev/null 2>&1 && args+=(--set window_title script="" update_freq=0)
 sketchybar "${args[@]}"
+# windows below the bar: skyland gets its real height (over the config's bar-height)
+height=$(sketchybar --query bar | grep -o '"height":[ ]*[0-9]*' | grep -o '[0-9]*$' || true)
+[ -n "$height" ] && "$CLI" bar-height "$height" >/dev/null 2>&1 || true
 # recolors the whole bar with the current [theme] file, then triggers skyland_update
 "$DIR/../../../bin/skyland-theme" apply || sketchybar --trigger skyland_update

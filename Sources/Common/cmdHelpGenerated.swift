@@ -200,6 +200,9 @@ let window_rule_help_generated = """
        OR: window-rule [-h|--help] [--window-id <window-id>] rounding <px>
        OR: window-rule [-h|--help] [--window-id <window-id>] (noborder|nodim|noanim) [on|off|toggle]
     """
+let bar_height_help_generated = """
+    USAGE: bar-height [-h|--help] [<px>|default]
+    """
 let pin_help_generated = """
     USAGE: pin [-h|--help] [--window-id <window-id>] [on|off|toggle]
     """

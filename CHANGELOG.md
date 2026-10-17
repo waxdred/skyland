@@ -16,6 +16,12 @@ is also the text of its GitHub release.
   the Dock payload; the older keys keep skyland's look. Preset choice in the settings
   window. Needs the payload (`skyland sa build`, `killall Dock; skyland sa load`).
 
+**Bar height**
+- `bar-height <px>|default` command: a bar (SkylandBar, sketchybar) sends its own height
+  over the socket and the windows are laid out below it, over the config's `bar-height`
+  (`default` goes back to it, no argument prints the height in use). The hypr profile's
+  sketchybar sends it at every load.
+
 **Border**
 - The animated border hides while a window is dragged or resized with the mouse (title
   bar, edges, or the mouse modifier) instead of lagging behind it, and comes back at
