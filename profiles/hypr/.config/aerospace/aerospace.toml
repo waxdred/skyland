@@ -31,9 +31,8 @@ focus-follows-mouse.enabled = true # 43PR: follow_mouse = 1
 # Hyprland warps the cursor to a window focused from the keyboard (cursor:no_warps
 # = false); without it the cursor stays over the old window and focus-follows-mouse
 # gives focus back to it on the next mouse move. 'lazy': no warp if already inside.
-on-focus-changed = ['move-mouse window-lazy-center', 'exec-and-forget sketchybar --trigger skyland_update']
-# sketchybar workspaces + window title (profiles/hypr/sketchybar/)
-exec-on-workspace-change = ['/bin/bash', '-c', 'sketchybar --trigger skyland_update']
+on-focus-changed = ['move-mouse window-lazy-center']
+# sketchybar workspaces + window title: skyland pushes them itself (profiles/hypr/sketchybar/)
 
 # 4 workspaces per screen, screens numbered left to right: 1-4 on screen 1,
 # 5-8 on screen 2, 9-12 on screen 3; with fewer screens they fall back left.

@@ -15,6 +15,12 @@ is also the text of its GitHub release.
   focus follows mouse does nothing while the cursor stays over the focused window,
   and the key / mouse taps run on their own thread, so typing and clicking in other
   apps never wait for skyland.
+- sketchybar: skyland pushes the workspaces and the window title itself, with one
+  `sketchybar` call when they change, instead of a script with ~20 processes and 4
+  CLI calls on up to 3 events per change. CLI queries (`list-*`, `config`, `echo`)
+  no longer run a refresh session. **Your config**: drop
+  `exec-and-forget sketchybar --trigger skyland_update` from `on-focus-changed` and
+  the `exec-on-workspace-change` line (they still work, but cost for nothing).
 
 ## v0.1.9
 

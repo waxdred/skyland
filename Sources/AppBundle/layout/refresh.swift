@@ -120,6 +120,7 @@ func refreshModel_nonCancellable() async {
     applyDecorations()
     saveWorkspaceMemory()
     refreshOverview()
+    updateBar() // skyland: sketchybar workspaces and title
 }
 
 @MainActor
