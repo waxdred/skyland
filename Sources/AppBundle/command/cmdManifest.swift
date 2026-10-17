@@ -20,6 +20,8 @@ extension CmdArgs {
                 command = ScratchpadCommand(args: self as! ScratchpadCmdArgs)
             case .pin:
                 command = PinCommand(args: self as! PinCmdArgs)
+            case .windowRule:
+                command = WindowRuleCommand(args: self as! WindowRuleCmdArgs)
             case .close:
                 command = CloseCommand(args: self as! CloseCmdArgs)
             case .closeAllWindowsButCurrent:

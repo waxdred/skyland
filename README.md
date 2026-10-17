@@ -342,6 +342,23 @@ right, falling back left when fewer screens are plugged).
 | `alt-tab` | lock screen | `Super+Tab` |
 | `alt-m` | media widget | |
 
+### Window rules
+
+Hyprland's `windowrulev2` maps to `[[on-window-detected]]` with `window-rule` commands
+(also editable in the Rules tab of the settings window, under "More"):
+
+```toml
+[[on-window-detected]]
+if.app-id = 'com.apple.finder'
+run = ['layout floating', 'window-rule size 60% 70%', 'window-rule center',
+       'window-rule opacity 95 85', 'window-rule rounding 14', 'window-rule noanim']
+```
+
+`size` / `move` take points or a percentage of the screen and need the window floating;
+`noborder`, `nodim`, `noanim` turn the effects off for that window. Hyprland's
+`workspace N silent` is `move-node-to-workspace N` (focus stays where it is; add
+`--focus-follows-window` to follow it). See `aerospace window-rule --help`.
+
 ### SketchyBar
 
 skyland does not ship a bar config: keep your own `sketchybarrc`, and connect it

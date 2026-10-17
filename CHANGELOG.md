@@ -16,6 +16,12 @@ is also the text of its GitHub release.
   the Dock payload; the older keys keep skyland's look. Preset choice in the settings
   window. Needs the payload (`skyland sa build`, `killall Dock; skyland sa load`).
 
+**Window rules**
+- `window-rule` command, Hyprland's windowrule v2 for `on-window-detected`: `size` /
+  `move` (points or % of the screen), `center`, `opacity <active> [<inactive>]`,
+  `rounding`, `noborder`, `nodim`, `noanim` per window. Editable in the Rules tab
+  ("More").
+
 **Shadows**
 - `[decoration] shadow = 'on' | 'off' | 'floating'`: macOS window shadows off, or only on
   floating windows (Hyprland `decoration:shadow`); each window gets its own shadow back

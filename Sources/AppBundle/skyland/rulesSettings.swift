@@ -8,6 +8,8 @@ import SwiftUI
 //     [[on-window-detected]]
 //     if.app-id = 'com.hnc.Discord' # Discord
 //     run = ['layout floating', 'move-node-to-workspace 8']
+// plus window properties ('window-rule size 60% 70%', 'window-rule center', opacity,
+// rounding, noanim / nodim / noborder) under "More".
 // Blocks with other conditions or commands are shown as custom, left as they are.
 // "Apply to open windows" also runs the commands on the app's current windows.
 
@@ -16,6 +18,7 @@ struct AppRule: Identifiable {
     var name: String
     var layout = "" // "", "floating", "tiling"
     var workspace = "" // "" or a workspace name
+    var extras: [String] = [] // `window-rule ...` commands, in order
     var block: TomlBlock? = nil
     var custom = false
     var id: String { appId }
@@ -43,6 +46,8 @@ final class RulesModel: ObservableObject {
                     rule.layout = String(command.dropFirst("layout ".count))
                 } else if command.hasPrefix("move-node-to-workspace "), !command.dropFirst(23).contains(" ") {
                     rule.workspace = String(command.dropFirst(23))
+                } else if command.hasPrefix("window-rule ") {
+                    rule.extras.append(command)
                 } else {
                     rule.custom = true
                 }
@@ -57,10 +62,11 @@ final class RulesModel: ObservableObject {
         rules = result + running
     }
 
-    func set(_ rule: AppRule, layout: String, workspace: String) {
+    func set(_ rule: AppRule, layout: String, workspace: String, extras: [String]? = nil) {
         var commands: [String] = []
         if !layout.isEmpty { commands.append("layout \(layout)") }
         if !workspace.isEmpty { commands.append("move-node-to-workspace \(workspace)") }
+        commands += extras ?? rule.extras
         let run = commands.count == 1 ? "'\(commands[0])'" : "[" + commands.map { "'\($0)'" }.joined(separator: ", ") + "]"
         let lines = commands.isEmpty ? [] : ["[[on-window-detected]]", "if.app-id = '\(rule.appId)' # \(rule.name)", "run = \(run)"]
         let url = readConfig(forceConfigUrl: nil).configUrl
@@ -132,6 +138,7 @@ struct RulesView: View {
 private struct RuleRow: View {
     @ObservedObject var model: RulesModel
     let rule: AppRule
+    @State private var showMore = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -144,6 +151,8 @@ private struct RuleRow: View {
             if rule.custom {
                 Text("custom rule").foregroundStyle(.secondary)
             } else {
+                Button(rule.extras.isEmpty ? "More" : "More (\(rule.extras.count))") { showMore.toggle() }
+                    .popover(isPresented: $showMore, arrowEdge: .bottom) { RuleExtras(model: model, rule: rule) }
                 Picker("", selection: Binding(get: { rule.layout }, set: { model.set(rule, layout: $0, workspace: rule.workspace) })) {
                     Text("default").tag("")
                     Text("float").tag("floating")
@@ -169,5 +178,66 @@ private struct RuleRow: View {
     private var icon: NSImage {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: rule.appId)
             .map { NSWorkspace.shared.icon(forFile: $0.path) } ?? NSImage(systemSymbolName: "app", accessibilityDescription: nil)!
+    }
+}
+
+/// The window properties of a rule (`window-rule` commands): size and center need the
+/// window floating.
+private struct RuleExtras: View {
+    @ObservedObject var model: RulesModel
+    let rule: AppRule
+    @State private var size = ""
+    @State private var opacity = ""
+    @State private var rounding = ""
+    @State private var center = false
+    @State private var noAnim = false
+    @State private var noDim = false
+    @State private var noBorder = false
+
+    var body: some View {
+        Form {
+            TextField("Size (floating)", text: $size, prompt: Text("60% 70% or 900 600"))
+            Toggle("Centered (floating)", isOn: $center)
+            TextField("Opacity", text: $opacity, prompt: Text("95 or 95 80 (active inactive)"))
+            TextField("Rounding", text: $rounding, prompt: Text("px"))
+            Toggle("No animation", isOn: $noAnim)
+            Toggle("No dim", isOn: $noDim)
+            Toggle("No border", isOn: $noBorder)
+            HStack {
+                Spacer()
+                Button("Save") { model.set(rule, layout: rule.layout, workspace: rule.workspace, extras: commands) }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding()
+        .frame(width: 360)
+        .onAppear(perform: load)
+    }
+
+    private func value(_ name: String) -> String? {
+        rule.extras.first { $0.hasPrefix("window-rule \(name)") }.map { String($0.dropFirst("window-rule \(name)".count)).trimmingCharacters(in: .whitespaces) }
+    }
+
+    private func load() {
+        size = value("size") ?? ""
+        opacity = value("opacity") ?? ""
+        rounding = value("rounding") ?? ""
+        center = value("center") != nil
+        noAnim = value("noanim") != nil
+        noDim = value("nodim") != nil
+        noBorder = value("noborder") != nil
+    }
+
+    private var commands: [String] {
+        let trim = { (s: String) in s.trimmingCharacters(in: .whitespaces) }
+        var result: [String] = []
+        if !trim(size).isEmpty { result.append("window-rule size \(trim(size))") }
+        if center { result.append("window-rule center") }
+        if !trim(opacity).isEmpty { result.append("window-rule opacity \(trim(opacity))") }
+        if !trim(rounding).isEmpty { result.append("window-rule rounding \(trim(rounding))") }
+        if noAnim { result.append("window-rule noanim") }
+        if noDim { result.append("window-rule nodim") }
+        if noBorder { result.append("window-rule noborder") }
+        return result
     }
 }

@@ -85,7 +85,7 @@ func applyDecorations() {
     // focus / dim fades: fadeSwitch / fadeDim of the animation tree (animationTracks.swift)
     let switchFade = windowAnimator.settings.resolve(.fadeSwitch), dimFade = windowAnimator.settings.resolve(.fadeDim)
     let wantsFades = anim.enabled && switchFade.enabled && switchFade.durationMs > 0
-    if !deco.isEnabled && !wantsFades && sentOpacity.isEmpty && sentRounding.isEmpty && sentDim.isEmpty && raisedWindows.isEmpty
+    if !deco.isEnabled && !wantsFades && windowOverrides.isEmpty && sentOpacity.isEmpty && sentRounding.isEmpty && sentDim.isEmpty && raisedWindows.isEmpty
         && !MacWindow.allWindows.contains(where: \.isFloating) { return }
     var st = stat()
     let inode = unsafe stat(skylandSaSocketPath, &st) == 0 ? st.st_ino : 0
@@ -120,7 +120,7 @@ func applyDecorations() {
         }
         // Hidden in a corner = workspace switched away: fade out while it slides out
         let opacity = (fades && window.isHiddenInCorner) || isHiddenGroupTab(window) ? 0
-            : windowId == focusedId ? deco.activeOpacity : deco.inactiveOpacity
+            : windowOpacity(windowId, focused: windowId == focusedId) // window-rule opacity, else [decoration]
         // a track that drives the opacity ends at it: nothing to send meanwhile
         if isAlphaTracked(windowId) {
             sentOpacity[windowId] = opacity
@@ -136,7 +136,7 @@ func applyDecorations() {
             if raise { raisedWindows.insert(windowId) } else { raisedWindows.remove(windowId) }
             skylandSa("layer \(windowId) \(raise ? 1 : 0)")
         }
-        let dim = windowId == focusedId ? 0 : min(100, max(0, deco.dimInactive))
+        let dim = windowId == focusedId || overrides(windowId).noDim ? 0 : min(100, max(0, deco.dimInactive))
         if payloadCapabilities.contains("dim"), sentDim[windowId, default: 0] != dim, !isBrightnessTracked(windowId) {
             let from = sentDim[windowId, default: 0]
             sentDim[windowId] = dim
@@ -150,7 +150,7 @@ func applyDecorations() {
             if shadow { shadowless.remove(windowId) } else { shadowless.insert(windowId) }
             skylandSa("shadow \(windowId) \(shadow ? 1 : 0)")
         }
-        let rounding = isSmartBorderless(window) ? -1 : deco.rounding // -1: square (smart border)
+        let rounding = isSmartBorderless(window) ? -1 : overrides(windowId).rounding ?? deco.rounding // -1: square (smart border)
         if sentRounding[windowId, default: 0] != rounding {
             sentRounding[windowId] = rounding
             skylandSa(rounding > 0 ? "corner \(windowId) \(rounding)" : rounding < 0 ? "corner \(windowId) 0" : "uncorner \(windowId)")
@@ -160,6 +160,7 @@ func applyDecorations() {
     sentRounding = sentRounding.filter { alive.contains($0.key) }
     sentDim = sentDim.filter { alive.contains($0.key) }
     shadowless = shadowless.intersection(alive)
+    dropWindowOverrides(keeping: alive)
     seenWindows = seenWindows.intersection(alive)
     raisedWindows = raisedWindows.intersection(alive)
     if !newWindows.isEmpty { resendLater(newWindows) }
@@ -274,7 +275,7 @@ private func sendToPayload(_ lines: [String]) -> [String] {
 @MainActor
 func setSwipeAlpha(_ windowId: UInt32, shown: Bool) {
     let fades = config.animations.enabled && config.animations.fadeMs > 0 && payloadCapabilities.contains("fade")
-    let opacity = shown || !fades ? config.decoration.inactiveOpacity : 0 // hidden windows are faded out
+    let opacity = shown || !fades ? windowOpacity(windowId, focused: false) : 0 // hidden windows are faded out
     sentOpacity[windowId] = opacity
     skylandSa("alpha \(windowId) \(Double(opacity) / 100)")
 }
@@ -282,7 +283,7 @@ func setSwipeAlpha(_ windowId: UInt32, shown: Bool) {
 /// The window's opacity at once, no fade (a scratchpad window sliding in).
 @MainActor
 func showOpaqueNow(_ windowId: UInt32, focused: Bool) {
-    let opacity = focused ? config.decoration.activeOpacity : config.decoration.inactiveOpacity
+    let opacity = windowOpacity(windowId, focused: focused)
     sentOpacity[windowId] = opacity // the next decoration pass sees nothing to fade
     skylandSa("alpha \(windowId) \(Double(opacity) / 100)") // also stops a running fade
 }

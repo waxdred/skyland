@@ -81,11 +81,10 @@ extension AnimRect {
 @MainActor
 @discardableResult
 func playTrack(_ event: WindowEvent, _ window: Window, rect: Rect, direction: Double = 1, mode: WindowTrack.Mode? = nil) -> WindowTrack? {
-    guard config.animations.enabled, payloadCapabilities.contains("track") else { return nil }
+    guard config.animations.enabled, payloadCapabilities.contains("track"), !overrides(window.windowId).noAnim else { return nil }
     let monitor = window.nodeWorkspace?.workspaceMonitor ?? mainMonitorInfo
     let screen = AnimRect(monitor.rect)
-    let deco = config.decoration
-    let opacity = Double(window === focus.windowOrNil ? deco.activeOpacity : deco.inactiveOpacity) / 100
+    let opacity = Double(windowOpacity(window.windowId, focused: window === focus.windowOrNil)) / 100
     let context = WindowContext(windowId: window.windowId, rect: AnimRect(rect), monitor: screen, direction: direction,
                                 opacity: opacity, neighbourEdges: screen.neighbourEdges(among: monitorInfos.map { AnimRect($0.rect) }))
     let animator = windowAnimator
