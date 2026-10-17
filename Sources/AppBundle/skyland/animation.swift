@@ -30,6 +30,29 @@ struct Bezier: Equatable, Sendable {
     var x1: Double, y1: Double, x2: Double, y2: Double
     static let linear = Bezier(x1: 0, y1: 0, x2: 1, y2: 1)
     var args: String { "\(x1) \(y1) \(x2) \(y2)" }
+
+    /// Eased progress for linear progress `x`, as the payload steps it (osax/bezier.h).
+    func ease(_ x: Double) -> Double {
+        if x <= 0 { return 0 }
+        if x >= 1 { return 1 }
+        func axis(_ t: Double, _ a: Double, _ b: Double) -> Double { ((1 - 3 * b + 3 * a) * t + (3 * b - 6 * a)) * t * t + 3 * a * t }
+        func slope(_ t: Double, _ a: Double, _ b: Double) -> Double { 3 * (1 - 3 * b + 3 * a) * t * t + 2 * (3 * b - 6 * a) * t + 3 * a }
+        var t = x
+        for _ in 0 ..< 8 {
+            let err = axis(t, x1, x2) - x, s = slope(t, x1, x2)
+            if abs(err) < 1e-7 || abs(s) < 1e-7 { break }
+            t -= err / s
+        }
+        if t < 0 || t > 1 || abs(axis(t, x1, x2) - x) > 1e-5 { // Newton misbehaved: bisection
+            var lo = 0.0, hi = 1.0
+            t = x
+            for _ in 0 ..< 40 {
+                if axis(t, x1, x2) < x { lo = t } else { hi = t }
+                t = (lo + hi) / 2
+            }
+        }
+        return axis(t, y1, y2)
+    }
 }
 
 private let animationsParser: [String: any ParserProtocol<Animations>] = [

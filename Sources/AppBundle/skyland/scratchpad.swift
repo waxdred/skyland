@@ -18,6 +18,8 @@ extension Workspace {
 @MainActor private var shownScratchpads: [String: [UInt32]] = [:]
 /// Scratchpads sliding out: the windows go back to their workspace at the end
 @MainActor private var hiding: [String: (windows: [UInt32], task: Task<Void, Never>)] = [:]
+/// Running slides, to start the next one where the window is now (a toggle during a slide)
+@MainActor private var slides: [UInt32: (from: Rect, to: Rect, start: Date)] = [:]
 /// An app started for a scratchpad, its first window awaited
 @MainActor private var awaitingApp: [String: Task<Void, Never>] = [:]
 
@@ -84,7 +86,8 @@ private func show(_ windows: [Window], _ workspace: String, on target: Workspace
         let rect = Rect(topLeftX: area.topLeftX + (area.width - size.width) / 2, topLeftY: area.topLeftY + (area.height - size.height) / 2,
                         width: size.width, height: size.height)
         window.setAxFrame(rect.topLeftCorner, size)
-        animateScratchpad(window.windowId, from: rect.copy(\.topLeftY, monitor.rect.topLeftY - size.height), to: nil)
+        let from = slidingRect(window.windowId) ?? rect.copy(\.topLeftY, monitor.rect.topLeftY - size.height)
+        animateScratchpad(window.windowId, from: from, to: rect, toRealFrame: true)
     }
     shownScratchpads[workspace] = windows.map(\.windowId)
     _ = windows.first?.focusWindow()
@@ -100,7 +103,7 @@ private func hide(_ ids: [UInt32], _ workspace: String) async {
     for id in ids {
         guard let window = Window.get(byId: id), let rect = try? await window.getAxRect(.nonCancellable) else { continue }
         let monitor = window.nodeWorkspace?.workspaceMonitor ?? mainMonitorInfo
-        animateScratchpad(id, from: rect, to: rect.copy(\.topLeftY, monitor.rect.topLeftY - rect.height))
+        animateScratchpad(id, from: slidingRect(id) ?? rect, to: rect.copy(\.topLeftY, monitor.rect.topLeftY - rect.height), toRealFrame: false)
     }
     let task = Task { @MainActor in
         if ms > 0 { try? await Task.sleep(for: .milliseconds(ms)) }
@@ -131,13 +134,29 @@ private func startAppForScratchpad(_ app: String, _ workspace: String) {
     }
 }
 
+/// `toRealFrame`: the window ends at its real frame (`to`), else it is shown at `to` and
+/// jumps to its real frame at the end (going out).
 @MainActor
-private func animateScratchpad(_ windowId: UInt32, from: Rect, to: Rect?) {
+private func animateScratchpad(_ windowId: UInt32, from: Rect, to: Rect, toRealFrame: Bool) {
     let anim = config.animations
     guard anim.enabled, anim.windowsMs > 0 else { return }
-    let target = to.map { " \($0.topLeftX) \($0.topLeftY) \($0.width) \($0.height)" } ?? ""
+    slides[windowId] = (from, to, .now)
+    let target = toRealFrame ? "" : " \(to.topLeftX) \(to.topLeftY) \(to.width) \(to.height)"
     skylandSa("animate \(windowId) \(from.topLeftX) \(from.topLeftY) \(from.width) \(from.height) \(anim.windowsMs) \(anim.windowsBezier.args)\(target)")
     pauseAnimatedBorder(ms: anim.windowsMs) // the window server frame is the sliding one until the end
+}
+
+/// Where a sliding window is shown now, nil when it is not sliding.
+@MainActor
+private func slidingRect(_ windowId: UInt32) -> Rect? {
+    let anim = config.animations
+    guard let slide = slides[windowId], anim.windowsMs > 0 else { return nil }
+    let x = Date.now.timeIntervalSince(slide.start) * 1000 / Double(anim.windowsMs)
+    if x >= 1 { slides[windowId] = nil; return nil }
+    let p = CGFloat(anim.windowsBezier.ease(x))
+    let a = slide.from, b = slide.to
+    return Rect(topLeftX: a.topLeftX + (b.topLeftX - a.topLeftX) * p, topLeftY: a.topLeftY + (b.topLeftY - a.topLeftY) * p,
+                width: a.width + (b.width - a.width) * p, height: a.height + (b.height - a.height) * p)
 }
 
 @MainActor
