@@ -259,6 +259,7 @@ border-width = 2                  # focused window border, theme accent gradient
 border-rotate-ms = 4000           # the border gradient turns, one turn in ms (skyland draws it), 0 = static
 blur = 5                          # Ghostty background blur, 0 = none
 group-bar-height = 22             # accordion containers become groups with a tabs bar, 0 = AeroSpace accordion
+ui-style = 'metal'                # skyland's panels: metal (blur) | glass (Liquid Glass, from skylandbar)
 
 [animations]                      # Hyprland speed is in ds: speed 5 = 500 ms
 enabled = true

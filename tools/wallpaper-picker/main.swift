@@ -1,4 +1,4 @@
-// skyland wallpaper picker, like 43PR's quickshell hyprquickpaper.
+// skyland wallpaper picker (built with Sources/SkylandGlass for ui-style = 'glass'), like 43PR's quickshell hyprquickpaper.
 //   skyland-wallpaper-picker <dir>     pick an image: prints its path, exit 1 if cancelled
 //   skyland-wallpaper-picker --themes <file.css...>   pick a theme from color previews: prints its path
 //   skyland-wallpaper-picker --set <file>   set it as wallpaper on every screen
@@ -170,7 +170,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     let rowHeight: CGFloat = 30
     let maxRows = 14 // ponytail: no scrolling in the theme list, past this rows are hidden until searched
     var panel: KeyPanel!
-    var blur: NSVisualEffectView!
+    var blur: NSView! // NSVisualEffectView, or a glass shape (ui-style = 'glass')
     var content: NSView! // theme tint over the blur, holds the views
     var showingThemes = true
 
@@ -192,19 +192,28 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        blur = NSVisualEffectView()
-        blur.material = .hudWindow
-        blur.state = .active
-        blur.wantsLayer = true
-        blur.layer?.cornerRadius = 14
-        blur.layer?.masksToBounds = true
-        blur.maskImage = roundedMask(radius: 14)
+        let glass = uiStyleIsGlass()
+        if glass {
+            panel.hasShadow = false // the glass draws its own
+            blur = NSView()
+            blur.addSubview(GlassBackground(radius: 14, tint: skylandTheme["bg"]?.withAlphaComponent(0.4)))
+        } else {
+            let effect = NSVisualEffectView()
+            effect.material = .hudWindow
+            effect.state = .active
+            effect.wantsLayer = true
+            effect.layer?.cornerRadius = 14
+            effect.layer?.masksToBounds = true
+            effect.maskImage = roundedMask(radius: 14)
+            blur = effect
+        }
         panel.contentView = blur
         content = NSView()
         content.autoresizingMask = [.width, .height]
         content.wantsLayer = true
         content.layer?.cornerRadius = 14
-        content.layer?.backgroundColor = skylandTheme["bg"]?.withAlphaComponent(0.85).cgColor // the blur stays a hint: gray otherwise
+        // metal: the blur stays a hint, gray otherwise; glass: tinted already
+        content.layer?.backgroundColor = glass ? nil : skylandTheme["bg"]?.withAlphaComponent(0.85).cgColor
         content.layer?.borderWidth = skylandTheme.isEmpty ? 0 : 1
         content.layer?.borderColor = themeAccent.withAlphaComponent(0.35).cgColor
         blur.addSubview(content)

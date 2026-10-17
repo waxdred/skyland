@@ -19,13 +19,13 @@ bin="$(swiftly run swift build -c $cfg --show-bin-path)"
 # binary in place gets it killed by macOS (Code Signature Invalid)
 rm -f .build/aerospace
 cp "$bin/aerospace" .build/aerospace
-swiftc -O tools/wallpaper-picker.swift -o .build/skyland-wallpaper-picker
+swiftc -O tools/wallpaper-picker/main.swift Sources/SkylandGlass/*.swift -o .build/skyland-wallpaper-picker # + ui-style glass
 swiftc -O tools/keys-help.swift -o .build/skyland-keys
 # media widget + its now playing backend (git submodule, BSD-3)
 [[ -f third_party/mediaremote-adapter/CMakeLists.txt ]] || git submodule update --init third_party/mediaremote-adapter
 cmake -S third_party/mediaremote-adapter -B .build/mediaremote >/dev/null
 cmake --build .build/mediaremote >/dev/null
-swiftc -O -enforce-exclusivity=unchecked tools/media-widget/main.swift -o .build/skyland-media
+swiftc -O -enforce-exclusivity=unchecked tools/media-widget/main.swift Sources/SkylandGlass/*.swift -o .build/skyland-media
 "$PWD/bin/skyland-lock" refresh # re-sign the installed lock screen if any
 
 app=.build/Skyland.app

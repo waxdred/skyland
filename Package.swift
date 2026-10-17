@@ -57,6 +57,7 @@ let package = Package(
                 .target(name: "Common"),
                 .target(name: "PrivateApi"),
                 .target(name: "SkylandAnimation"), // skyland: animation styles as payload tracks
+                .target(name: "SkylandGlass"), // skyland: ui-style = 'glass'
             ],
             swiftSettings: swiftSettings,
         ),
@@ -87,6 +88,12 @@ let package = Package(
             name: "SkylandAnimation",
             exclude: ["README.md"],
             swiftSettings: swiftSettings,
+        ),
+        // skyland: Liquid Glass panel backgrounds (from skylandbar), AppKit / Metal only. Also
+        // compiled into the wallpaper picker and the media widget (bin/skyland-build)
+        .target(
+            name: "SkylandGlass",
+            swiftSettings: [.swiftLanguageMode(.v5)],
         ),
         .executableTarget(
             name: "SkylandAnimDemo",

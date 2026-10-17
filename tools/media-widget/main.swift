@@ -22,6 +22,7 @@ let adapterScript = repo.appending(path: "third_party/mediaremote-adapter/bin/me
 let adapterFramework = repo.appending(path: ".build/mediaremote/MediaRemoteAdapter.framework").path
 let themeFile = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/theme.css")
 let defaults = UserDefaults(suiteName: "com.waxdred.skyland-media")!
+let isGlass = uiStyleIsGlass() // [decoration] ui-style, written by skyland
 // --opacity <percent>, from [media] opacity (bin/skyland-media)
 let opacity = CommandLine.arguments.firstIndex(of: "--opacity")
     .flatMap { CommandLine.arguments.indices.contains($0 + 1) ? Double(CommandLine.arguments[$0 + 1]) : nil }
@@ -1366,12 +1367,20 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.alphaValue = opacity
         panel.delegate = self
 
-        let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        glass.material = .hudWindow
-        glass.state = .active
-        // A mask image (not layer.cornerRadius) also shapes the window border and
-        // shadow: with cornerRadius macOS kept drawing a 1 px rectangular outline.
-        glass.maskImage = roundedMask(radius: radius)
+        let glass: NSView
+        if isGlass { // ui-style = 'glass' (Sources/SkylandGlass, compiled in)
+            panel.hasShadow = false // the glass draws its own
+            glass = NSView(frame: NSRect(origin: .zero, size: size))
+            glass.addSubview(GlassBackground(radius: radius))
+        } else {
+            let effect = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+            effect.material = .hudWindow
+            effect.state = .active
+            // A mask image (not layer.cornerRadius) also shapes the window border and
+            // shadow: with cornerRadius macOS kept drawing a 1 px rectangular outline.
+            effect.maskImage = roundedMask(radius: radius)
+            glass = effect
+        }
         panel.contentView = glass
         tint = NSView(frame: glass.bounds)
         tint.wantsLayer = true
@@ -1486,7 +1495,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if audioware { applyAudioware(); return }
         let c = themeColors()
         let fg = c["fg"] ?? .white, dim = c["fg_dim"] ?? .lightGray
-        tint.layer?.backgroundColor = (c["bg_card"] ?? .black).withAlphaComponent(0.55).cgColor
+        tint.layer?.backgroundColor = (c["bg_card"] ?? .black).withAlphaComponent(isGlass ? 0.2 : 0.55).cgColor
         title.textColor = fg
         artist.textColor = dim
         source.textColor = (c["accent"] ?? fg).withAlphaComponent(0.9)

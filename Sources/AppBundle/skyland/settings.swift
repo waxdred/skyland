@@ -1,5 +1,6 @@
 import AppKit
 import Common
+import SkylandGlass
 import SwiftUI
 
 // skyland settings window (`settings` command, alt-i toggles it), themed with the
@@ -166,7 +167,7 @@ final class SettingsModel: ObservableObject {
         guard !pending.isEmpty else { return }
         let url = configUrl
         guard var text = try? String(contentsOf: url, encoding: .utf8) else { error = "cannot read \(url.path)"; return }
-        let fields = settingGroups.flatMap(\.fields).filter { pending[$0.id] != nil }
+        let fields = (settingGroups.flatMap(\.fields) + [uiStyleField]).filter { pending[$0.id] != nil }
         for field in fields { text = tomlSet(text, section: field.section, key: field.key, value: pending[field.id]!) }
         let errors = parseConfig(text).errors
         guard errors.isEmpty else {
@@ -213,7 +214,7 @@ private struct SettingsView: View {
         }
         .frame(minWidth: 620, minHeight: 560)
         .tint(model.colors.accent)
-        .background(model.colors.background.opacity(0.8)) // the theme over the window blur, a bit see-through
+        .background(model.colors.background.opacity(isGlassStyle ? 0.45 : 0.8)) // the theme over the window blur or glass, see-through
         .preferredColorScheme(model.colors.dark ? .dark : .light)
     }
 }
@@ -246,6 +247,19 @@ private struct GeneralView: View {
                     Spacer()
                     Button("Open config file") { NSWorkspace.shared.open(model.configUrl) }
                 }
+                // ui-style: saved right away, this window is made again in the new style
+                Picker("Style", selection: Binding(get: { isGlassStyle ? "glass" : "metal" }, set: { style in
+                    model.set(uiStyleField, "'\(style)'")
+                    Task { @MainActor in
+                        await model.save()
+                        settingsWindow?.close()
+                        showSettingsWindow()
+                    }
+                })) {
+                    Text("Metal").tag("metal")
+                    Text("Glass").tag("glass")
+                }
+                .pickerStyle(.segmented)
             } header: { SectionHeader(title: "Look", colors: model.colors) }
             ForEach(settingGroups, id: \.title) { group in
                 Section {
@@ -322,11 +336,18 @@ private struct GeneralView: View {
 @MainActor private let settingsKeys = KeysModel()
 @MainActor private let settingsRules = RulesModel()
 
+/// `[decoration] ui-style`, chosen in the Look section (metal | glass).
+let uiStyleField = SettingField(section: "decoration", key: "ui-style", label: "Style", kind: .choice(["metal", "glass"]))
+
 @MainActor
 func showSettingsWindow() {
     if let window = settingsWindow, window.isVisible, window.isKeyWindow { // alt-i again: close it
         window.close()
         return
+    }
+    if let window = settingsWindow, (window.contentView is NSVisualEffectView) == isGlassStyle { // ui-style changed: made again
+        window.close()
+        settingsWindow = nil
     }
     if settingsWindow == nil {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 760),
@@ -337,11 +358,20 @@ func showSettingsWindow() {
         window.isReleasedWhenClosed = false
         window.isOpaque = false
         window.backgroundColor = .clear
-        // blurred translucent background, the theme color is laid over it by SettingsView
-        let blur = NSVisualEffectView()
-        blur.material = .hudWindow
-        blur.blendingMode = .behindWindow
-        blur.state = .active
+        // blurred translucent background or glass (ui-style), the theme color is laid over it by SettingsView
+        let blur: NSView
+        if isGlassStyle {
+            blur = NSView()
+            let glass = GlassBackground(radius: 12)
+            glass.blur = 4 // a form over whatever is behind: a little more than the panels' 2
+            blur.addSubview(glass)
+        } else {
+            let effect = NSVisualEffectView()
+            effect.material = .hudWindow
+            effect.blendingMode = .behindWindow
+            effect.state = .active
+            blur = effect
+        }
         let host = NSHostingView(rootView: SettingsView(model: settingsModel, keys: settingsKeys, rules: settingsRules))
         host.translatesAutoresizingMaskIntoConstraints = false
         blur.addSubview(host)

@@ -70,14 +70,8 @@ private func makeModeHud(_ mode: String, bindings: [HotkeyBinding]) -> NSPanel {
     panel.isMovableByWindowBackground = true
     panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
     panel.appearance = NSAppearance(named: .darkAqua)
-    let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-    glass.material = .hudWindow
-    glass.state = .active
-    glass.maskImage = NSImage(size: size, flipped: false) { rect in // shapes the window outline too (toggle.swift)
-        NSColor.black.setFill()
-        NSBezierPath(roundedRect: rect, xRadius: 16, yRadius: 16).fill()
-        return true
-    }
+    let glass = makePanelRoot(radius: 16, for: panel) // ui-style
+    glass.frame = NSRect(origin: .zero, size: size)
     glass.addSubview(label)
     let handle = DragHandle(frame: glass.bounds) // over the label, which would take the clicks
     glass.addSubview(handle)
