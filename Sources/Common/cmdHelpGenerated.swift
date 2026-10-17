@@ -192,6 +192,14 @@ let group_focus_help_generated = """
 let master_help_generated = """
     USAGE: master [-h|--help] (on|off|toggle|swap|focus)
     """
+let window_rule_help_generated = """
+    USAGE: window-rule [-h|--help] [--window-id <window-id>] size <width> <height>
+       OR: window-rule [-h|--help] [--window-id <window-id>] move <x> <y>
+       OR: window-rule [-h|--help] [--window-id <window-id>] center
+       OR: window-rule [-h|--help] [--window-id <window-id>] opacity <active> [<inactive>]
+       OR: window-rule [-h|--help] [--window-id <window-id>] rounding <px>
+       OR: window-rule [-h|--help] [--window-id <window-id>] (noborder|nodim|noanim) [on|off|toggle]
+    """
 let pin_help_generated = """
     USAGE: pin [-h|--help] [--window-id <window-id>] [on|off|toggle]
     """

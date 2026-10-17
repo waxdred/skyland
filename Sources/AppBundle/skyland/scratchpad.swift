@@ -150,7 +150,7 @@ private func startAppForScratchpad(_ app: String, _ workspace: String) {
 @MainActor
 private func animateScratchpad(_ windowId: UInt32, from: Rect, to: Rect, toRealFrame: Bool) {
     let spec = windowAnimator.settings.resolve(toRealFrame ? .specialWorkspaceIn : .specialWorkspaceOut)
-    guard config.animations.enabled, spec.enabled, let window = Window.get(byId: windowId) else { return }
+    guard config.animations.enabled, spec.enabled, let window = Window.get(byId: windowId), !overrides(windowId).noAnim else { return }
     // the window server frame is the sliding one until the end; going out, the window is
     // still focused at its real frame until it is moved away (the border flashed there)
     let pause = toRealFrame ? 0 : 500

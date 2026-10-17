@@ -1,0 +1,52 @@
+= aerospace-window-rule(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-window-rule
+// tag::purpose[]
+:manpurpose: Hyprland windowrule v2: set a per window property (size, position, opacity, rounding, effects)
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace window-rule [-h|--help] [--window-id <window-id>] (size|move) <x|N%> <y|N%>
+aerospace window-rule [-h|--help] [--window-id <window-id>] center
+aerospace window-rule [-h|--help] [--window-id <window-id>] opacity <active> [<inactive>]
+aerospace window-rule [-h|--help] [--window-id <window-id>] rounding <px>
+aerospace window-rule [-h|--help] [--window-id <window-id>] (noborder|nodim|noanim) [on|off|toggle]
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}. Meant for `on-window-detected` callbacks, next to `layout floating` and
+`move-node-to-workspace`, but works on any window from the CLI too.
+
+* `size`, `move`, `center`: the window must be floating. Values are points or a
+  percentage of the monitor's visible area (`size 60% 70%`, `move 10% 5%`).
+* `opacity`: percent, the second value is used when the window is not focused (it falls
+  back to the first one). Overrides `[decoration]` opacities.
+* `rounding`: corner radius in px, overrides `[decoration] rounding`.
+* `noborder`, `nodim`, `noanim`: no animated border, no inactive dim, no open / close /
+  move / scratchpad animation for this window. `on` by default.
+
+Properties live in memory: they are set again by the rules when the window is detected
+after a restart.
+
+----
+[[on-window-detected]]
+if.app-id = 'com.apple.finder'
+run = ['layout floating', 'window-rule size 60% 70%', 'window-rule center', 'window-rule opacity 95 85']
+----
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+--window-id <window-id>::
+include::./util/window-id-flag-desc.adoc[]
+
+// end::body[]

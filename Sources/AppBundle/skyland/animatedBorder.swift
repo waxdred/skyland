@@ -40,7 +40,7 @@ func resumeAnimatedBorder(afterMs ms: Int) {
 func updateAnimatedBorder() {
     let deco = config.decoration
     guard deco.borderRotateMs > 0, deco.borderWidth > 0, TrayMenuModel.shared.isEnabled, !isOverviewOpen, Date.now >= borderPausedUntil,
-          let window = focus.windowOrNil, !window.isHiddenInCorner, !isHiddenGroupTab(window), !isSmartBorderless(window),
+          let window = focus.windowOrNil, !window.isHiddenInCorner, !isHiddenGroupTab(window), !isSmartBorderless(window), !overrides(window.windowId).noBorder,
           let (frame, level) = windowServerFrame(window.windowId)
     else { return hideAnimatedBorder() }
     let width = CGFloat(deco.borderWidth)
