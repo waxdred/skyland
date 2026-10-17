@@ -16,6 +16,8 @@ extension CmdArgs {
                 command = GroupFocusCommand(args: self as! GroupFocusCmdArgs)
             case .master:
                 command = MasterCommand(args: self as! MasterCmdArgs)
+            case .scratchpad:
+                command = ScratchpadCommand(args: self as! ScratchpadCmdArgs)
             case .close:
                 command = CloseCommand(args: self as! CloseCmdArgs)
             case .closeAllWindowsButCurrent:
