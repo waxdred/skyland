@@ -247,6 +247,7 @@ master-workspaces = []            # workspaces in the master layout at the very 
 floating-center-percent = 70      # 'layout floating' on a tile: N% of the monitor, centered
 mouse-modifier = 'alt'            # alt + left drag moves, alt + right drag resizes (anywhere on a window)
 bar-height = 32                   # keep windows below sketchybar on every screen (thinner external menu bars)
+mode-indicator = 'hud'            # binding mode other than main (resize): 'hud' | 'bar' (sketchybar) | 'off'
 key-mapping.preset = 'input-source'  # letters follow the active keyboard layout (FR AZERTY / EN QWERTY)
 
 [decoration]
@@ -332,6 +333,7 @@ right, falling back left when fewer screens are plugged).
 | `alt-n`, `alt-shift-n` | next / previous tab of the group (`group-focus`) | `changegroupactive` |
 | `alt-ctrl-h/j/k/l` or `alt-ctrl-←↓↑→` | group with the window in that direction | `moveintogroup` |
 | `alt-i` | settings window: gaps, decoration, animations, wallpaper, media, lock (applied live, comments kept) | `Super+I` |
+| `alt-shift-r` | resize mode: h/j/k/l or arrows resize, `e` balances, esc / enter back; a HUD lists its keys | `submap = resize` |
 | `alt-r` | window management off / on (stock macOS windows while off), HUD with the state | |
 | `alt-o` | inactive window opacity 100 / 90 / 80 / 70 | `Super+O` |
 | `alt-p`, `alt-shift-p` | screenshot area (space: window), every display; to ~/Pictures/Screenshots + clipboard | `Shift+Delete`, `Delete` |
@@ -341,6 +343,20 @@ right, falling back left when fewer screens are plugged).
 | `alt-w` | wallpaper picker | `Super+W` |
 | `alt-tab` | lock screen | `Super+Tab` |
 | `alt-m` | media widget | |
+
+### Binding modes
+
+AeroSpace modes are Hyprland submaps: `alt-shift-r = 'mode resize'` and a
+`[mode.resize.binding]` table. While a mode other than `main` is active,
+`mode-indicator = 'hud'` shows its name and keys at the bottom of the screen. With
+`'bar'`, the `skyland.mode` sketchybar item (created by `profiles/hypr/sketchybar/skyland.sh`)
+shows it instead, and `skyland_mode` is triggered with `MODE=<name>` (empty back in
+`main`) for your own items:
+
+```sh
+sketchybar --add item my_mode right --subscribe my_mode skyland_mode \
+  --set my_mode script='sketchybar --set my_mode label="$MODE" drawing=$([ -n "$MODE" ] && echo on || echo off)'
+```
 
 ### Window rules
 

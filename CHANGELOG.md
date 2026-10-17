@@ -16,6 +16,12 @@ is also the text of its GitHub release.
   the Dock payload; the older keys keep skyland's look. Preset choice in the settings
   window. Needs the payload (`skyland sa build`, `killall Dock; skyland sa load`).
 
+**Binding modes**
+- `mode-indicator = 'hud' | 'bar' | 'off'`: a mode other than `main` (Hyprland submap)
+  shows its name and keys in a HUD, or in the `skyland.mode` sketchybar item with a
+  `skyland_mode` event (`MODE=<name>`). Example `resize` mode on `alt-shift-r` in the hypr
+  profile.
+
 **Window rules**
 - `window-rule` command, Hyprland's windowrule v2 for `on-window-detected`: `size` /
   `move` (points or % of the screen), `center`, `opacity <active> [<inactive>]`,

@@ -87,3 +87,17 @@ private func barColors() -> [String: String] {
     }
     return colors
 }
+
+/// `mode-indicator = 'bar'`: the `skyland.mode` item (profiles/hypr/sketchybar/skyland.sh)
+/// shows the mode, and `skyland_mode` is triggered with MODE=<name> ("" back in main).
+@MainActor
+func updateBarMode(_ mode: String?) {
+    guard let sketchybarPath else { return }
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: sketchybarPath)
+    process.arguments = ["--trigger", "skyland_mode", "MODE=\(mode ?? "")", "--set", "skyland.mode"]
+        + (mode.map { ["drawing=on", "label=\($0.uppercased())"] } ?? ["drawing=off"])
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+    try? process.run()
+}

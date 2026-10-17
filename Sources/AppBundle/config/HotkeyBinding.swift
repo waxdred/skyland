@@ -66,6 +66,7 @@ extension HotKey {
     let oldMode = activeMode
     activeMode = targetMode
     overviewModeChanged(targetMode) // skyland
+    modeIndicatorChanged(targetMode) // skyland
     if oldMode != targetMode {
         broadcastEvent(.modeChanged(mode: targetMode))
         _ = await config.onModeChanged.run(.defaultEnv, .emptyStdin)
@@ -78,8 +79,10 @@ struct HotkeyBinding: Equatable, Sendable {
     let commands: Shell<any Command>
     let descriptionWithKeyCode: String
     let descriptionWithKeyNotation: String
+    let commandText: String // skyland: as written in the config, for the mode HUD
 
-    init(_ modifiers: NSEvent.ModifierFlags, _ keyCode: Key, _ commands: Shell<any Command>, descriptionWithKeyNotation: String) {
+    init(_ modifiers: NSEvent.ModifierFlags, _ keyCode: Key, _ commands: Shell<any Command>, descriptionWithKeyNotation: String, commandText: String = "") {
+        self.commandText = commandText
         self.modifiers = modifiers
         self.keyCode = keyCode
         self.commands = commands
@@ -108,7 +111,8 @@ func parseBindings(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inout 
         let binding = parseBinding(binding, backtrace, mapping)
             .map { modifiers, key -> HotkeyBinding in
                 let commands = parseShellOfCommandsForConfig(rawCommand, backtrace, &c)
-                return HotkeyBinding(modifiers, key, commands, descriptionWithKeyNotation: binding)
+                let text = rawCommand.asStringOrNil ?? (rawCommand.asArrayOrNil ?? []).compactMap(\.asStringOrNil).joined(separator: ", ")
+                return HotkeyBinding(modifiers, key, commands, descriptionWithKeyNotation: binding, commandText: text)
             }
             .getOrNil(appendErrorTo: &c.errors)
         if let binding {
