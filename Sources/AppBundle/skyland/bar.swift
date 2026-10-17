@@ -10,6 +10,17 @@ import Common
 
 private let sketchybarPath = ["/opt/homebrew/bin/sketchybar", "/usr/local/bin/sketchybar"]
     .first { FileManager.default.isExecutableFile(atPath: $0) }
+/// skylandbar takes sketchybar's commands; its socket exists while it runs, and it links
+/// its binary here when it starts
+private let skylandbarPath = NSHomeDirectory() + "/.cache/skylandbar/bin/skylandbar"
+private let skylandbarSocket = "/tmp/skylandbar_\(NSUserName()).socket"
+
+/// skylandbar when it runs, else sketchybar
+private func barCommand() -> String? {
+    let files = FileManager.default
+    if files.fileExists(atPath: skylandbarSocket) && files.isExecutableFile(atPath: skylandbarPath) { return skylandbarPath }
+    return sketchybarPath
+}
 /// skyland-env writes the profile before it starts the app
 private let barProfileActive = (try? String(contentsOfFile: NSHomeDirectory() + "/.config/.skyland-profile", encoding: .utf8))?
     .trimmingCharacters(in: .whitespacesAndNewlines) == "hypr"
@@ -21,13 +32,14 @@ private struct BarState: Equatable {
 }
 
 @MainActor private var pushed: BarState? = nil
+@MainActor private var pushedTo: String? = nil
 @MainActor private var titleWindowId: UInt32? = nil
 @MainActor private var title = "Desktop"
 
 /// Called after every model refresh: pushes only when the bar would change.
 @MainActor
 func updateBar() {
-    guard let sketchybarPath, barProfileActive, TrayMenuModel.shared.isEnabled else { return }
+    guard let bar = barCommand(), barProfileActive, TrayMenuModel.shared.isEnabled else { return }
     let window = focus.windowOrNil
     if window?.windowId != titleWindowId {
         titleWindowId = window?.windowId
@@ -45,8 +57,9 @@ func updateBar() {
     var monitors: [String: Int] = [:]
     for workspace in Workspace.all { monitors[workspace.name] = workspace.workspaceMonitor.monitorId_oneBased ?? 0 }
     let state = BarState(monitorOfWorkspace: monitors, focused: focus.workspace.name, title: title)
-    if state == pushed { return }
+    if state == pushed && bar == pushedTo { return } // a bar that just started gets it all
     pushed = state
+    pushedTo = bar
 
     let c = barColors()
     var args: [String] = []
@@ -61,7 +74,7 @@ func updateBar() {
     }
     args += ["--set", "window_title", "label=\(state.title)"] // optional item: last, sketchybar goes on past a missing one
     let process = Process()
-    process.executableURL = URL(fileURLWithPath: sketchybarPath)
+    process.executableURL = URL(fileURLWithPath: bar)
     process.arguments = args
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
