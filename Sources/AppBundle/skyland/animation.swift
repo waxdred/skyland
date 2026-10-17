@@ -110,6 +110,12 @@ func noteShownWorkspace(on monitor: MonitorInfo, _ workspace: Workspace) {
     shownWorkspace[key] = workspace.name
 }
 
+/// A trackpad swipe that completes (gestures.swift): where each of its windows is shown
+/// when the fingers let go, and how far the leaving ones still go (dx, dy). The switch's
+/// animations go on from there instead of their usual slide.
+@MainActor var swipeHandoff: [UInt32: Rect] = [:]
+@MainActor var swipeLeave = CGPoint.zero
+
 /// Called the first time a laid out window is hidden because its workspace was
 /// switched away: it slides out of the screen, then sits hidden in its corner.
 @MainActor
@@ -118,6 +124,11 @@ func animateSlideOut(_ window: Window, from rect: Rect) {
     guard anim.enabled, anim.workspacesMs > 0, window.lastAppliedLayoutPhysicalRect != nil,
           let workspace = window.nodeWorkspace else { return }
     let monitor = workspace.workspaceMonitor
+    if let shown = swipeHandoff.removeValue(forKey: window.windowId) { // a swipe: on from the fingers
+        let to = Rect(topLeftX: rect.topLeftX + swipeLeave.x, topLeftY: rect.topLeftY + swipeLeave.y, width: rect.width, height: rect.height)
+        skylandSa("animate \(window.windowId) \(shown.args) \(anim.workspacesMs) \(anim.workspacesBezier.args) \(to.args)")
+        return
+    }
     let sign = workspaceSlideSign(from: workspace.name, to: monitor.activeWorkspace.name)
     let to = rect.copy(\.topLeftY, rect.topLeftY - sign * monitor.rect.height)
     skylandSa("animate \(window.windowId) \(rect.args) \(anim.workspacesMs) \(anim.workspacesBezier.args) \(to.args)")
@@ -169,7 +180,11 @@ func animateLayoutChange(_ window: Window, from previous: Rect?, to target: Rect
     let from: Rect
     let ms: Int
     let bezier: Bezier
-    if unhiddenWindows.remove(window.windowId) != nil {
+    if let shown = swipeHandoff.removeValue(forKey: window.windowId) { // a swipe: on from the fingers
+        unhiddenWindows.remove(window.windowId)
+        from = shown
+        (ms, bezier) = (anim.workspacesMs, anim.workspacesBezier)
+    } else if unhiddenWindows.remove(window.windowId) != nil {
         let monitor = window.nodeWorkspace?.workspaceMonitor ?? mainMonitorInfo
         let sign = slideSign[monitor.rect.topLeftCorner] ?? 1
         from = target.copy(\.topLeftY, target.topLeftY + sign * monitor.rect.height)

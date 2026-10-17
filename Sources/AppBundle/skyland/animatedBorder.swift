@@ -29,6 +29,13 @@ func pauseAnimatedBorder(ms: Int) {
     DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(ms + 20)) { updateAnimatedBorder() }
 }
 
+/// The border back `ms` from now, whatever pause was asked before (a swipe ends).
+@MainActor
+func resumeAnimatedBorder(afterMs ms: Int) {
+    borderPausedUntil = .now + Double(ms) / 1000
+    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(ms + 20)) { updateAnimatedBorder() }
+}
+
 @MainActor
 func updateAnimatedBorder() {
     let deco = config.decoration

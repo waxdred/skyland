@@ -243,6 +243,16 @@ private func sendToPayload(_ lines: [String]) -> [String] {
     return replies.split(separator: "\n").map(String.init)
 }
 
+/// A hidden window shown by a swipe (`shown`) or hidden again: its alpha at once, and what
+/// the decoration pass will compare with.
+@MainActor
+func setSwipeAlpha(_ windowId: UInt32, shown: Bool) {
+    let fades = config.animations.enabled && config.animations.fadeMs > 0 && payloadCapabilities.contains("fade")
+    let opacity = shown || !fades ? config.decoration.inactiveOpacity : 0 // hidden windows are faded out
+    sentOpacity[windowId] = opacity
+    skylandSa("alpha \(windowId) \(Double(opacity) / 100)")
+}
+
 /// The window's opacity at once, no fade (a scratchpad window sliding in).
 @MainActor
 func showOpaqueNow(_ windowId: UInt32, focused: Bool) {

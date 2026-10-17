@@ -11,6 +11,9 @@ is also the text of its GitHub release.
   cursor to the previous / next workspace (Hyprland `workspace_swipe`), with distance,
   threshold, direction and invert options, a Trackpad section in the settings window,
   and a `skyland doctor` check for the macOS gesture using as many fingers.
+- The windows follow the fingers: the current workspace's tiles slide with the swipe and
+  the next one's come in from the edge; let go past the threshold and the switch goes
+  on from there, before it they spring back (rubber band past the last workspace).
 
 **Scratchpads**
 - New `scratchpad toggle [name] [--app <bundle id>] | move [name]` command: the
