@@ -34,6 +34,8 @@ is also the text of its GitHub release.
   is flat, and while the widget is hidden), the now playing check backs off to 15 s
   when paused, the artwork is decoded once per track, and the audio analysis no
   longer wakes the main thread ~100 times a second.
+- Media widget `audioware`: the wave is drawn with Metal on the GPU (blur too) instead
+  of Core Graphics bitmaps: about 9% CPU while playing instead of 21%, the same look.
 
 ## v0.1.9
 
