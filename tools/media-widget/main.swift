@@ -11,6 +11,7 @@
 // around a cyan center line, flat when silent; the line is the progress.
 import Accelerate
 import AppKit
+import CoreAudio
 import Metal
 import MetalPerformanceShaders
 import os
@@ -1208,6 +1209,57 @@ struct Biquad {
     }
 }
 
+/// The system's audio, mixed to mono, from a Core Audio process tap on every process and an
+/// aggregate device reading it; stopped when released. nil when macOS refuses (no audio
+/// capture permission).
+@available(macOS 14.2, *)
+final class SystemAudioTap {
+    private var tapID = AudioObjectID(kAudioObjectUnknown)
+    private var deviceID = AudioObjectID(kAudioObjectUnknown)
+    private var procID: AudioDeviceIOProcID?
+
+    init?(queue: DispatchQueue, onSamples: @escaping (Double, UnsafeBufferPointer<Float>) -> Void) {
+        let description = CATapDescription(monoGlobalTapButExcludeProcesses: [])
+        description.uuid = UUID()
+        description.isPrivate = true
+        description.muteBehavior = .unmuted
+        guard AudioHardwareCreateProcessTap(description, &tapID) == noErr else { return nil }
+        var format = AudioStreamBasicDescription()
+        var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+        var address = AudioObjectPropertyAddress(mSelector: kAudioTapPropertyFormat, mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        guard AudioObjectGetPropertyData(tapID, &address, 0, nil, &size, &format) == noErr else { stop(); return nil }
+        let device: [String: Any] = [
+            kAudioAggregateDeviceNameKey: "skyland-media audio", kAudioAggregateDeviceUIDKey: UUID().uuidString,
+            kAudioAggregateDeviceIsPrivateKey: true, kAudioAggregateDeviceTapAutoStartKey: true,
+            kAudioAggregateDeviceTapListKey: [[kAudioSubTapUIDKey: description.uuid.uuidString]],
+        ]
+        guard AudioHardwareCreateAggregateDevice(device as CFDictionary, &deviceID) == noErr else { stop(); return nil }
+        let rate = format.mSampleRate, channels = max(1, Int(format.mChannelsPerFrame))
+        let status = AudioDeviceCreateIOProcIDWithBlock(&procID, deviceID, queue) { _, input, _, _, _ in
+            let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
+            guard let buffer = list.first, let data = buffer.mData else { return }
+            let all = UnsafeBufferPointer(start: data.assumingMemoryBound(to: Float.self), count: Int(buffer.mDataByteSize) / MemoryLayout<Float>.size)
+            if channels == 1 { return onSamples(rate, all) }
+            let mono = stride(from: 0, to: all.count, by: channels).map { all[$0] } // the first channel
+            mono.withUnsafeBufferPointer { onSamples(rate, $0) }
+        }
+        guard status == noErr, AudioDeviceStart(deviceID, procID) == noErr else { stop(); return nil }
+    }
+
+    deinit { stop() }
+
+    private func stop() {
+        if let procID {
+            AudioDeviceStop(deviceID, procID)
+            AudioDeviceDestroyIOProcID(deviceID, procID)
+            self.procID = nil
+        }
+        if deviceID != kAudioObjectUnknown { AudioHardwareDestroyAggregateDevice(deviceID); deviceID = AudioObjectID(kAudioObjectUnknown) }
+        if tapID != kAudioObjectUnknown { AudioHardwareDestroyProcessTap(tapID); tapID = AudioObjectID(kAudioObjectUnknown) }
+    }
+}
+
 /// System audio -> band levels (and, with followsWave, the signals of the audioware wave).
 /// Runs only between start() and stop().
 final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
@@ -1219,6 +1271,9 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
     var levels: [Float] { latest.withLock { $0.levels } }
     var wave: (low: [Float], mid: [Float])? { latest.withLock { $0.wave } }
     private var stream: SCStream?
+    /// skyland: the system's audio from a Core Audio tap (macOS 14.2): no screen capture,
+    /// whose stream turned protected videos black (Netflix, Prime Video) as soon as they played
+    private var tap: AnyObject?
     private let queue = DispatchQueue(label: "skyland-media.audio")
     private var samples: [Float] = []
     private let dft = vDSP.DFT(count: fftSize, direction: .forward, transformType: .complexReal, ofType: Float.self)!
@@ -1241,8 +1296,12 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
     }
 
     func start() {
-        guard stream == nil else { return }
-        Task {
+        guard stream == nil, tap == nil else { return }
+        if #available(macOS 14.2, *), let tap = SystemAudioTap(queue: queue, onSamples: { [weak self] rate, chunk in self?.consume(chunk, rate: rate) }) {
+            self.tap = tap
+            return
+        }
+        Task { // older macOS, or no tap: ScreenCaptureKit's audio
             guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false),
                   let display = content.displays.first else { return }
             let config = SCStreamConfiguration()
@@ -1263,6 +1322,7 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
     func stop() {
         let stream = self.stream
         self.stream = nil
+        tap = nil // its deinit stops it
         Task { try? await stream?.stopCapture() }
     }
 
@@ -1271,10 +1331,19 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
         try? buffer.withAudioBufferList { list, _ in
             guard let data = list.first?.mData else { return }
             let count = Int(list.first!.mDataByteSize) / MemoryLayout<Float>.size
-            let chunk = UnsafeBufferPointer(start: data.assumingMemoryBound(to: Float.self), count: count)
-            samples.append(contentsOf: chunk)
-            if followsWave { follow(chunk) }
+            consume(UnsafeBufferPointer(start: data.assumingMemoryBound(to: Float.self), count: count), rate: sampleRate)
         }
+    }
+
+    /// Mono samples at `rate`, on the audio queue.
+    private func consume(_ chunk: UnsafeBufferPointer<Float>, rate: Double) {
+        if rate != sampleRate { // the tap's device rate: the filters follow
+            sampleRate = rate
+            lowFilter = Biquad(lowpass: 180, q: 0.707, rate: rate)
+            midFilter = Biquad(bandpass: 1000, q: 0.8, rate: rate)
+        }
+        samples.append(contentsOf: chunk)
+        if followsWave { follow(chunk) }
         while samples.count >= Self.fftSize {
             let levels = bands(of: samples[..<Self.fftSize])
             samples.removeFirst(Self.fftSize / 2) // 50% overlap

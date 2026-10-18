@@ -49,6 +49,7 @@ cat > "$app/Contents/Info.plist" <<EOF
     <key>CFBundleExecutable</key><string>Skyland</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>LSUIElement</key><true/>
+    <key>NSAudioCaptureUsageDescription</key><string>The media widget's audio bars and wave follow what plays.</string>
 </dict>
 </plist>
 EOF
