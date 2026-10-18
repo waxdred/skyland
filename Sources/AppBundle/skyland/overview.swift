@@ -9,7 +9,8 @@ import SkylandGlass
 // screen zoom out below it. Each workspace card shows live window thumbnails
 // (ScreenCaptureKit, needs Screen Recording permission; app icons otherwise).
 // Drag a window onto another card to move it there (the last "+" card: the first
-// empty workspace of the screen), click a window to focus it, middle click to close
+// empty workspace of the screen), alt + drag a card onto another to swap the two
+// workspaces (windows and layout), click a window to focus it, middle click to close
 // it, click a card to go to that workspace, click outside to close.
 // Shown while the binding mode "overview" is active ([mode.overview.binding]): its keys
 // are hotkeys; the panel is key and takes the other ones. A letter (or `overview
@@ -25,6 +26,8 @@ private let newWorkspaceCard = "+"
 @MainActor private var strip: OverviewStrip? = nil
 /// Windows zoomed out under the strip, with their real rect, to zoom back in.
 @MainActor private var zoomedWindows: [(windowId: UInt32, real: Rect, zoomed: Rect)] = []
+/// Top of the zoomed out windows (below the strip), to zoom them again after a swap.
+@MainActor private var zoomTop: CGFloat = 0
 /// Last thumbnail of each window: hidden workspaces keep the last capture if a new one fails.
 @MainActor private var thumbnails: [UInt32: NSImage] = [:]
 /// Search typed in the overview (app or title), the window picked with the keyboard.
@@ -136,6 +139,31 @@ private func closeFromOverview(_ windowId: UInt32) {
     Task { @MainActor in await runSkylandCommand("close --window-id \(windowId)") }
 }
 
+/// alt + drag of a card: the two workspaces swap their windows, tiling tree (layout,
+/// sizes) and floating windows as they are. The focused workspace stays focused and shows
+/// the other one's windows, zoomed out again under the strip.
+@MainActor
+private func swapWorkspaces(_ lhs: String, _ rhs: String) async {
+    guard lhs != rhs, let token: RunSessionGuard = .isServerEnabled else { return }
+    let a = Workspace.get(byName: lhs), b = Workspace.get(byName: rhs)
+    for (windowId, _, _) in zoomedWindows { skylandSa("untransform \(windowId)") }
+    zoomedWindows = []
+    let shown = focus.workspace
+    try? await runLightSession(.hotkeyBinding, token) {
+        let aRoot = a.rootTilingContainer, bRoot = b.rootTilingContainer
+        let aFloating = a.floatingWindows, bFloating = b.floatingWindows
+        aRoot.unbindFromParent()
+        bRoot.unbindFromParent()
+        aRoot.bind(to: b, adaptiveWeight: 1, index: INDEX_BIND_LAST)
+        bRoot.bind(to: a, adaptiveWeight: 1, index: INDEX_BIND_LAST)
+        for window in aFloating { window.bindAsFloatingWindow(to: b) }
+        for window in bFloating { window.bindAsFloatingWindow(to: a) }
+        _ = shown.focusWorkspace()
+    }
+    zoomOut(shown, below: zoomTop, durationMs: 1)
+    strip?.layoutCards()
+}
+
 /// The workspace a card name stands for: the "+" card is the first empty workspace of the screen.
 @MainActor
 private func cardWorkspace(_ name: String, monitorRect: Rect) -> String? {
@@ -197,8 +225,8 @@ private func showOverview() {
         MainActor.assumeIsolated { strip?.glassMoved() } // glass: its capture where the strip landed
     }
     // Zoom the screen's windows out below the strip
-    let stripBottom = monitor.rect.topLeftY + (root.bounds.height - final.minY) + 12
-    zoomOut(focus.workspace, below: stripBottom, durationMs: Int(duration * 1000))
+    zoomTop = monitor.rect.topLeftY + (root.bounds.height - final.minY) + 12
+    zoomOut(focus.workspace, below: zoomTop, durationMs: Int(duration * 1000))
 }
 
 @MainActor
@@ -502,6 +530,8 @@ private final class OverviewCards: NSView {
     private var padding: CGFloat = 0, spacing: CGFloat = 0, labelHeight: CGFloat = 0, radius: CGFloat = 0
     // drag & drop of a window thumbnail (Hyprspace dragAlpha)
     private var pressed: (windowId: UInt32, workspace: String, offset: NSPoint, size: NSSize, start: NSPoint)? = nil
+    /// alt + drag of a whole card (a workspace swap)
+    private var pressedCard: (workspace: String, rect: NSRect, start: NSPoint)? = nil
     private var dragPoint: NSPoint? = nil
     /// Cursor while a zoomed out window is dragged from the backdrop (drop target highlight).
     var externalDragPoint: NSPoint? = nil { didSet { needsDisplay = true } }
@@ -581,6 +611,18 @@ private final class OverviewCards: NSView {
                 .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold), .foregroundColor: accent,
             ]).draw(at: NSPoint(x: padding + 2, y: 2))
         }
+        // dragged card (alt): an outline under the cursor
+        if let pressedCard, let dragPoint {
+            let rect = pressedCard.rect.offsetBy(dx: dragPoint.x - pressedCard.start.x, dy: dragPoint.y - pressedCard.start.y)
+            let ghost = NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12)
+            accent.withAlphaComponent(0.18).setFill()
+            ghost.fill()
+            ghost.lineWidth = 2
+            accent.setStroke()
+            ghost.stroke()
+            NSAttributedString(string: pressedCard.workspace, attributes: [.font: NSFont.systemFont(ofSize: 22, weight: .bold), .foregroundColor: accent])
+                .draw(at: NSPoint(x: rect.minX + 10, y: rect.minY + 8))
+        }
         // dragged window under the cursor
         if let pressed, let dragPoint {
             let rect = NSRect(x: dragPoint.x - pressed.offset.x, y: dragPoint.y - pressed.offset.y, width: pressed.size.width, height: pressed.size.height)
@@ -652,6 +694,12 @@ private final class OverviewCards: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        pressedCard = nil
+        if event.modifierFlags.contains(.option), let card = cards.first(where: { $0.rect.contains(point) && $0.workspace != newWorkspaceCard }) {
+            pressed = nil
+            pressedCard = (card.workspace, card.rect, point)
+            return
+        }
         if let hit = windowRects.last(where: { $0.rect.contains(point) }) {
             pressed = (hit.windowId, hit.workspace, NSPoint(x: point.x - hit.rect.minX, y: point.y - hit.rect.minY), hit.rect.size, point)
         } else {
@@ -667,8 +715,8 @@ private final class OverviewCards: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        guard let pressed else { return }
-        if dragPoint == nil && hypot(point.x - pressed.start.x, point.y - pressed.start.y) < 5 { return }
+        guard let start = pressed?.start ?? pressedCard?.start else { return }
+        if dragPoint == nil && hypot(point.x - start.x, point.y - start.y) < 5 { return }
         dragPoint = point
         needsDisplay = true
     }
@@ -676,12 +724,17 @@ private final class OverviewCards: NSView {
     override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         let card = cards.first(where: { $0.rect.contains(point) })?.workspace
-        let pressed = self.pressed, dragged = dragPoint != nil
+        let pressed = self.pressed, dragged = dragPoint != nil, pressedCard = self.pressedCard
         self.pressed = nil
+        self.pressedCard = nil
         dragPoint = nil
         needsDisplay = true
         Task { @MainActor in
             let target = card.flatMap { name in strip.flatMap { cardWorkspace(name, monitorRect: $0.monitorRect) } }
+            if let pressedCard {
+                if dragged, let target { await swapWorkspaces(pressedCard.workspace, target) }
+                return
+            }
             if let pressed, dragged {
                 // dropped on another workspace: move the window there, stay in the overview
                 guard let target, target != pressed.workspace else { return }

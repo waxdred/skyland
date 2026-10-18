@@ -353,7 +353,7 @@ right, falling back left when fewer screens are plugged).
 | `cmd-alt-h/j/k/l`, `cmd-alt-e` | resize, balance | `Super+Ctrl+H/J/K/L` |
 | `cmd-1..0`, `cmd-shift-1..0` | workspace 1-10 (on its screen), move window there | `Super+1..0` |
 | `cmd-left` / `cmd-right` | previous / next workspace | |
-| `cmd-up` | workspace overview: arrows / h l, a digit or a click to go there; j k select a window, enter focuses it, x or a middle click closes it, typing searches by app or title, drop a window on `+` for a new workspace | hyprexpo |
+| `cmd-up` | workspace overview: arrows / h l, a digit or a click to go there; j k select a window, enter focuses it, x or a middle click closes it, typing searches by app or title, drop a window on `+` for a new workspace, alt + drag a card to swap two workspaces | hyprexpo |
 | `alt-l` | light / dark theme | `Super+L` |
 | `alt-shift-l` | theme picker (43PR themes + wallpaper colors) | |
 | `alt-shift-h` | shortcut list (read from the config) | |
