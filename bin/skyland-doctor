@@ -33,7 +33,7 @@ elif pgrep -xq Skyland; then bad "config has errors" "skyland reload-config --dr
 windows="$("$CLI" list-windows --all --format '%{window-id}' </dev/null 2>/dev/null | wc -l | tr -d ' ')"
 if [[ "${windows:-0}" -gt 0 ]]; then ok "manages $windows windows (Accessibility works)"
 elif pgrep -xq Skyland; then opt "no window managed" "no app open, or Accessibility not granted to Skyland"; fi
-opt "Screen Recording for Skyland: check it by hand (System Settings > Privacy & Security)" "gives the overview live thumbnails, the media widget bars and cyberdeck's audio"
+opt "Screen Recording for Skyland: check it by hand (System Settings > Privacy & Security)" "gives the overview live thumbnails and, before macOS 26, the glass's refraction"
 
 # trackpad swipe vs the macOS gesture with as many fingers (2 = on: full-screen apps /
 # Mission Control), built-in and Magic Trackpad
@@ -82,11 +82,13 @@ if launchctl print "gui/$(id -u)/com.waxdred.skyland" >/dev/null 2>&1; then ok "
 else opt "no LaunchAgent: start skyland by hand after a login" "README > Autostart, step 2"; fi
 
 section "Bar, border, colors"
-if pgrep -xq sketchybar; then
+if pgrep -xq skylandbar; then
+    ok "skylandbar running (the bar)"
+elif pgrep -xq sketchybar; then
     if sketchybar --query workspace.1 >/dev/null 2>&1; then ok "sketchybar with skyland workspaces"
     else opt "sketchybar runs without skyland workspaces" "end your sketchybarrc with: [ -x \"\$HOME/.local/bin/skyland\" ] && \"\$HOME/.local/bin/skyland\" bar >/dev/null 2>&1 &"; fi
 else
-    opt "sketchybar not running (no bar)" "brew install felixkratz/formulae/sketchybar && brew services start sketchybar"
+    opt "no bar running" "brew install waxdred/tap/skylandbar (skyland starts it), or sketchybar"
 fi
 if [[ "$(conf decoration border-width)" =~ ^[1-9] ]]; then
     if command -v borders >/dev/null; then ok "borders installed (focused window border)"
