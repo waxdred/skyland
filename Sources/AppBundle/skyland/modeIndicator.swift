@@ -14,7 +14,7 @@ import Common
 /// Called by activateMode_nonCancellable.
 @MainActor
 func modeIndicatorChanged(_ mode: String?) {
-    let shown = mode.flatMap { $0 == mainModeId || $0 == overviewModeId ? nil : $0 }
+    let shown = mode.flatMap { $0 == mainModeId || $0 == overviewModeId || $0 == overviewSearchModeId ? nil : $0 }
     modeHud?.orderOut(nil)
     modeHud = nil
     modeHudMoved.map(NotificationCenter.default.removeObserver)

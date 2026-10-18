@@ -203,6 +203,9 @@ let window_rule_help_generated = """
 let bar_height_help_generated = """
     USAGE: bar-height [-h|--help] [<px>|default]
     """
+let overview_help_generated = """
+    USAGE: overview [-h|--help] (next|prev|confirm|close|search)
+    """
 let pin_help_generated = """
     USAGE: pin [-h|--help] [--window-id <window-id>] [on|off|toggle]
     """

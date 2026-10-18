@@ -12,6 +12,17 @@ is also the text of its GitHub release.
   only starts skyland, and launchd kills what a LaunchAgent leaves running). skyland
   starts either way.
 
+## Unreleased
+
+**Overview**
+- Typing searches the windows by app or title (`/` for the letters the overview binds):
+  the others are dimmed, on the cards and behind; enter focuses the selection.
+- Keyboard selection of windows (`j` / `k`, up / down, tab), `enter` focuses it, `x` or a
+  middle click closes a window, the overview stays open.
+- A `+` card: a window dropped there goes to the first empty workspace of the screen.
+- Pinned windows show on every card of their screen.
+- `overview next|prev|confirm|close|search` command for `[mode.overview.binding]`.
+
 ## v0.2.0
 
 **Animations**
