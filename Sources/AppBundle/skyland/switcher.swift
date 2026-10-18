@@ -105,10 +105,11 @@ private final class SwitcherPanel: NSPanel {
             hasShadow = false
             root = NSView()
             let surface = GlassSurface()
+            surface.fluid = false // big cards: the lens slides in one piece
             root.addSubview(surface)
             view.surface = surface
         } else {
-            root = makePanelRoot(radius: 20, for: self)
+            root = makePanelRoot(radius: 28, for: self)
         }
         root.addSubview(view)
         contentView = root
@@ -258,7 +259,7 @@ private final class SwitcherView: NSView {
         let theme = skylandThemeColors()
         let fg = theme["fg"] ?? .white, accent = theme["accent"] ?? .systemBlue
         let glass = surface != nil
-        let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 20, yRadius: 20)
+        let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 28, yRadius: 28)
         if !glass { // metal: a theme tint and a border; glass: its tint and its rim
             (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
             outline.fill()
@@ -283,7 +284,7 @@ private final class SwitcherView: NSView {
                               width: cardSize.width, height: cardSize.height + labelHeight)
             cards.append((card, index))
             let active = position == current
-            let path = NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12)
+            let path = NSBezierPath(roundedRect: card, xRadius: 20, yRadius: 20) // concentric: panel 28, padding 8
             if !glass { // glass: the lens and the hover drop are the card's highlight
                 (active ? accent.withAlphaComponent(0.18) : fg.withAlphaComponent(0.05)).setFill()
                 path.fill()
@@ -311,10 +312,10 @@ private final class SwitcherView: NSView {
             }
         }
         if let surface { // the glass follows the cards: a lens flows to the selection
-            surface.panels = [GlassSurface.Shape(rect: bounds, radius: 20, tint: LiquidTint.glass)]
+            surface.panels = [GlassSurface.Shape(rect: bounds, radius: 28, tint: LiquidTint.glass)]
             let card = { (index: Int) in self.cards.first { $0.index == index }?.rect }
-            surface.selection = shown.indices.contains(current) ? card(shown[current]).map { GlassSurface.Shape(rect: $0, radius: 12, tint: LiquidTint.lens) } : nil
-            surface.hover = hovered.flatMap(card).map { GlassSurface.Shape(rect: $0, radius: 12, tint: LiquidTint.hover) }
+            surface.selection = shown.indices.contains(current) ? card(shown[current]).map { GlassSurface.Shape(rect: $0, radius: 20, tint: LiquidTint.lens) } : nil
+            surface.hover = hovered.flatMap(card).map { GlassSurface.Shape(rect: $0, radius: 20, tint: LiquidTint.hover) }
         }
     }
 
@@ -324,12 +325,12 @@ private final class SwitcherView: NSView {
             let size = NSSize(width: image.size.width * scale, height: image.size.height * scale)
             let rect = NSRect(x: area.midX - size.width / 2, y: area.midY - size.height / 2, width: size.width, height: size.height)
             NSGraphicsContext.saveGraphicsState()
-            NSBezierPath(roundedRect: rect, xRadius: 7, yRadius: 7).addClip()
+            NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12).addClip() // concentric to the card (20, inset 8)
             image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
             NSGraphicsContext.restoreGraphicsState()
         } else {
             (theme["bg_hover"] ?? .gray).withAlphaComponent(0.45).setFill()
-            NSBezierPath(roundedRect: area, xRadius: 7, yRadius: 7).fill()
+            NSBezierPath(roundedRect: area, xRadius: 12, yRadius: 12).fill()
             let edge = min(56, area.height * 0.6)
             item.icon?.draw(in: NSRect(x: area.midX - edge / 2, y: area.midY - edge / 2, width: edge, height: edge),
                             from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)

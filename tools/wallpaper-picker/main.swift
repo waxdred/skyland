@@ -206,16 +206,16 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             effect.material = .hudWindow
             effect.state = .active
             effect.wantsLayer = true
-            effect.layer?.cornerRadius = 14
+            effect.layer?.cornerRadius = 24
             effect.layer?.masksToBounds = true
-            effect.maskImage = roundedMask(radius: 14)
+            effect.maskImage = roundedMask(radius: 24)
             blur = effect
         }
         panel.contentView = blur
         content = NSView()
         content.autoresizingMask = [.width, .height]
         content.wantsLayer = true
-        content.layer?.cornerRadius = 14
+        content.layer?.cornerRadius = 24
         // metal: the blur stays a hint, gray otherwise; glass: tinted already
         content.layer?.backgroundColor = glass ? nil : skylandTheme["bg"]?.withAlphaComponent(0.85).cgColor
         content.layer?.borderWidth = skylandTheme.isEmpty || glass ? 0 : 1 // glass: its own rim
@@ -241,7 +241,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         content.frame = blur.bounds
         if let surface {
             surface.frame = blur.bounds
-            surface.panels = [GlassSurface.Shape(rect: blur.bounds, radius: 14, tint: themeAccent.withAlphaComponent(0.08))]
+            surface.panels = [GlassSurface.Shape(rect: blur.bounds, radius: 24, tint: themeAccent.withAlphaComponent(0.08))]
         }
     }
 
@@ -280,7 +280,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         rows = shown.enumerated().map { position, index in
             let rowView = NSView(frame: NSRect(x: 0, y: listHeight - CGFloat(position + 1) * rowHeight, width: list.frame.width, height: rowHeight))
             rowView.wantsLayer = true
-            rowView.layer?.cornerRadius = 7
+            rowView.layer?.cornerRadius = 14
             let name = NSTextField(labelWithString: themes[index].name)
             name.font = .systemFont(ofSize: 15)
             name.textColor = themeFg
@@ -301,7 +301,8 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         row = max(0, min(rows.count - 1, index))
         if let surface, rows.indices.contains(row) { // a lens flows to the row
             blur.layoutSubtreeIfNeeded()
-            surface.selection = GlassSurface.Shape(rect: surface.convert(rows[row].bounds, from: rows[row]), radius: 10,
+            surface.fluid = true // small rows: the lens flows like a drop
+            surface.selection = GlassSurface.Shape(rect: surface.convert(rows[row].bounds, from: rows[row]), radius: 14,
                                                    tint: themeAccent.withAlphaComponent(0.30))
             return
         }
@@ -332,7 +333,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             let cell = NSImageView(frame: NSRect(x: spacing + CGFloat(index) * (thumbSize.width + spacing), y: spacing, width: thumbSize.width, height: thumbSize.height))
             cell.imageScaling = .scaleProportionallyUpOrDown
             cell.wantsLayer = true
-            cell.layer?.cornerRadius = 10
+            cell.layer?.cornerRadius = 16
             cell.layer?.masksToBounds = true
             cell.layer?.backgroundColor = (skylandTheme["bg_card"] ?? .black).withAlphaComponent(0.6).cgColor
             cell.toolTip = file.lastPathComponent
@@ -357,7 +358,8 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         scroll.contentView.scrollToVisible(cells[selected].frame.insetBy(dx: -spacing, dy: 0))
         if let surface { // a lens flows under the thumbnail, a glowing frame around it
             let cell = cells[selected]
-            surface.selection = GlassSurface.Shape(rect: surface.convert(cell.bounds, from: cell).insetBy(dx: -6, dy: -6), radius: 14,
+            surface.fluid = false // big thumbnails: it slides in one piece
+            surface.selection = GlassSurface.Shape(rect: surface.convert(cell.bounds, from: cell).insetBy(dx: -6, dy: -6), radius: 22,
                                                    tint: themeAccent.withAlphaComponent(0.30))
             return
         }

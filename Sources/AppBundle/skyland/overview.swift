@@ -464,14 +464,18 @@ private func overviewKey(_ event: NSEvent) {
 private final class OverviewStrip: NSView {
     let monitorRect: Rect, monitorVisible: Rect
     private(set) var workspaces: [Workspace] = []
-    private let blur: NSView = isGlassStyle ? GlassBackground(radius: 20, tint: skylandThemeColors()["bg"]?.withAlphaComponent(0.18)) : NSVisualEffectView()
+    private let blur: NSView = isGlassStyle ? GlassSurface() : NSVisualEffectView()
     private let cardsView = OverviewCards()
-    private let radius: CGFloat = 20, padding: CGFloat = 18, spacing: CGFloat = 16, labelHeight: CGFloat = 22
+    private let radius: CGFloat = 28, padding: CGFloat = 18, spacing: CGFloat = 16, labelHeight: CGFloat = 22
 
     init(monitorRect: Rect, monitorVisible: Rect) {
         self.monitorRect = monitorRect
         self.monitorVisible = monitorVisible
         super.init(frame: .zero)
+        if let surface = blur as? GlassSurface { // skylandbar's glass: a lens on the selected card
+            surface.fluid = false // big cards: it slides in one piece
+            cardsView.surface = surface
+        }
         if let blur = blur as? NSVisualEffectView {
             blur.material = .hudWindow
             blur.blendingMode = .behindWindow
@@ -485,7 +489,7 @@ private final class OverviewStrip: NSView {
     required init?(coder: NSCoder) { nil }
 
     func cardsNeedDisplay() { cardsView.needsDisplay = true }
-    func glassMoved() { (blur as? GlassBackground)?.refreshShape() }
+    func glassMoved() { (blur as? GlassSurface)?.refreshShape() }
     /// Size ratio between a window and its thumbnail in a card.
     private(set) var cardScale: CGFloat = 0.15
     func workspace(at point: NSPoint) -> String? { cardsView.workspace(at: convert(point, to: cardsView)) }
@@ -535,6 +539,9 @@ private final class OverviewCards: NSView {
     private var dragPoint: NSPoint? = nil
     /// Cursor while a zoomed out window is dragged from the backdrop (drop target highlight).
     var externalDragPoint: NSPoint? = nil { didSet { needsDisplay = true } }
+    /// glass style: the shapes under the cards
+    weak var surface: GlassSurface?
+    private var hoveredCard: String?
 
     override var isFlipped: Bool { true } // same top-left origin as window rects
 
@@ -562,9 +569,11 @@ private final class OverviewCards: NSView {
             (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
             outline.fill()
         }
-        accent.withAlphaComponent(0.35).setStroke()
-        outline.lineWidth = 1
-        outline.stroke()
+        if surface == nil { // glass: its own rim
+            accent.withAlphaComponent(0.35).setStroke()
+            outline.lineWidth = 1
+            outline.stroke()
+        }
 
         cards = []
         windowRects = []
@@ -582,14 +591,17 @@ private final class OverviewCards: NSView {
                 .foregroundColor: active ? accent : fg.withAlphaComponent(0.65),
             ]).draw(at: NSPoint(x: card.minX + 2, y: card.minY - labelHeight + 2))
 
-            let path = NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12)
-            // active: tinted + accent border; inactive: almost transparent (Hyprspace)
-            (highlighted ? accent.withAlphaComponent(0.16) : fg.withAlphaComponent(0.05)).setFill()
+            let path = NSBezierPath(roundedRect: card, xRadius: 16, yRadius: 16)
+            // active: tinted + accent border; inactive: almost transparent (Hyprspace). Glass:
+            // the lens and the hover drop instead, a faint fill for the empty ones
+            (surface != nil ? fg.withAlphaComponent(0.03) : highlighted ? accent.withAlphaComponent(0.16) : fg.withAlphaComponent(0.05)).setFill()
             path.fill()
             drawWindows(of: workspace, in: card, theme: theme)
-            path.lineWidth = highlighted ? 2.5 : 1
-            (highlighted ? accent : fg.withAlphaComponent(0.12)).setStroke()
-            path.stroke()
+            if surface == nil || (dragPoint ?? externalDragPoint).map(card.contains) == true {
+                path.lineWidth = highlighted ? 2.5 : 1
+                (highlighted ? accent : fg.withAlphaComponent(0.12)).setStroke()
+                path.stroke()
+            }
         }
         // "+": dropped there, a window goes to the first empty workspace of the screen
         let index = workspaces.count, column = index % columns, row = index / columns
@@ -598,13 +610,20 @@ private final class OverviewCards: NSView {
                           width: cardSize.width, height: cardSize.height)
         cards.append((plus, newWorkspaceCard))
         let dropping = (dragPoint ?? externalDragPoint).map(plus.contains) == true
-        let plusPath = NSBezierPath(roundedRect: plus.insetBy(dx: 1, dy: 1), xRadius: 12, yRadius: 12)
+        let plusPath = NSBezierPath(roundedRect: plus.insetBy(dx: 1, dy: 1), xRadius: 16, yRadius: 16)
         plusPath.setLineDash([6, 5], count: 2, phase: 0)
         plusPath.lineWidth = dropping ? 2.5 : 1.2
         (dropping ? accent : fg.withAlphaComponent(0.3)).setStroke()
         plusPath.stroke()
         let plusText = NSAttributedString(string: "+", attributes: [.font: NSFont.systemFont(ofSize: 34, weight: .light), .foregroundColor: fg.withAlphaComponent(0.5)])
         plusText.draw(at: NSPoint(x: plus.midX - plusText.size().width / 2, y: plus.midY - plusText.size().height / 2))
+        if let surface { // the glass follows the cards: a lens on the selection's card (else the shown one)
+            surface.panels = [GlassSurface.Shape(rect: bounds, radius: Double(radius), tint: LiquidTint.glass)]
+            let selectedCard = selectedWindow.flatMap { MacWindow.allWindowsMap[$0]?.nodeWorkspace?.name } ?? focused.name
+            let rect = { (name: String?) in name.flatMap { n in self.cards.first { $0.workspace == n }?.rect } }
+            surface.selection = rect(selectedCard).map { GlassSurface.Shape(rect: $0.insetBy(dx: -4, dy: -4), radius: 20, tint: LiquidTint.lens) }
+            surface.hover = rect(hoveredCard).map { GlassSurface.Shape(rect: $0.insetBy(dx: -4, dy: -4), radius: 20, tint: LiquidTint.hover) }
+        }
         // the search, in the strip's top margin
         if !query.isEmpty || activeMode == overviewSearchModeId {
             NSAttributedString(string: "search: \(query)", attributes: [
@@ -705,6 +724,22 @@ private final class OverviewCards: NSView {
         } else {
             pressed = nil
         }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let card = cards.first(where: { $0.rect.contains(point) })?.workspace
+        if card != hoveredCard { hoveredCard = card; needsDisplay = true }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        if hoveredCard != nil { hoveredCard = nil; needsDisplay = true }
     }
 
     override func otherMouseDown(with event: NSEvent) {

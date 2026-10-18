@@ -109,12 +109,22 @@ func updateBarMode(_ mode: String?) {
 @MainActor
 func startSkylandBar() {
     let candidates = [NSHomeDirectory() + "/.local/bin/skylandbar", "/opt/homebrew/bin/skylandbar", "/usr/local/bin/skylandbar"]
-    guard let path = candidates.first(where: FileManager.default.isExecutableFile(atPath:)),
-          !NSWorkspace.shared.runningApplications.contains(where: { $0.executableURL?.lastPathComponent == "skylandbar" })
-    else { return }
+    guard let path = candidates.first(where: FileManager.default.isExecutableFile(atPath:)), !isSkylandBarRunning() else { return }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: path)
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
     try? process.run()
+}
+
+/// skylandbar holds an exclusive lock on this file while it runs (its main.swift): taken, a
+/// bar runs, whatever started it (a terminal, a login item); not every bar shows in
+/// NSWorkspace's running applications.
+private func isSkylandBarRunning() -> Bool {
+    let fd = open("/tmp/skylandbar-\(NSUserName()).lock", O_RDWR)
+    guard fd >= 0 else { return false } // never started
+    defer { close(fd) }
+    guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { return true }
+    flock(fd, LOCK_UN)
+    return false
 }

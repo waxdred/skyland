@@ -74,6 +74,7 @@ download() { # api-url-prefix dest-dir
 case "${1:-}" in
     pick)
         [[ -x "$PICKER" ]] || die "picker not built: run bin/skyland-build"
+        pkill -f "$PICKER" && exit 0 # a picker open already: the key closes it
         file="$("$PICKER" "$dir")" || exit 0 # cancelled
         exec "$0" set "$file"
         ;;

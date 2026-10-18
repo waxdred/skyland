@@ -1364,25 +1364,28 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        panel.alphaValue = opacity
         panel.delegate = self
 
-        let glass: NSView
+        // [media] opacity on the background only: the artwork and the text stay opaque
+        let glass = NSView(frame: NSRect(origin: .zero, size: size))
         if isGlass { // ui-style = 'glass' (Sources/SkylandGlass, compiled in)
             panel.hasShadow = false // the glass draws its own
-            glass = NSView(frame: NSRect(origin: .zero, size: size))
-            glass.addSubview(GlassBackground(radius: radius))
+            let background = GlassBackground(radius: radius)
+            background.alphaValue = opacity
+            glass.addSubview(background)
         } else {
-            let effect = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+            let effect = NSVisualEffectView(frame: glass.bounds)
             effect.material = .hudWindow
             effect.state = .active
-            // A mask image (not layer.cornerRadius) also shapes the window border and
-            // shadow: with cornerRadius macOS kept drawing a 1 px rectangular outline.
+            // A mask image (not layer.cornerRadius) shapes the blur and the window outline:
+            // with cornerRadius macOS kept drawing a 1 px rectangular outline.
             effect.maskImage = roundedMask(radius: radius)
-            glass = effect
+            effect.alphaValue = opacity
+            glass.addSubview(effect)
         }
         panel.contentView = glass
         tint = NSView(frame: glass.bounds)
+        tint.alphaValue = opacity
         tint.wantsLayer = true
         tint.layer?.cornerRadius = radius
         glass.addSubview(tint)

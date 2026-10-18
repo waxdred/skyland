@@ -25,11 +25,20 @@ public final class GlassSurface: NSView {
     public var hover: Shape? { didSet { if hover != oldValue { refresh() } } }
     /// how much what is behind is blurred (points)
     public var blur = 2.0 { didSet { refresh() } }
+    /// the lens flows like a drop (stretches, leaves a drop behind): small rows; false: it
+    /// slides in one piece, for big blocks (cards, thumbnails) where a drop looks out of place
+    public var fluid = true {
+        didSet {
+            lens.stretch = fluid ? 1 : 0
+            lens.leavesDrop = fluid
+        }
+    }
 
     private var renderer: GlassRenderer
     private let lens = LensMotion()
     private var ticker: SurfaceTicker?
     private var moved: NSObjectProtocol?
+    private var settle: DispatchWorkItem?
 
     public init() {
         renderer = GlassEngine.make(GlassEngine.resolve("auto"))
@@ -58,8 +67,14 @@ public final class GlassSurface: NSView {
         super.viewDidMoveToWindow()
         moved.map(NotificationCenter.default.removeObserver)
         moved = window.map { window in
+            // follows the window once it stops: a drag moved it on every mouse event, and
+            // each move past the captured area started the capture again (a slow drag)
             NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: window, queue: .main) { [weak self] _ in
-                self?.refresh()
+                guard let self else { return }
+                self.settle?.cancel()
+                let work = DispatchWorkItem { [weak self] in self?.refresh() }
+                self.settle = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
             }
         }
         if window == nil { ticker?.stop(); ticker = nil }

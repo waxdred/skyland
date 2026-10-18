@@ -20,6 +20,8 @@ public final class LensMotion {
     public var response = 0.35
     public var bounce = 0.3
     public var stretch = 1.0
+    /// skyland: false on big blocks (cards, thumbnails): no drop left behind
+    public var leavesDrop = true
 
     private struct Spring {
         var value: Double
@@ -73,7 +75,7 @@ public final class LensMotion {
             var lens = lenses[index]
             // a new item: a drop of it stays where it is, and shrinks away while the rest goes
             let goal = t.x + t.width / 2
-            if let old = lens.goal, abs(old - goal) > 0.5 {
+            if leavesDrop, let old = lens.goal, abs(old - goal) > 0.5 {
                 let height = lens.height.value
                 lens.tail = Box(x: lens.left.value, y: lens.middle.value - height / 2, width: lens.right.value - lens.left.value, height: height)
                 lens.tailLife = 1
