@@ -103,6 +103,9 @@ final class MetalGlass: GlassRenderer {
                                                   CVPixelBufferGetWidth(buffer), CVPixelBufferGetHeight(buffer), 0, &texture)
         guard let texture else { return }
         backdrop = texture
+        // the cache keeps a texture for every picture's surface until flushed: each new stream
+        // (moved, resized, woken up) brought surfaces of its own, and the old ones stayed
+        CVMetalTextureCacheFlush(textureCache, 0)
         standIn.view.isHidden = true
         render()
     }
