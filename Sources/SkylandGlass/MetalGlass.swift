@@ -216,6 +216,41 @@ final class BackdropCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     private var lastAsk = 0.0
     private var window = CGRect.zero
     private let queue = DispatchQueue(label: "skyland.glass.capture", qos: .userInteractive)
+    /// skyland: a capture stream (what is behind as it moves); false, the default: one picture
+    /// at a time, taken again when what is behind may have changed. A running capture turns
+    /// protected videos black (Netflix, Prime Video), and the media widget's never stopped.
+    var live = false
+    private var behind: [NSObjectProtocol] = []
+    private var every: Timer?
+    private var later: DispatchWorkItem?
+
+    override init() {
+        super.init()
+        // the front app changed (a workspace switch too): what is behind, after it is on screen
+        behind.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification,
+                                                                        object: nil, queue: .main) { [weak self] _ in self?.retake(after: 0.4) })
+        // and now and then: a window that slid behind, a wallpaper set
+        let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in self?.retake(after: 0) }
+        timer.tolerance = 5
+        RunLoop.main.add(timer, forMode: .common)
+        every = timer
+    }
+
+    deinit {
+        behind.forEach(NSWorkspace.shared.notificationCenter.removeObserver)
+        every?.invalidate()
+    }
+
+    /// A new snapshot of the same area (nothing while paused or stopped).
+    private func retake(after delay: Double) {
+        later?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.live, self.region != .zero, !self.asking else { return }
+            self.start()
+        }
+        later = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
 
     /// Captures around `window` (display points, top-left origin) on `display`.
     func follow(display: CGDirectDisplayID, window: CGRect, screen: CGSize, scale: CGFloat) {
@@ -276,6 +311,13 @@ final class BackdropCapture: NSObject, SCStreamOutput, SCStreamDelegate {
                 configuration.pixelFormat = kCVPixelFormatType_32BGRA
                 configuration.showsCursor = false
                 configuration.queueDepth = 3
+                if !self.live, #available(macOS 14.0, *) { // macOS 13: the stream
+                    SCScreenshotManager.captureSampleBuffer(contentFilter: filter, configuration: configuration) { [weak self] sample, _ in
+                        guard let buffer = sample.flatMap(CMSampleBufferGetImageBuffer) else { return }
+                        DispatchQueue.main.async { self?.onFrame?(buffer) }
+                    }
+                    return
+                }
                 if let stream = self.stream {
                     stream.updateContentFilter(filter, completionHandler: nil)
                     stream.updateConfiguration(configuration, completionHandler: nil)
