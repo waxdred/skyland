@@ -1372,6 +1372,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if isGlass { // ui-style = 'glass' (Sources/SkylandGlass, compiled in)
             panel.hasShadow = false // the glass draws its own
             let background = GlassBackground(radius: radius) // whole: its rim stays defined, the tint takes the opacity
+            background.frame = glass.bounds // made at 0 x 0, it never grew: no glass was drawn
             glass.addSubview(background)
             glass.onDrag = { dragging in // no capture while it moves, caught up where it lands
                 if dragging { background.pause() } else { background.refreshShape() }
@@ -1530,7 +1531,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let glow: NSColor? = c.isEmpty ? nil : [c["accent"], c["highlight"]].first(where: colorful) ?? c["accent"]
         let background = c["bg"] ?? AudiowareWave.night
         wave.setTheme(accent: glow, background: c["bg"])
-        tint.layer?.backgroundColor = background.withAlphaComponent(0.92).cgColor
+        tint.layer?.backgroundColor = background.withAlphaComponent(isGlass ? 0.35 : 0.92).cgColor // glass: let it show, refraction included
         title.textColor = c["fg"] ?? AudiowareWave.ice
         artist.textColor = c["fg_dim"] ?? AudiowareWave.electric
         source.textColor = (glow ?? AudiowareWave.cyan).withAlphaComponent(0.9)

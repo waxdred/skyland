@@ -279,6 +279,7 @@ final class BackdropCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     func stop() {
         stream?.stopCapture(completionHandler: nil)
         stream = nil
+        region = .zero // skyland: the next follow starts it again (paused while a window was dragged)
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
