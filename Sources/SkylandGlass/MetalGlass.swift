@@ -33,6 +33,9 @@ final class MetalGlass: GlassRenderer {
 
     let view: NSView
     private let metalLayer: CAMetalLayer
+    /// skyland: Core Animation's glass until the capture's first picture (it takes a few
+    /// frames): the panel showed clear, then its glass all at once
+    private let standIn = BackdropGlass()
     private let capture = BackdropCapture()
     private var textureCache: CVMetalTextureCache?
     /// the last picture of what is behind, kept alive while the GPU reads it
@@ -46,7 +49,13 @@ final class MetalGlass: GlassRenderer {
         guard let device = Self.device, Self.pipeline != nil else { return nil }
         let layer = CAMetalLayer()
         metalLayer = layer
-        view = MetalHost(layer: layer)
+        let host = MetalHost(layer: layer)
+        view = NSView()
+        for sub in [standIn.view, host] {
+            sub.frame = view.bounds
+            sub.autoresizingMask = [.width, .height]
+            view.addSubview(sub)
+        }
         metalLayer.device = device
         metalLayer.pixelFormat = .bgra8Unorm
         metalLayer.isOpaque = false
@@ -64,6 +73,7 @@ final class MetalGlass: GlassRenderer {
         self.window = window
         if shapes.isEmpty {
             capture.stop()
+            backdrop = nil // shown again, the stand-in until a new picture (not this old one)
         } else if let screen = window.screen ?? NSScreen.main,
                   let display = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
         {
@@ -75,16 +85,25 @@ final class MetalGlass: GlassRenderer {
             capture.follow(display: display, window: local, screen: CGSize(width: screenFrame.width, height: screenFrame.height),
                            scale: screen.backingScaleFactor)
         }
+        standIn.view.isHidden = backdrop != nil
+        if backdrop == nil { // its blur as the shader's (backdrop's own is 4 times stronger)
+            var light = settings
+            light.blur /= 4
+            standIn.update(shapes, settings: light, window: window)
+        }
         render()
     }
 
     private func received(_ buffer: CVPixelBuffer) {
-        guard let textureCache else { return }
+        // skyland: asked before its window was on screen, the stream sees the glass itself; drawn,
+        // it darkened a little more each frame. The stand-in stays until a picture without it.
+        guard let textureCache, capture.trusted else { return }
         var texture: CVMetalTexture?
         CVMetalTextureCacheCreateTextureFromImage(nil, textureCache, buffer, nil, .bgra8Unorm,
                                                   CVPixelBufferGetWidth(buffer), CVPixelBufferGetHeight(buffer), 0, &texture)
         guard let texture else { return }
         backdrop = texture
+        standIn.view.isHidden = true
         render()
     }
 
@@ -184,6 +203,8 @@ final class BackdropCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     private var stream: SCStream?
     /// skyland's windows are left out by app; until it has one on screen, by none
     private var excludesSelf = false
+    /// its pictures leave out the glass's own window (or it gave up asking): fit to be shown
+    var trusted: Bool { excludesSelf || selfRetries >= 10 }
     private var asking = false
     private var selfRetries = 0
     /// the glass's window, which the stream must leave out
