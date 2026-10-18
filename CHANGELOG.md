@@ -4,6 +4,13 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## Unreleased
+
+**Safety**
+- skyland quits at once when its Accessibility permission is taken back while it runs:
+  its active event taps (alt + mouse, arrow keys) froze every key and click until a
+  forced reboot.
+
 ## v0.2.0
 
 **Animations**

@@ -21,6 +21,27 @@ func waitForAccessibilityPermission_nonCancellable() async {
     }
 }
 
+/// skyland: Accessibility taken back while skyland runs (System Settings > Privacy &
+/// Security): quit at once. Its active event taps (alt + mouse, arrow keys) would else
+/// hold every key and click for a process macOS no longer lets answer: the whole Mac
+/// froze until a forced reboot. No clean exit (windows put back): that needs the
+/// Accessibility skyland just lost. The list changes post com.apple.accessibility.api;
+/// a 2 s check covers a change made without it.
+@MainActor
+func watchAccessibilityRevocation() {
+    let check = { @Sendable in
+        DispatchQueue.main.async {
+            guard !AXIsProcessTrusted() else { return }
+            FileHandle.standardError.write(Data("skyland: Accessibility taken back, quitting\n".utf8))
+            exit(0)
+        }
+    }
+    DistributedNotificationCenter.default().addObserver(forName: .init("com.apple.accessibility.api"), object: nil, queue: nil) { _ in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: check) // the trust follows the list a moment later
+    }
+    Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in check() }
+}
+
 private func resetAccessibility() {
     _ = try? Process.run(URL(filePath: "/usr/bin/tccutil"), arguments: ["reset", "Accessibility", aeroSpaceAppId])
 }

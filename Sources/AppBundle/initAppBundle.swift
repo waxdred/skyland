@@ -11,6 +11,7 @@ import Foundation
         unsafe _isCli = false
         initServerArgs()
         await waitForAccessibilityPermission_nonCancellable()
+        watchAccessibilityRevocation() // skyland
         if isDebug {
             await toggleReleaseServerIfDebug(.off)
             interceptTermination(SIGINT)
