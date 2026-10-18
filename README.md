@@ -6,7 +6,7 @@ A Hyprland-like tiling window manager for macOS, built as a fork of
 [AeroSpace](https://github.com/nikitabobko/AeroSpace), with the look and
 workflow of the [43PR Hyprland dotfiles](https://github.com/43PR/dotfiles).
 
-![skyland desktop: dwindle tiling (fastfetch, nvim, btop), the focused window border in the theme accent, skylandbar in Liquid Glass, colors from the wallpaper](docs/screenshots/desktop.jpg)
+![skyland desktop: dwindle tiling (fastfetch, nvim, btop), the focused window border in the theme accent, skylandbar in Liquid Glass, colors from the wallpaper](docs/screenshots/desktop-v3.jpg)
 
 skyland keeps everything AeroSpace does (virtual workspaces, tree layouts, CLI,
 config file) and adds what makes Hyprland feel like Hyprland:
@@ -46,8 +46,8 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 <td align="center">Window switcher (<code>alt-&lt;</code>)</td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/wallpaper-picker.jpg" alt="Wallpaper picker in Liquid Glass: a strip of wallpaper thumbnails"></td>
-<td><img src="docs/screenshots/lock-screen.jpg" alt="hyprlock-like lock screen with a glassy clock"></td>
+<td><img src="docs/screenshots/wallpaper-picker-v3.jpg" alt="Wallpaper picker in Liquid Glass: a strip of wallpaper thumbnails"></td>
+<td><img src="docs/screenshots/lock-screen-v3.jpg" alt="hyprlock-like lock screen with a glassy clock"></td>
 </tr>
 <tr>
 <td align="center">Wallpaper picker (<code>alt-w</code>)</td>
@@ -55,7 +55,7 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 </tr>
 </table>
 
-<p align="center"><img src="docs/screenshots/settings.jpg" alt="Settings window in Liquid Glass: decoration and animation settings applied live" width="480"><br>Settings window (<code>alt-i</code>)</p>
+<p align="center"><img src="docs/screenshots/settings-v3.jpg" alt="Settings window in Liquid Glass: decoration and animation settings applied live" width="480"><br>Settings window (<code>alt-i</code>)</p>
 
 Screenshots are framed with `tools/frame-screenshot.swift`
 (`swiftc -O tools/frame-screenshot.swift -o .build/frame-screenshot`).
