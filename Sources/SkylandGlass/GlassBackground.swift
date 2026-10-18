@@ -51,6 +51,12 @@ public final class GlassBackground: NSView {
         refresh()
     }
 
+    override public func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        // made at 0 x 0, autoresizing never grows it: it fills its superview, placed anywhere after
+        if frame.isEmpty, let superview { frame = superview.bounds }
+    }
+
     override public func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         moved.map(NotificationCenter.default.removeObserver)

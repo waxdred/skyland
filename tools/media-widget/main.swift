@@ -1373,7 +1373,6 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if isGlass { // ui-style = 'glass' (Sources/SkylandGlass, compiled in)
             panel.hasShadow = false // the glass draws its own
             let background = GlassBackground(radius: radius) // whole: its rim stays defined, the tint takes the opacity
-            background.frame = glass.bounds // made at 0 x 0, it never grew: no glass was drawn
             glass.addSubview(background)
             glassBackground = background
             glass.onDrag = { dragging in // no capture while it moves, caught up where it lands
