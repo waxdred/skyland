@@ -101,3 +101,20 @@ func updateBarMode(_ mode: String?) {
     process.standardError = FileHandle.nullDevice
     try? process.run()
 }
+
+/// skylandbar (github.com/waxdred/skylandBar), when installed, starts with skyland if it
+/// is not running yet: at login the LaunchAgent (`skyland env`) or the login item starts
+/// skyland only, and launchd kills whatever a LaunchAgent leaves running. Without it,
+/// sketchybar is left to its own login service.
+@MainActor
+func startSkylandBar() {
+    let candidates = [NSHomeDirectory() + "/.local/bin/skylandbar", "/opt/homebrew/bin/skylandbar", "/usr/local/bin/skylandbar"]
+    guard let path = candidates.first(where: FileManager.default.isExecutableFile(atPath:)),
+          !NSWorkspace.shared.runningApplications.contains(where: { $0.executableURL?.lastPathComponent == "skylandbar" })
+    else { return }
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: path)
+    process.standardOutput = FileHandle.nullDevice
+    process.standardError = FileHandle.nullDevice
+    try? process.run()
+}
