@@ -4,6 +4,14 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## Unreleased
+
+**Login**
+- skyland starts skylandbar when it is installed (`~/.local/bin` or Homebrew) and not
+  running yet, at login too: a new session came up without a bar (the login LaunchAgent
+  only starts skyland, and launchd kills what a LaunchAgent leaves running). skyland
+  starts either way.
+
 ## v0.2.0
 
 **Animations**
