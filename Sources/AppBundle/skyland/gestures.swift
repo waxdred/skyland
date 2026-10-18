@@ -143,6 +143,9 @@ private func follow(_ touches: Set<NSTouch>, _ g: Gestures) {
     offset = s.neighbor == nil ? offset * 0.15 : max(-length, min(length, offset))
     s.offset = offset
     session = s
+    // the bar's selection follows the fingers (skylandbar, subscribe workspace-swipe)
+    broadcastEvent(.workspaceSwipe(workspace: s.current.name, target: s.neighbor?.workspace.name,
+                                   progress: s.neighbor == nil ? 0 : Double(abs(offset) / length)))
     let shift = { (r: Rect, by: CGFloat) in
         vertical ? r.copy(\.topLeftY, r.topLeftY + by) : r.copy(\.topLeftX, r.topLeftX + by)
     }
@@ -181,7 +184,8 @@ private func release(_ g: Gestures) {
         }
         return
     }
-    // spring back
+    // spring back (a switch tells the bar with focused-workspace-changed instead)
+    broadcastEvent(.workspaceSwipe(workspace: s.current.name, target: nil, progress: 0))
     for w in s.windows { skylandSa("animate \(w.id) \(args(shift(w.rect, s.offset))) \(ms) \(bezier)") }
     if let n = s.neighbor {
         for w in n.windows {
