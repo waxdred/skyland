@@ -1361,17 +1361,21 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel = NSPanel(contentRect: NSRect(origin: origin, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
-        panel.isMovableByWindowBackground = true // drag anywhere with the mouse
+        panel.isMovableByWindowBackground = false // DragView: macOS's drag queued its events behind the frames
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.delegate = self
 
         // [media] opacity on the background only: the artwork and the text stay opaque
-        let glass = NSView(frame: NSRect(origin: .zero, size: size))
+        let glass = DragView(frame: NSRect(origin: .zero, size: size))
         if isGlass { // ui-style = 'glass' (Sources/SkylandGlass, compiled in)
             panel.hasShadow = false // the glass draws its own
-            glass.addSubview(GlassBackground(radius: radius)) // whole: its rim stays defined, the tint takes the opacity
+            let background = GlassBackground(radius: radius) // whole: its rim stays defined, the tint takes the opacity
+            glass.addSubview(background)
+            glass.onDrag = { dragging in // no capture while it moves, caught up where it lands
+                if dragging { background.pause() } else { background.refreshShape() }
+            }
         } else {
             let effect = NSVisualEffectView(frame: glass.bounds)
             effect.material = .hudWindow
@@ -1665,6 +1669,32 @@ func squared(_ image: NSImage) -> NSImage {
     return NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
         image.draw(in: rect, from: crop, operation: .copy, fraction: 1)
         return true
+    }
+}
+
+/// Drags the widget anywhere on its background: each step puts the window where the mouse
+/// is now (from where it was pressed), so a busy frame never leaves moves queued behind it,
+/// and a released mouse stops it at once.
+final class DragView: NSView {
+    var onDrag: (Bool) -> Void = { _ in }
+    private var start: (mouse: NSPoint, origin: NSPoint)?
+
+    override func mouseDown(with event: NSEvent) {
+        guard let window else { return }
+        start = (NSEvent.mouseLocation, window.frame.origin)
+        onDrag(true)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let start, let window else { return }
+        let mouse = NSEvent.mouseLocation
+        window.setFrameOrigin(NSPoint(x: start.origin.x + mouse.x - start.mouse.x, y: start.origin.y + mouse.y - start.mouse.y))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard start != nil else { return }
+        start = nil
+        onDrag(false)
     }
 }
 
