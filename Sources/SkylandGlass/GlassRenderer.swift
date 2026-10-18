@@ -15,10 +15,13 @@ public struct GlassShape: Equatable {
     var rect: NSRect
     var radius: Double
     var tint: GlassColor
-    /// regular | clear | lens (inside another shape: a selection, Apple's tab bar style)
+    /// regular | clear | lens (inside another shape: a selection, Apple's tab bar style) |
+    /// hover (a lighter lens)
     var style: String
     /// a moving lens, lifted (0...1): it magnifies more, its rim and shade grow
     var lift = 0.0
+    /// a lens: the drop it leaves behind while it moves, melted into it
+    var tail: NSRect?
 
     public init(rect: NSRect, radius: Double, tint: GlassColor = .clear, style: String = "regular") {
         self.rect = rect

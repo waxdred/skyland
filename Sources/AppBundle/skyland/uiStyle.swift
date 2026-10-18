@@ -47,3 +47,13 @@ func roundedMaskImage(radius: CGFloat) -> NSImage {
     mask.resizingMode = .stretch
     return mask
 }
+
+/// skylandbar's Liquid Glass recipe (its themes/liquid-glass.toml), from the theme's accent:
+/// the glass lightly tinted, a flat hover, the selection a tinted lens.
+@MainActor
+enum LiquidTint {
+    static var accent: NSColor { skylandThemeColors()["accent"] ?? .systemBlue }
+    static var glass: NSColor { accent.withAlphaComponent(0.08) }
+    static var hover: NSColor { accent.withAlphaComponent(0.14) }
+    static var lens: NSColor { accent.withAlphaComponent(0.30) }
+}

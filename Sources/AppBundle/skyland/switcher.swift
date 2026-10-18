@@ -1,5 +1,6 @@
 import AppKit
 import Common
+import SkylandGlass
 
 // skyland window switcher (hyprswitch, cmd-tab for windows): the windows of every
 // workspace, most recently focused first, with live thumbnails (ScreenCaptureKit, the
@@ -99,7 +100,16 @@ private final class SwitcherPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true
-        let root = makePanelRoot(radius: 20, for: self)
+        let root: NSView
+        if isGlassStyle { // skylandbar's glass: panel, selection lens, hover drop
+            hasShadow = false
+            root = NSView()
+            let surface = GlassSurface()
+            root.addSubview(surface)
+            view.surface = surface
+        } else {
+            root = makePanelRoot(radius: 20, for: self)
+        }
         root.addSubview(view)
         contentView = root
         view.onPick = { [weak self] confirm in self?.close(confirm: confirm) }
@@ -161,6 +171,9 @@ private final class SwitcherView: NSView {
     private let cardSize = NSSize(width: 220, height: 138), labelHeight: CGFloat = 42
     private let padding: CGFloat = 18, spacing: CGFloat = 14, searchHeight: CGFloat = 30
     private var columns = 1
+    /// glass style: the shapes under the cards
+    weak var surface: GlassSurface?
+    private var hovered: Int?
 
     init(items: [SwitcherItem], selected: Int) {
         self.items = items
@@ -218,6 +231,22 @@ private final class SwitcherView: NSView {
         }
     }
 
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let hit = cards.first(where: { $0.rect.contains(point) })?.index
+        if hit != hovered { hovered = hit; needsDisplay = true }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        if hovered != nil { hovered = nil; needsDisplay = true }
+    }
+
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         guard let hit = cards.first(where: { $0.rect.contains(point) }), let position = shown.firstIndex(of: hit.index) else { return }
@@ -228,13 +257,14 @@ private final class SwitcherView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let theme = skylandThemeColors()
         let fg = theme["fg"] ?? .white, accent = theme["accent"] ?? .systemBlue
+        let glass = surface != nil
         let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 20, yRadius: 20)
-        if !isGlassStyle { // the glass has its own tint
+        if !glass { // metal: a theme tint and a border; glass: its tint and its rim
             (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
             outline.fill()
+            accent.withAlphaComponent(0.35).setStroke()
+            outline.stroke()
         }
-        accent.withAlphaComponent(0.35).setStroke()
-        outline.stroke()
 
         let search = query.isEmpty ? "Type to filter" : query
         NSAttributedString(string: search, attributes: [
@@ -254,8 +284,10 @@ private final class SwitcherView: NSView {
             cards.append((card, index))
             let active = position == current
             let path = NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12)
-            (active ? accent.withAlphaComponent(0.18) : fg.withAlphaComponent(0.05)).setFill()
-            path.fill()
+            if !glass { // glass: the lens and the hover drop are the card's highlight
+                (active ? accent.withAlphaComponent(0.18) : fg.withAlphaComponent(0.05)).setFill()
+                path.fill()
+            }
             drawThumbnail(item, in: NSRect(x: card.minX, y: card.minY, width: card.width, height: cardSize.height).insetBy(dx: 8, dy: 8), theme: theme)
 
             let labelTop = card.minY + cardSize.height
@@ -263,7 +295,7 @@ private final class SwitcherView: NSView {
             let truncate = NSMutableParagraphStyle()
             truncate.lineBreakMode = .byTruncatingTail
             NSAttributedString(string: item.app, attributes: [
-                .font: NSFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: active ? accent : fg, .paragraphStyle: truncate,
+                .font: NSFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: active && !glass ? accent : fg, .paragraphStyle: truncate,
             ]).draw(in: NSRect(x: card.minX + 32, y: labelTop, width: card.width - 64, height: 16))
             NSAttributedString(string: item.workspace, attributes: [
                 .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .bold), .foregroundColor: fg.withAlphaComponent(0.55),
@@ -272,9 +304,17 @@ private final class SwitcherView: NSView {
                 .font: NSFont.systemFont(ofSize: 11), .foregroundColor: fg.withAlphaComponent(0.6), .paragraphStyle: truncate,
             ]).draw(in: NSRect(x: card.minX + 10, y: labelTop + 18, width: card.width - 20, height: 15))
 
-            path.lineWidth = active ? 2.5 : 1
-            (active ? accent : fg.withAlphaComponent(0.12)).setStroke()
-            path.stroke()
+            if !glass {
+                path.lineWidth = active ? 2.5 : 1
+                (active ? accent : fg.withAlphaComponent(0.12)).setStroke()
+                path.stroke()
+            }
+        }
+        if let surface { // the glass follows the cards: a lens flows to the selection
+            surface.panels = [GlassSurface.Shape(rect: bounds, radius: 20, tint: LiquidTint.glass)]
+            let card = { (index: Int) in self.cards.first { $0.index == index }?.rect }
+            surface.selection = shown.indices.contains(current) ? card(shown[current]).map { GlassSurface.Shape(rect: $0, radius: 12, tint: LiquidTint.lens) } : nil
+            surface.hover = hovered.flatMap(card).map { GlassSurface.Shape(rect: $0, radius: 12, tint: LiquidTint.hover) }
         }
     }
 
