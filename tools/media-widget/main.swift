@@ -1391,11 +1391,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         tint = NSView(frame: glass.bounds)
         tint.alphaValue = opacity
         tint.wantsLayer = true
-        tint.layer?.cornerRadius = radius
-        if isGlass { // a hairline rim: the widget's edge stays readable over any wallpaper
-            tint.layer?.borderWidth = 1
-            tint.layer?.borderColor = NSColor(white: 1, alpha: 0.22).cgColor
-        }
+        tint.layer?.cornerRadius = radius // glass: no border of its own, the glass draws the rim
         glass.addSubview(tint)
 
         artwork.frame = NSRect(x: 14, y: 14, width: 88, height: 88)
