@@ -19,6 +19,10 @@ public struct ServerEvent: Codable, Sendable {
     private var mode: String?
     // periphery:ignore - false positive unused warning. The var properties are serialized to JSON
     private var binding: String?
+    // periphery:ignore - false positive unused warning. The var properties are serialized to JSON
+    private var targetWorkspace: String?
+    // periphery:ignore - false positive unused warning. The var properties are serialized to JSON
+    private var progress: Double?
 
     public var eventType: ServerEventType { _event }
 
@@ -40,6 +44,13 @@ public struct ServerEvent: Codable, Sendable {
 
     public static func windowDetected(windowId: UInt32, workspace: String?, appBundleId: String?, appName: String?) -> ServerEvent {
         ServerEvent(_event: .windowDetected, windowId: windowId, workspace: workspace, appBundleId: appBundleId, appName: appName)
+    }
+
+    /// skyland: the fingers moved `workspace` `progress` (0...1) of the way to `target`; no
+    /// target: the swipe ended (the switch, if any, follows as focused-workspace-changed).
+    /// A bar can move its selection with the fingers.
+    public static func workspaceSwipe(workspace: String, target: String?, progress: Double) -> ServerEvent {
+        ServerEvent(_event: .workspaceSwipe, workspace: workspace, targetWorkspace: target, progress: progress)
     }
 
     public static func bindingTriggered(mode: String, binding: String) -> ServerEvent {

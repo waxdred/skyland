@@ -60,4 +60,5 @@ public enum ServerEventType: String, Codable, CaseIterable, Sendable {
     case modeChanged = "mode-changed"
     case windowDetected = "window-detected"
     case bindingTriggered = "binding-triggered"
+    case workspaceSwipe = "workspace-swipe" // skyland: a trackpad swipe in progress
 }
