@@ -639,7 +639,7 @@ private final class OverviewCards: NSView {
             let iconSize = min(44, rect.width * 0.5, rect.height * 0.6)
             if let window = MacWindow.allWindowsMap[windowId], let icon = NSRunningApplication(processIdentifier: window.app.pid)?.icon {
                 icon.draw(in: NSRect(x: rect.midX - iconSize / 2, y: rect.midY - iconSize / 2, width: iconSize, height: iconSize),
-                          from: .zero, operation: .sourceOver, fraction: alpha)
+                          from: .zero, operation: .sourceOver, fraction: alpha, respectFlipped: true, hints: nil) // the cards are flipped
             }
         }
         NSGraphicsContext.restoreGraphicsState()
