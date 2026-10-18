@@ -84,7 +84,8 @@ private func mouseDragCallback(_: CGEventTapProxy, type: CGEventType, event: CGE
 private func handleMouse(_ type: CGEventType, _ location: CGPoint, _ flags: CGEventFlags) -> Bool {
     switch type {
         case .leftMouseDown, .rightMouseDown:
-            guard let wanted = parseMouseModifier(config.mouseModifier),
+            guard !isOverviewOpen, // alt + drag there swaps workspaces (overview.swift)
+                  let wanted = parseMouseModifier(config.mouseModifier),
                   flags.intersection(modifierMask) == wanted,
                   let (window, rect) = managedWindow(at: location) else { return false }
             window.nativeFocus()

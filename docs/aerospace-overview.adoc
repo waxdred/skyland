@@ -1,0 +1,38 @@
+= aerospace-overview(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-overview
+// tag::purpose[]
+:manpurpose: Keyboard actions of the workspace overview
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace overview [-h|--help] (next|prev|confirm|close|search)
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}, for `[mode.overview.binding]` (the overview is open while the
+`overview` mode is active).
+
+* `next`, `prev`: select the next / previous window, card after card.
+* `confirm`: focus the selected window and close the overview.
+* `close`: close the selected window; the overview stays open.
+* `search`: start a search: the mode becomes `overview-search` (no hotkeys), typed
+  text filters the windows by app or title, enter focuses the selection, esc goes back.
+  Any letter the overview mode does not bind starts it too.
+
+A window dropped on the last `+` card goes to the first empty workspace of the screen;
+a middle click closes a window.
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+// end::body[]

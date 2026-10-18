@@ -11,6 +11,19 @@ is also the text of its GitHub release.
   its active event taps (alt + mouse, arrow keys) froze every key and click until a
   forced reboot.
 
+## Unreleased
+
+**Overview**
+- Typing searches the windows by app or title (`/` for the letters the overview binds):
+  the others are dimmed, on the cards and behind; enter focuses the selection.
+- Keyboard selection of windows (`j` / `k`, up / down, tab), `enter` focuses it, `x` or a
+  middle click closes a window, the overview stays open.
+- A `+` card: a window dropped there goes to the first empty workspace of the screen.
+- alt + drag a card onto another: the two workspaces swap their windows, layout and
+  floating windows included.
+- Pinned windows show on every card of their screen.
+- `overview next|prev|confirm|close|search` command for `[mode.overview.binding]`.
+
 ## v0.2.0
 
 **Animations**
