@@ -31,7 +31,7 @@ swiftc -O -enforce-exclusivity=unchecked tools/media-widget/main.swift Sources/S
 app=.build/Skyland.app
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS"
-cp "$bin/AeroSpaceApp" "$app/Contents/MacOS/"
+cp "$bin/AeroSpaceApp" "$app/Contents/MacOS/Skyland" # the process is named after it (Activity Monitor, btop, pkill -x Skyland)
 # default config read at startup (Bundle.main): a debug build else looks for it
 # in the source tree it was compiled in, which a release zip does not have
 mkdir -p "$app/Contents/Resources"
@@ -46,7 +46,7 @@ cat > "$app/Contents/Info.plist" <<EOF
     <key>CFBundleIdentifier</key><string>com.waxdred.skyland</string>
     <key>CFBundleName</key><string>Skyland</string>
     <key>CFBundleIconFile</key><string>Skyland</string>
-    <key>CFBundleExecutable</key><string>AeroSpaceApp</string>
+    <key>CFBundleExecutable</key><string>Skyland</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>LSUIElement</key><true/>
 </dict>

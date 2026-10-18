@@ -11,6 +11,10 @@ is also the text of its GitHub release.
   selection a lens of glass flowing on springs and leaving a drop behind, a lighter drop
   under the mouse. The window switcher and the wallpaper picker use it (`GlassSurface`).
 
+**Process name**
+- the process is named `Skyland` (it was `AeroSpaceApp`) in Activity Monitor, btop and
+  `pkill -x Skyland`; the app's executable is `Skyland.app/Contents/MacOS/Skyland`.
+
 ## v0.3.0
 
 **Overview**
