@@ -138,7 +138,12 @@ func applyDecorations() {
                 ? "fade \(windowId) \(Double(opacity) / 100) \(Int(switchFade.durationMs)) \(switchFade.curve.args)\(fadeIn ? " 0" : "")"
                 : "alpha \(windowId) \(Double(opacity) / 100)")
         }
-        let raise = window.isFloating && raiseFloating
+        // popups and alerts skyland does not manage (a confirmation at an app's launch...) at the
+        // normal level go over the windows too: focus follows the mouse on its way to them, and
+        // the window it crossed came in front and hid them. Menus, tooltips: higher already.
+        let popup = window.parent is MacosPopupWindowsContainer
+            && (raisedWindows.contains(windowId) || getWindowLevel(for: windowId) == .normalWindow)
+        let raise = (window.isFloating || popup) && raiseFloating
         if payloadCapabilities.contains("layer"), raise != raisedWindows.contains(windowId) {
             if raise { raisedWindows.insert(windowId) } else { raisedWindows.remove(windowId) }
             skylandSa("layer \(windowId) \(raise ? 1 : 0)")
