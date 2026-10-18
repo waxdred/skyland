@@ -73,8 +73,13 @@ sketchybar configs and plugins run unchanged, and adds what a skyland bar needs:
 
 ```sh
 git clone https://github.com/waxdred/skylandBar.git && cd skylandBar
-swift build -c release && .build/release/skylandbar   # quit sketchybar first
+swift build -c release && ln -s "$PWD/.build/release/skylandbar" ~/.local/bin/
+skylandbar &   # quit sketchybar first
 ```
+
+Linked in `~/.local/bin` (or installed in `/opt/homebrew/bin`), it starts with skyland when
+it is not running yet, at login too; without it, skyland starts alone and sketchybar
+is reloaded as before.
 
 ## skyland-cyberdeck
 
