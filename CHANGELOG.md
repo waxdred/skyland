@@ -11,6 +11,9 @@ is also the text of its GitHub release.
   what is behind instead of running a capture stream (macOS hides protected content while
   one runs, and the media widget's never stopped). A new snapshot when the front app
   changes, when the panel moves, and every 30 s.
+- The media widget's audio bars and wave read the system's audio from a Core Audio tap
+  (macOS 14.2), not a ScreenCaptureKit stream: protected videos went black as soon as they
+  played with the widget open. macOS may ask once to let Skyland record the system's audio.
 
 ## v0.4.0
 
