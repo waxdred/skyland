@@ -19,7 +19,7 @@ ok "macOS $(sw_vers -productVersion), $(uname -m)"
 section "skyland"
 if [[ -d "$REPO/.build/Skyland.app" && -x "$CLI" ]]; then ok "built (.build/Skyland.app)"; else bad "not built" "run: skyland install (or bin/skyland-build)"; fi
 if command -v skyland >/dev/null; then ok "skyland CLI on PATH ($(command -v skyland))"; else opt "skyland CLI not on PATH" "ln -s $REPO/bin/skyland ~/.local/bin/skyland, and add ~/.local/bin to PATH"; fi
-if pgrep -xq AeroSpaceApp; then
+if pgrep -xq Skyland; then
     if "$CLI" list-workspaces --focused </dev/null >/dev/null 2>&1; then
         ok "Skyland.app running, server answers"
     else
@@ -29,10 +29,10 @@ else
     bad "Skyland.app not running" "open $REPO/.build/Skyland.app (never start the binary from a terminal: it resets its Accessibility permission)"
 fi
 if "$CLI" reload-config --dry-run </dev/null >/dev/null 2>&1; then ok "config valid ($(readlink -f ~/.config/aerospace/aerospace.toml 2>/dev/null || echo ~/.config/aerospace/aerospace.toml))"
-elif pgrep -xq AeroSpaceApp; then bad "config has errors" "skyland reload-config --dry-run"; fi
+elif pgrep -xq Skyland; then bad "config has errors" "skyland reload-config --dry-run"; fi
 windows="$("$CLI" list-windows --all --format '%{window-id}' </dev/null 2>/dev/null | wc -l | tr -d ' ')"
 if [[ "${windows:-0}" -gt 0 ]]; then ok "manages $windows windows (Accessibility works)"
-elif pgrep -xq AeroSpaceApp; then opt "no window managed" "no app open, or Accessibility not granted to Skyland"; fi
+elif pgrep -xq Skyland; then opt "no window managed" "no app open, or Accessibility not granted to Skyland"; fi
 opt "Screen Recording for Skyland: check it by hand (System Settings > Privacy & Security)" "gives the overview live thumbnails, the media widget bars and cyberdeck's audio"
 
 # trackpad swipe vs the macOS gesture with as many fingers (2 = on: full-screen apps /
