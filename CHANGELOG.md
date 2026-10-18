@@ -6,11 +6,10 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
-**Login**
-- skyland starts skylandbar when it is installed (`~/.local/bin` or Homebrew) and not
-  running yet, at login too: a new session came up without a bar (the login LaunchAgent
-  only starts skyland, and launchd kills what a LaunchAgent leaves running). skyland
-  starts either way.
+**Safety**
+- skyland quits at once when its Accessibility permission is taken back while it runs:
+  its active event taps (alt + mouse, arrow keys) froze every key and click until a
+  forced reboot.
 
 ## v0.2.0
 
