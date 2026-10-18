@@ -124,7 +124,7 @@ public final class GlassSurface: NSView {
             shapes.append(GlassShape(rect: hover.rect, radius: hover.radius, tint: color(hover.tint), style: "hover"))
         }
         var settings = GlassSettings()
-        settings.blur = blur
+        settings.blur = blur * GlassTuning.blur / 2
         renderer.update(shapes, settings: settings, window: window)
         if moving, ticker == nil {
             ticker = SurfaceTicker(view: self) { [weak self] in self?.refresh() }

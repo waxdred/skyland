@@ -46,6 +46,7 @@ struct SettingField: Identifiable {
     let label: String
     let kind: Kind
     var after: [String]? = nil // skyland script run after a change, e.g. ["skyland-theme", "apply"]
+    var fallback: String? = nil // shown while the config has no such key
     var id: String { "\(section).\(key)" }
 }
 
@@ -149,9 +150,7 @@ final class SettingsModel: ObservableObject {
     /// Values from the file; drops unsaved changes (Revert).
     func load() {
         let text = (try? String(contentsOf: configUrl, encoding: .utf8)) ?? ""
-        for group in settingGroups {
-            for field in group.fields { values[field.id] = tomlValue(text, section: field.section, key: field.key) }
-        }
+        for field in settingGroups.flatMap(\.fields) + [glassBlurField] { values[field.id] = tomlValue(text, section: field.section, key: field.key) }
         pending = [:]
         error = nil
         colors = .current()
@@ -167,7 +166,7 @@ final class SettingsModel: ObservableObject {
         guard !pending.isEmpty else { return }
         let url = configUrl
         guard var text = try? String(contentsOf: url, encoding: .utf8) else { error = "cannot read \(url.path)"; return }
-        let fields = (settingGroups.flatMap(\.fields) + [uiStyleField]).filter { pending[$0.id] != nil }
+        let fields = (settingGroups.flatMap(\.fields) + [uiStyleField, glassBlurField]).filter { pending[$0.id] != nil }
         for field in fields { text = tomlSet(text, section: field.section, key: field.key, value: pending[field.id]!) }
         let errors = parseConfig(text).errors
         guard errors.isEmpty else {
@@ -260,6 +259,7 @@ private struct GeneralView: View {
                     Text("Glass").tag("glass")
                 }
                 .pickerStyle(.segmented)
+                if isGlassStyle { row(glassBlurField) }
             } header: { SectionHeader(title: "Look", colors: model.colors) }
             ForEach(settingGroups, id: \.title) { group in
                 Section {
@@ -300,7 +300,7 @@ private struct GeneralView: View {
         let label = Text(field.label).foregroundStyle(changed ? model.colors.accent : model.colors.text)
         switch field.kind {
             case .int(let range, let step, let unit):
-                let value = Int(raw ?? "") ?? range.lowerBound
+                let value = Int(raw ?? field.fallback ?? "") ?? range.lowerBound
                 HStack {
                     label
                     Slider(
@@ -340,6 +340,9 @@ private struct GeneralView: View {
 
 /// `[decoration] ui-style`, chosen in the Look section (metal | glass).
 let uiStyleField = SettingField(section: "decoration", key: "ui-style", label: "Style", kind: .choice(["metal", "glass"]))
+/// the media widget is made again to take it (the panels take it at once)
+let glassBlurField = SettingField(section: "decoration", key: "glass-blur", label: "Glass blur", kind: .int(0 ... 20, step: 1, unit: "pt"),
+                                  after: ["skyland-media", "restart"], fallback: "2")
 
 @MainActor
 func showSettingsWindow() {

@@ -10,6 +10,13 @@ import SkylandGlass
 /// For the apps skyland starts (wallpaper picker, media widget), which read it at launch.
 @MainActor
 func syncUiStyle() {
+    // glass-blur: here at once, for the tools at their next launch
+    let blur = Double(max(0, config.decoration.glassBlur))
+    if GlassTuning.blur != blur {
+        GlassTuning.blur = blur
+        try? FileManager.default.createDirectory(atPath: (glassBlurFile as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+        try? String(Int(blur)).write(toFile: glassBlurFile, atomically: true, encoding: .utf8)
+    }
     let style = config.decoration.uiStyle
     guard (try? String(contentsOfFile: uiStyleFile, encoding: .utf8)) != style else { return }
     try? FileManager.default.createDirectory(atPath: (uiStyleFile as NSString).deletingLastPathComponent, withIntermediateDirectories: true)

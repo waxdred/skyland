@@ -17,6 +17,7 @@ import Common
 // border-width = 2     # focused window border in the theme accent (JankyBorders), 0 = none
 // border-rotate-ms = 0 # rotating border gradient, one turn in ms (skyland draws it, see animatedBorder.swift)
 // blur = 5             # Ghostty background blur behind its translucent background, 0 = none
+// glass-blur = 2      # glass panels: how much what is behind is blurred, points (0: sharp)
 // ui-style = 'metal'  # skyland's panels (overview, switcher, HUDs, settings, wallpaper picker, media widget): metal (blur) | glass (Liquid Glass, uiStyle.swift)
 // group-bar-height = 22 # accordion containers become Hyprland groups: tabs bar on top, one window shown (0 = AeroSpace accordion)
 // border-width and blur are applied by bin/skyland-theme; parsed here so the config validates.
@@ -31,6 +32,7 @@ struct Decoration: ConvenienceMutable, Equatable, Sendable {
     var groupBarHeight: Int = 0
     var shadow = "on" // on | off | floating: only floating windows keep their shadow
     var uiStyle = "metal" // metal | glass
+    var glassBlur: Int = 2
 
     var isEnabled: Bool { rounding > 0 || activeOpacity != 100 || inactiveOpacity != 100 || dimInactive > 0 || shadow != "on" }
 }
@@ -44,6 +46,7 @@ private let decorationParser: [String: any ParserProtocol<Decoration>] = [
     "border-rotate-ms": Parser(\.borderRotateMs, parseInt),
     "blur": Parser(\.blur, parseInt),
     "group-bar-height": Parser(\.groupBarHeight, parseInt),
+    "glass-blur": Parser(\.glassBlur, parseInt),
     "ui-style": Parser(\.uiStyle) { raw, backtrace in
         parseString(raw, backtrace).flatMap { value in
             ["metal", "glass"].contains(value) ? .success(value) : .failure(.init(backtrace, "Expected 'metal' or 'glass', got '\(value)'"))

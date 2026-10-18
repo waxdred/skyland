@@ -217,8 +217,10 @@ enum GlassLook {
                 "inputShadowOpacity": 0.3, "inputShadowAmount": 4, "inputShadowHeight": 4, "inputShadowBlurRadius": 5,
             ]
         }
+        // the blur shows more as it grows (at 2 points, barely: what is behind stays sharp)
+        let blurOpacity = min(1, max(0.1, settings.blur / 8))
         values.merge([
-            "inputBlurOpacity0": 0.1, "inputBlurOpacity1": 0.1, "inputBlurOpacity2": 0.1, "inputBlurOpacity3": 0.1,
+            "inputBlurOpacity0": blurOpacity, "inputBlurOpacity1": blurOpacity, "inputBlurOpacity2": blurOpacity, "inputBlurOpacity3": blurOpacity,
             "inputBlurFillNormalOpacity": 0, "inputBlurFillDarkenOpacity": 0, "inputBlurFillLightenOpacity": 0, "inputBleedAmount": 0,
             "inputFaceColorMatrixSaturation": 1 + (settings.saturation - 1) * 0.6,
             // Apple's luminance cap (0.5) kept: without it a bright wallpaper burned the text out
