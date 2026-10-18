@@ -1341,6 +1341,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var playButton: NSButton!
     var watchdogTicks = 0
     var frameTimer: Timer?
+    var saveOrigin: DispatchWorkItem?
     var quietFrames = 0
     var artworkKey: String? // base64 of the artwork shown: decoded once per track
     let bars = Bars()
@@ -1370,9 +1371,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let glass = NSView(frame: NSRect(origin: .zero, size: size))
         if isGlass { // ui-style = 'glass' (Sources/SkylandGlass, compiled in)
             panel.hasShadow = false // the glass draws its own
-            let background = GlassBackground(radius: radius)
-            background.alphaValue = opacity
-            glass.addSubview(background)
+            glass.addSubview(GlassBackground(radius: radius)) // whole: its rim stays defined, the tint takes the opacity
         } else {
             let effect = NSVisualEffectView(frame: glass.bounds)
             effect.material = .hudWindow
@@ -1388,6 +1387,10 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         tint.alphaValue = opacity
         tint.wantsLayer = true
         tint.layer?.cornerRadius = radius
+        if isGlass { // a hairline rim: the widget's edge stays readable over any wallpaper
+            tint.layer?.borderWidth = 1
+            tint.layer?.borderColor = NSColor(white: 1, alpha: 0.22).cgColor
+        }
         glass.addSubview(tint)
 
         artwork.frame = NSRect(x: 14, y: 14, width: 88, height: 88)
@@ -1437,7 +1440,8 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // streams left by a widget that did not stop them (now children of launchd)
         try? Process.run(URL(fileURLWithPath: "/usr/bin/pkill"), arguments: ["-P", "1", "-f", "mediaremote-adapter\\.pl .* stream "])
         startStream()
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        // .common: they keep running while the widget is dragged (the event tracking mode)
+        let progress = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.updateProgress()
                 self?.applyThemeIfChanged()
@@ -1447,6 +1451,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 if self.watchdogTicks % (self.state["playing"] as? Bool == true ? 8 : 30) == 0 { self.checkStream() }
             }
         }
+        RunLoop.main.add(progress, forMode: .common)
     }
 
     // MARK: frames
@@ -1456,9 +1461,11 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func startFrames() {
         quietFrames = 0
         guard frameTimer == nil, panel.occlusionState.contains(.visible) else { return }
-        frameTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.frame() }
         }
+        RunLoop.main.add(timer, forMode: .common) // the wave keeps moving while the widget is dragged
+        frameTimer = timer
     }
 
     func stopFrames() {
@@ -1631,8 +1638,15 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: window
 
+    /// Saved once the drag stops, not on every mouse event of it.
     func windowDidMove(_ notification: Notification) {
-        defaults.set(NSStringFromPoint(panel.frame.origin), forKey: "origin")
+        saveOrigin?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            defaults.set(NSStringFromPoint(panel.frame.origin), forKey: "origin")
+        }
+        saveOrigin = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
