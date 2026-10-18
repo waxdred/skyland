@@ -94,29 +94,199 @@ public enum GlassEngine {
 
 // MARK: system
 
-/// Apple's glass: an NSGlassEffectView per shape, in an NSGlassEffectContainerView.
+/// Apple's glass: an NSGlassEffectView per shape, in NSGlassEffectContainerViews: one for the
+/// panels (closer than spacing they melt), one over it for lenses and hover drops, glass of
+/// their own; a lens's drop left behind melts into it there, as a liquid would. skylandbar's
+/// look on it all: its own values in Apple's glass filter (GlassLook), a double rim (GlassRim).
 final class SystemGlass: GlassRenderer {
-    let view: NSView
-    private let holder: NSView
-    private var glasses: [NSView] = []
+    let view: NSView = FlippedHolder()
+    private let bodies: (container: NSView, holder: NSView)
+    private let drops: (container: NSView, holder: NSView)
+    private var bodyViews: [NSView] = []
+    private var dropViews: [NSView] = []
+    private var rims: [GlassRim] = []
     let failed = false
 
     init() {
-        (view, holder) = Glass.makeContainer()
+        bodies = Glass.makeContainer()
+        drops = Glass.makeContainer()
+        for part in [bodies.container, drops.container] {
+            part.frame = view.bounds
+            part.autoresizingMask = [.width, .height]
+            view.addSubview(part)
+        }
+        view.wantsLayer = true
     }
 
     func update(_ shapes: [GlassShape], settings: GlassSettings, window: NSWindow) {
-        Glass.setSpacing(holder, settings.spacing)
-        while glasses.count > shapes.count { glasses.removeLast().removeFromSuperview() }
-        while glasses.count < shapes.count {
+        let isDrop = { (style: String) in style == "lens" || style == "hover" }
+        var bodyShapes: [GlassShape] = [], dropShapes: [GlassShape] = []
+        for shape in shapes {
+            guard isDrop(shape.style) else { bodyShapes.append(shape); continue }
+            dropShapes.append(shape)
+            if let tail = shape.tail, tail.width > 0 { // its drop left behind, the same glass
+                var drop = shape
+                drop.rect = tail
+                drop.radius = min(shape.radius, Double(min(tail.width, tail.height)) / 2)
+                drop.tail = nil
+                dropShapes.append(drop)
+            }
+        }
+        Glass.setSpacing(bodies.holder, settings.spacing)
+        Glass.setSpacing(drops.holder, 14) // a lens and its drop melt while near
+        place(bodyShapes, in: bodies.holder, views: &bodyViews)
+        // Apple's tint is dense: a drop at half its tint keeps what is behind showing through it
+        place(dropShapes.map { var d = $0; d.tint.alpha *= 0.5; return d }, in: drops.holder, views: &dropViews)
+        GlassLook.apply(bodies.container, settings: settings,
+                        height: bodyShapes.map { Double(min($0.rect.width, $0.rect.height)) }.min() ?? 36)
+        if let lens = dropShapes.first {
+            GlassLook.apply(drops.container, settings: settings, height: Double(min(lens.rect.width, lens.rect.height)),
+                            lift: dropShapes.map(\.lift).max() ?? 0)
+        }
+        // the double rims, over all the glass
+        let rimmed = bodyShapes.map { ($0, 1.0) } + dropShapes.map { ($0, 1.5 + 0.5 * $0.lift) }
+        while rims.count > rimmed.count { rims.removeLast().removeFromSuperlayer() }
+        while rims.count < rimmed.count {
+            let rim = GlassRim()
+            rim.zPosition = 10 // over the glass views' own layers
+            view.layer?.addSublayer(rim)
+            rims.append(rim)
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for (rim, (shape, strength)) in zip(rims, rimmed) { rim.set(shape.rect, radius: shape.radius, strength: strength) }
+        CATransaction.commit()
+    }
+
+    private func place(_ shapes: [GlassShape], in holder: NSView, views: inout [NSView]) {
+        while views.count > shapes.count { views.removeLast().removeFromSuperview() }
+        while views.count < shapes.count {
             let glass = Glass.makeView()
             holder.addSubview(glass)
-            glasses.append(glass)
+            views.append(glass)
         }
-        for (glass, shape) in zip(glasses, shapes) {
+        for (glass, shape) in zip(views, shapes) {
             glass.frame = shape.rect
             Glass.update(glass, style: shape.style, tint: shape.tint, cornerRadius: shape.radius)
         }
+    }
+}
+
+// MARK: skylandbar's look on Apple's glass
+
+/// Apple's glass draws what is behind through a private filter (`glassBackground`) on a
+/// CABackdropLayer (in each NSGlassEffectView, or in the container rendering them together),
+/// set for a frosted look: a lot of blur, a narrow refraction. skyland sets its own values
+/// there: a sharp middle, what is behind bent along the edge, colors split a little, a soft
+/// shadow and ring shade. Still the window server's glass: live, no capture. Looked up by
+/// name; nothing changes if a macOS has it otherwise.
+enum GlassLook {
+    /// `height`: the smallest shape's, which the bent band keeps within. `lift`: nil for a
+    /// panel; a lens's (0 at rest, 1 moving fast): thicker, lighter glass, bending more.
+    /// Again on the next turn of the run loop, for the layers made after a layout.
+    static func apply(_ view: NSView, settings: GlassSettings, height: Double, lift: Double? = nil) {
+        set(view, settings, height, lift)
+        DispatchQueue.main.async { set(view, settings, height, lift) }
+    }
+
+    private static func set(_ view: NSView, _ settings: GlassSettings, _ height: Double, _ lift: Double?) {
+        guard let root = view.layer else { return }
+        var values: [String: Double]
+        if let lift { // a drop: a third of its height bent, its middle magnified, a light of its own
+            let band = max(2, height * (0.34 + 0.1 * lift))
+            values = [
+                "inputInnerRefractionAmount": -(1.8 + 2.4 * lift) * band, "inputInnerRefractionHeight": band,
+                "inputAberrationAmount": (0.3 + 0.3 * lift) * band, "inputAberrationHeight": band,
+                "inputBlurRadius": settings.blur * 0.3,
+                "inputFaceColorMatrixWhite": 1.32 + 0.1 * lift, "inputFaceColorMatrixBlack": 0.1,
+                "inputKeyFillHighlightAmount": 0.8 + 0.3 * lift,
+                "inputRingShadowOpacity": 0.4, "inputRingShadowOffset": 2, "inputRingShadowStrokeWidth": 1.2,
+                "inputRingShadowBlurRadius": 1.5,
+                "inputShadowOpacity": 0.35 + 0.15 * lift, "inputShadowAmount": 4 + 3 * lift, "inputShadowHeight": 4 + 3 * lift,
+                "inputShadowBlurRadius": 5 + 3 * lift,
+            ]
+        } else {
+            let band = min(2.3 * settings.refraction, max(2, height / 4))
+            values = [
+                "inputInnerRefractionAmount": -2.5 * band, "inputInnerRefractionHeight": band,
+                "inputAberrationAmount": 0.2 * band, "inputAberrationHeight": band,
+                "inputBlurRadius": settings.blur / 2,
+                "inputKeyFillHighlightAmount": 0.6,
+                "inputRingShadowOpacity": 0.3, "inputRingShadowOffset": 2, "inputRingShadowStrokeWidth": 1.2,
+                "inputRingShadowBlurRadius": 1.5,
+                "inputShadowOpacity": 0.3, "inputShadowAmount": 4, "inputShadowHeight": 4, "inputShadowBlurRadius": 5,
+            ]
+        }
+        values.merge([
+            "inputBlurOpacity0": 0.1, "inputBlurOpacity1": 0.1, "inputBlurOpacity2": 0.1, "inputBlurOpacity3": 0.1,
+            "inputBlurFillNormalOpacity": 0, "inputBlurFillDarkenOpacity": 0, "inputBlurFillLightenOpacity": 0, "inputBleedAmount": 0,
+            "inputFaceColorMatrixSaturation": 1 + (settings.saturation - 1) * 0.6,
+            // Apple's luminance cap (0.5) kept: without it a bright wallpaper burned the text out
+        ]) { mine, _ in mine }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for backdrop in backdrops(root) {
+            if (backdrop.value(forKey: "scale") as? Double) != 1 { backdrop.setValue(1, forKey: "scale") } // Apple's: half resolution
+            for (key, value) in values where (backdrop.value(forKeyPath: "filters.glassBackground.\(key)") as? Double) != value {
+                backdrop.setValue(value, forKeyPath: "filters.glassBackground.\(key)")
+            }
+        }
+        CATransaction.commit()
+    }
+
+    private static func backdrops(_ layer: CALayer) -> [CALayer] {
+        var found: [CALayer] = []
+        if NSStringFromClass(type(of: layer)) == "CABackdropLayer",
+           (layer.filters as? [NSObject])?.contains(where: { ($0.value(forKey: "name") as? String) == "glassBackground" }) == true
+        {
+            found.append(layer)
+        }
+        for sublayer in layer.sublayers ?? [] { found += backdrops(sublayer) }
+        return found
+    }
+}
+
+/// The double rim over a glass shape: an outer line lit from the top left, fading toward the
+/// bottom, and an inner one, 1.5 pt in, lit from the bottom right (the light coming back
+/// through the glass's thickness): a bevel, the glass standing off what is behind.
+final class GlassRim: CALayer {
+    private let outer = CAGradientLayer(), outerMask = CAShapeLayer()
+    private let inner = CAGradientLayer(), innerMask = CAShapeLayer()
+
+    override init() {
+        super.init()
+        for (gradient, mask) in [(outer, outerMask), (inner, innerMask)] {
+            mask.fillColor = nil
+            mask.strokeColor = NSColor.black.cgColor
+            mask.lineWidth = 1
+            gradient.mask = mask
+            addSublayer(gradient)
+        }
+        outer.startPoint = CGPoint(x: 0, y: 0) // flipped: the top left
+        outer.endPoint = CGPoint(x: 1, y: 1)
+        inner.startPoint = CGPoint(x: 1, y: 1)
+        inner.endPoint = CGPoint(x: 0, y: 0)
+    }
+
+    override init(layer: Any) { super.init(layer: layer) }
+    required init?(coder: NSCoder) { nil }
+
+    /// `strength`: 1 for a panel, more for a lens.
+    func set(_ rect: NSRect, radius: Double, strength: Double) {
+        frame = rect
+        let bounds = CGRect(origin: .zero, size: rect.size)
+        let path = { (inset: CGFloat) -> CGPath in
+            let r = bounds.insetBy(dx: inset, dy: inset), corner = max(0, min(CGFloat(radius) - inset, r.height / 2, r.width / 2))
+            return CGPath(roundedRect: r, cornerWidth: corner, cornerHeight: corner, transform: nil)
+        }
+        for layer in [outer, outerMask, inner, innerMask] as [CALayer] { layer.frame = bounds }
+        outerMask.path = path(0.5)
+        innerMask.path = path(2)
+        let white = { (alpha: Double) in NSColor(white: 1, alpha: min(1, alpha * strength)).cgColor }
+        outer.colors = [white(0.55), white(0.12), white(0.22)]
+        outer.locations = [0, 0.55, 1]
+        inner.colors = [white(0.3), white(0.04), white(0)]
+        inner.locations = [0, 0.5, 1]
     }
 }
 
@@ -318,6 +488,7 @@ enum Glass {
 /// Glass views are placed in flipped coordinates.
 private final class FlippedHolder: NSView {
     override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil } // the content takes the mouse
 }
 
 /// A color for the glass (sRGB, 0...1); alpha 0: the glass's own light.
