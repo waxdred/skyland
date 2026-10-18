@@ -323,14 +323,18 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         files = themes[theme].files
         content.subviews.forEach { $0.removeFromSuperview() }
         let screen = NSScreen.main ?? NSScreen.screens[0]
-        let width = min(screen.visibleFrame.width * 0.85, CGFloat(files.count) * (thumbSize.width + spacing) + spacing)
-        let height = thumbSize.height + 2 * spacing
+        // glass: room around the thumbnails for the rim and the lens; as many whole ones as fit,
+        // scrolling one by one keeps them whole (none cut at the edge)
+        let pad = surface == nil ? spacing : 24, step = thumbSize.width + spacing
+        let fit = max(1, ((screen.visibleFrame.width * 0.85 - 2 * pad + spacing) / step).rounded(.down))
+        let width = min(fit, CGFloat(files.count)) * step - spacing + 2 * pad
+        let height = thumbSize.height + 2 * pad
         resize(NSSize(width: width, height: height))
         panel.makeFirstResponder(nil)
 
-        let strip = NSView(frame: NSRect(x: 0, y: 0, width: CGFloat(files.count) * (thumbSize.width + spacing) + spacing, height: height))
+        let strip = NSView(frame: NSRect(x: 0, y: 0, width: CGFloat(files.count) * step - spacing, height: height))
         cells = files.enumerated().map { index, file in
-            let cell = NSImageView(frame: NSRect(x: spacing + CGFloat(index) * (thumbSize.width + spacing), y: spacing, width: thumbSize.width, height: thumbSize.height))
+            let cell = NSImageView(frame: NSRect(x: CGFloat(index) * step, y: pad, width: thumbSize.width, height: thumbSize.height))
             cell.imageScaling = .scaleProportionallyUpOrDown
             cell.wantsLayer = true
             cell.layer?.cornerRadius = 16
@@ -344,7 +348,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             }
             return cell
         }
-        scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        scroll = NSScrollView(frame: NSRect(x: pad, y: 0, width: width - 2 * pad, height: height)) // within the pad: the next one never peeks in
         scroll.drawsBackground = false
         scroll.hasHorizontalScroller = false
         scroll.documentView = strip
@@ -355,7 +359,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
 
     func select(_ index: Int) {
         selected = max(0, min(files.count - 1, index))
-        scroll.contentView.scrollToVisible(cells[selected].frame.insetBy(dx: -spacing, dy: 0))
+        scroll.contentView.scrollToVisible(cells[selected].frame)
         if let surface { // a lens flows under the thumbnail, a glowing frame around it
             let cell = cells[selected]
             surface.fluid = false // big thumbnails: it slides in one piece
