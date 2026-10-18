@@ -176,7 +176,9 @@ fragment float4 glass_fragment(VOut in [[stage_in]],
     // slope (2 * depth / band) stays under 1: what is behind is magnified toward the edge,
     // never folded back into a mirror image. Both fit in the shape's half height.
     float half_min = max(min(half_size.x, half_size.y), 1.0);
-    float depth = min(u.refraction * u.scale * (clear > 0.5 ? 1.25 : 1.0), half_min / 2.2);
+    // skyland: the band stays within the corner's radius, past it the field's lines meet
+    // at an angle and the bend broke along the diagonal (skylandbar's capsules never do)
+    float depth = min(u.refraction * u.scale * (clear > 0.5 ? 1.25 : 1.0), min(half_min, max(sh.radius, 1.0)) / 2.2);
     float band = max(depth * 2.2, 1.0);
     float lens = pow(clamp(1.0 - inside / band, 0.0, 1.0), 2.0);   // 1 at the edge, 0 from band in
     float bend = lens * depth;

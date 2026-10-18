@@ -1330,9 +1330,10 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
 
 final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let size = NSSize(width: 380, height: 116)
-    let radius: CGFloat = 18
+    let radius: CGFloat = 26
     var panel: NSPanel!
     var tint: NSView!
+    var glassBackground: GlassBackground?
     let artwork = NSImageView()
     let title = NSTextField(labelWithString: "Rien en lecture")
     let artist = NSTextField(labelWithString: "")
@@ -1374,6 +1375,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let background = GlassBackground(radius: radius) // whole: its rim stays defined, the tint takes the opacity
             background.frame = glass.bounds // made at 0 x 0, it never grew: no glass was drawn
             glass.addSubview(background)
+            glassBackground = background
             glass.onDrag = { dragging in // no capture while it moves, caught up where it lands
                 if dragging { background.pause() } else { background.refreshShape() }
             }
@@ -1506,7 +1508,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if audioware { applyAudioware(); return }
         let c = themeColors()
         let fg = c["fg"] ?? .white, dim = c["fg_dim"] ?? .lightGray
-        tint.layer?.backgroundColor = (c["bg_card"] ?? .black).withAlphaComponent(isGlass ? 0.2 : 0.55).cgColor
+        setTint((c["bg_card"] ?? .black).withAlphaComponent(isGlass ? 0.2 : 0.55))
         title.textColor = fg
         artist.textColor = dim
         source.textColor = (c["accent"] ?? fg).withAlphaComponent(0.9)
@@ -1518,6 +1520,16 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         artwork.layer?.backgroundColor = (c["bg_hover"] ?? .darkGray).cgColor
     }
 
+    /// glass: the tint goes in the glass, under its rim and glare (a view over it hid them)
+    func setTint(_ color: NSColor) {
+        if let glassBackground {
+            glassBackground.tint = color.withAlphaComponent(color.alphaComponent * tint.alphaValue)
+            tint.layer?.backgroundColor = nil
+        } else {
+            tint.layer?.backgroundColor = color.cgColor
+        }
+    }
+
     /// Fixed cold palette of the audioware style, the skyland theme is ignored.
     /// The wave in the theme's colors: its glow is the accent, or the highlight when the
     /// accent has no color (white, black, gray); the cover's cyan without a theme.
@@ -1527,7 +1539,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let glow: NSColor? = c.isEmpty ? nil : [c["accent"], c["highlight"]].first(where: colorful) ?? c["accent"]
         let background = c["bg"] ?? AudiowareWave.night
         wave.setTheme(accent: glow, background: c["bg"])
-        tint.layer?.backgroundColor = background.withAlphaComponent(isGlass ? 0.35 : 0.92).cgColor // glass: let it show, refraction included
+        setTint(background.withAlphaComponent(isGlass ? 0.35 : 0.92)) // glass: let it show, refraction included
         title.textColor = c["fg"] ?? AudiowareWave.ice
         artist.textColor = c["fg_dim"] ?? AudiowareWave.electric
         source.textColor = (glow ?? AudiowareWave.cyan).withAlphaComponent(0.9)
