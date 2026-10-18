@@ -6,7 +6,7 @@ A Hyprland-like tiling window manager for macOS, built as a fork of
 [AeroSpace](https://github.com/nikitabobko/AeroSpace), with the look and
 workflow of the [43PR Hyprland dotfiles](https://github.com/43PR/dotfiles).
 
-![skyland desktop: dwindle layout, rounded corners, inactive opacity, colors from the wallpaper](docs/screenshots/desktop.jpg)
+![skyland desktop: dwindle tiling (fastfetch, nvim, btop), the focused window border in the theme accent, skylandbar in Liquid Glass, colors from the wallpaper](docs/screenshots/desktop.jpg)
 
 skyland keeps everything AeroSpace does (virtual workspaces, tree layouts, CLI,
 config file) and adds what makes Hyprland feel like Hyprland:
@@ -19,7 +19,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **window switcher** (`alt-<` / `alt-backtick`, held like `cmd-tab`): recent windows of every workspace with live thumbnails, type to filter
 - **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**, light or dark picked from the wallpaper brightness
 - **wallpaper picker**, **[skylandbar](#skylandbar)** or **sketchybar** (the bar tells skyland its height), **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars or an Audioware-style light wave (`[media] style`)
-- **workspace overview** (`cmd-up`): every workspace as a card with its windows in place
+- **workspace overview** (`cmd-up`): every workspace as a card with its windows in place; type to search, j / k to pick a window, x or a middle click to close it, alt + drag a card onto another to swap two workspaces, `+` card for a new one
 - **settings window** (`alt-i`): gaps, decoration, animations, wallpaper, media widget and lock screen, plus **Keys** (record a key, edit command and description, duplicates and macOS shortcuts flagged) and **Rules** (float / tile / workspace per app, from the running apps) tabs; applied live and written to the config with its comments kept
 - **master layout** per workspace (`alt-shift-t`): one big window and a stack on the side (master in the middle on ultrawide screens), `alt-shift-enter` swaps with the master (Hyprland `master`, `swapwithmaster`)
 - **groups** (`alt-g`): a container becomes tabs with a tabs bar, `alt-n` cycles, `alt-ctrl-h/j/k/l` groups with a neighbour (Hyprland `togglegroup`, `changegroupactive`, `moveintogroup`)
@@ -38,7 +38,15 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 <table>
 <tr>
-<td><img src="docs/screenshots/wallpaper-picker.jpg" alt="Wallpaper picker with collections and search"></td>
+<td><img src="docs/screenshots/overview.jpg" alt="Workspace overview: a glass strip of workspace cards over the zoomed out windows, with the + card"></td>
+<td><img src="docs/screenshots/switcher.jpg" alt="Window switcher in Liquid Glass: recent windows of every workspace with live thumbnails"></td>
+</tr>
+<tr>
+<td align="center">Workspace overview (<code>cmd-up</code>)</td>
+<td align="center">Window switcher (<code>alt-&lt;</code>)</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/wallpaper-picker.jpg" alt="Wallpaper picker in Liquid Glass: a strip of wallpaper thumbnails"></td>
 <td><img src="docs/screenshots/lock-screen.jpg" alt="hyprlock-like lock screen with a glassy clock"></td>
 </tr>
 <tr>
@@ -47,7 +55,7 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 </tr>
 </table>
 
-<p align="center"><img src="docs/screenshots/settings.jpg" alt="Settings window: sliders and switches applied live" width="420"><br>Settings window (<code>alt-i</code>)</p>
+<p align="center"><img src="docs/screenshots/settings.jpg" alt="Settings window in Liquid Glass: decoration and animation settings applied live" width="480"><br>Settings window (<code>alt-i</code>)</p>
 
 Screenshots are framed with `tools/frame-screenshot.swift`
 (`swiftc -O tools/frame-screenshot.swift -o .build/frame-screenshot`).
@@ -324,7 +332,16 @@ style = 'classic'                 # or 'audioware': a light wave in the theme's 
 The **media widget** (`alt-m`) shows what any app plays (Spotify, Brave / YouTube,
 Music...) and follows the theme, in two styles:
 
-![media widget: classic style with audio bars, audioware style with a light wave](docs/screenshots/media-widget.png)
+<table>
+<tr>
+<td><img src="docs/screenshots/media-classic.gif" alt="media widget, classic style: glass, theme colors, audio bars"></td>
+<td><img src="docs/screenshots/media-audioware.gif" alt="media widget, audioware style: a light wave following the music"></td>
+</tr>
+<tr>
+<td align="center"><code>[media] style = 'classic'</code></td>
+<td align="center"><code>style = 'audioware'</code></td>
+</tr>
+</table>
 
 The 18 43PR themes are in `profiles/hypr/.config/skyland/themes/`: copy one and
 edit the colors to make your own. `wallpaper-colors.json` maps Material roles to
