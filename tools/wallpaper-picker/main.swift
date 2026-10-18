@@ -171,6 +171,8 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     let maxRows = 14 // ponytail: no scrolling in the theme list, past this rows are hidden until searched
     var panel: KeyPanel!
     var blur: NSView! // NSVisualEffectView, or a glass shape (ui-style = 'glass')
+    /// glass: skylandbar's look, a lightly tinted panel and a lens on the selection
+    var surface: GlassSurface?
     var content: NSView! // theme tint over the blur, holds the views
     var showingThemes = true
 
@@ -196,7 +198,9 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         if glass {
             panel.hasShadow = false // the glass draws its own
             blur = NSView()
-            blur.addSubview(GlassBackground(radius: 14, tint: skylandTheme["bg"]?.withAlphaComponent(0.4)))
+            let surface = GlassSurface()
+            blur.addSubview(surface)
+            self.surface = surface
         } else {
             let effect = NSVisualEffectView()
             effect.material = .hudWindow
@@ -214,7 +218,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         content.layer?.cornerRadius = 14
         // metal: the blur stays a hint, gray otherwise; glass: tinted already
         content.layer?.backgroundColor = glass ? nil : skylandTheme["bg"]?.withAlphaComponent(0.85).cgColor
-        content.layer?.borderWidth = skylandTheme.isEmpty ? 0 : 1
+        content.layer?.borderWidth = skylandTheme.isEmpty || glass ? 0 : 1 // glass: its own rim
         content.layer?.borderColor = themeAccent.withAlphaComponent(0.35).cgColor
         blur.addSubview(content)
         if let bg = skylandTheme["bg"]?.usingColorSpace(.sRGB) { // the search field and its text follow a light or dark theme
@@ -235,6 +239,10 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         panel.setFrame(NSRect(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.midY - size.height / 2,
                               width: size.width, height: size.height), display: true)
         content.frame = blur.bounds
+        if let surface {
+            surface.frame = blur.bounds
+            surface.panels = [GlassSurface.Shape(rect: blur.bounds, radius: 14, tint: themeAccent.withAlphaComponent(0.08))]
+        }
     }
 
     // MARK: theme list
@@ -291,6 +299,12 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
 
     func selectRow(_ index: Int) {
         row = max(0, min(rows.count - 1, index))
+        if let surface, rows.indices.contains(row) { // a lens flows to the row
+            blur.layoutSubtreeIfNeeded()
+            surface.selection = GlassSurface.Shape(rect: surface.convert(rows[row].bounds, from: rows[row]), radius: 10,
+                                                   tint: themeAccent.withAlphaComponent(0.30))
+            return
+        }
         for (i, rowView) in rows.enumerated() {
             rowView.layer?.backgroundColor = i == row ? themeAccent.withAlphaComponent(0.22).cgColor : nil
         }
@@ -340,11 +354,17 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
 
     func select(_ index: Int) {
         selected = max(0, min(files.count - 1, index))
+        scroll.contentView.scrollToVisible(cells[selected].frame.insetBy(dx: -spacing, dy: 0))
+        if let surface { // a lens flows under the thumbnail, a glowing frame around it
+            let cell = cells[selected]
+            surface.selection = GlassSurface.Shape(rect: surface.convert(cell.bounds, from: cell).insetBy(dx: -6, dy: -6), radius: 14,
+                                                   tint: themeAccent.withAlphaComponent(0.30))
+            return
+        }
         for (i, cell) in cells.enumerated() {
             cell.layer?.borderWidth = i == selected ? 3 : 0
             cell.layer?.borderColor = themeAccent.cgColor
         }
-        scroll.contentView.scrollToVisible(cells[selected].frame.insetBy(dx: -spacing, dy: 0))
     }
 
     func choose() {
