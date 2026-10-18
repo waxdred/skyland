@@ -28,6 +28,10 @@ private struct BarState: Equatable {
 @MainActor
 func updateBar() {
     guard let sketchybarPath, barProfileActive, TrayMenuModel.shared.isEnabled else { return }
+    // skylandbar asks skyland itself, and answers to sketchybar's names: pushing the profile's
+    // colors set its own workspace.N items (a component named `workspace`), and each switch
+    // faded every item out of them (dark rings behind all the icons)
+    guard !isSkylandBarRunning() else { return }
     let window = focus.windowOrNil
     if window?.windowId != titleWindowId {
         titleWindowId = window?.windowId
