@@ -13,4 +13,10 @@ final class CompletableFuture<T>: Sendable {
         semaphore.wait()
         return unsafe value.orDie("semaphore should have been signaled")
     }
+
+    /// skyland: nil when it was not completed within `seconds`
+    func blockingGet(timeout seconds: Double) -> T? {
+        guard semaphore.wait(timeout: .now() + seconds) == .success else { return nil }
+        return unsafe value
+    }
 }
