@@ -4,16 +4,41 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
-## Unreleased
+## v0.4.0
 
 **Liquid Glass**
 - skylandbar's glass in skyland's panels (`ui-style = 'glass'`): lightly tinted glass, the
   selection a lens of glass flowing on springs and leaving a drop behind, a lighter drop
-  under the mouse. The window switcher and the wallpaper picker use it (`GlassSurface`).
+  under the mouse. The window switcher, the overview and the wallpaper / theme pickers use
+  it (`GlassSurface`); big blocks (cards, thumbnails) take a lens that slides in one piece,
+  with rounder corners.
+- The refraction stays within a shape's corner radius: it broke along the diagonal of the
+  corners.
+- No flash when a panel opens: Core Animation's glass stands in until the first capture,
+  which used to show the panel clear, then darker for a few frames.
+- Settings window in glass: the theme tint in the glass, under its rim, the save bar lightly
+  tinted.
+- Pickers: room around the thumbnails, whole ones only (none cut at the edge).
+- Fixes: glass views added at 0 x 0 never grew (the media widget's glass was not drawn), the
+  capture did not restart after a drag, and the Metal texture cache kept every frame's
+  surface.
+
+**Media widget**
+- Its own drag from the mouse position: it no longer lags behind or keeps moving after the
+  button is released, and the audio wave keeps playing while it moves.
+- A defined glass edge (one rim, no hairline over it), radius 26.
+
+**skylandbar**
+- `subscribe` event `workspace-swipe`: while a trackpad swipe moves, `workspace`,
+  `targetWorkspace` and `progress`. skylandbar's workspace lens follows the fingers.
 
 **Process name**
-- the process is named `Skyland` (it was `AeroSpaceApp`) in Activity Monitor, btop and
+- The process is named `Skyland` (it was `AeroSpaceApp`) in Activity Monitor, btop and
   `pkill -x Skyland`; the app's executable is `Skyland.app/Contents/MacOS/Skyland`.
+
+**Fixes**
+- Quitting never waits for good on a window's frame: a window whose frame could not be read,
+  or an app that did not answer, left skyland stuck (no CLI, no keys, `kill -9` only).
 
 ## v0.3.0
 
