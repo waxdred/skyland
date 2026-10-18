@@ -11,6 +11,16 @@ import AppKit
 /// writes it to this file when its config loads.
 public let uiStyleFile = NSHomeDirectory() + "/.cache/skyland/ui-style"
 
+/// `[decoration] glass-blur` (points, 2 by default): how much the glass blurs what is behind.
+/// skyland writes it next to ui-style and sets GlassTuning.blur in its own process.
+public let glassBlurFile = NSHomeDirectory() + "/.cache/skyland/glass-blur"
+
+public enum GlassTuning {
+    /// the blur of every glass shape, in points (a panel's own `blur` scales it: 2 is as is)
+    public nonisolated(unsafe) static var blur: Double =
+        (try? String(contentsOfFile: glassBlurFile, encoding: .utf8)).flatMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) } ?? 2
+}
+
 public func uiStyleIsGlass() -> Bool {
     (try? String(contentsOfFile: uiStyleFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) == "glass"
 }
@@ -100,7 +110,7 @@ public final class GlassBackground: NSView {
             ? [GlassShape(rect: rect, radius: Double(radius), tint: tint.map(GlassColor.init) ?? .clear)]
             : []
         var settings = GlassSettings()
-        settings.blur = blur
+        settings.blur = blur * GlassTuning.blur / 2
         renderer.update(shapes, settings: settings, window: window)
     }
 
