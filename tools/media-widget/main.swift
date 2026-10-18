@@ -1330,9 +1330,10 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
 
 final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let size = NSSize(width: 380, height: 116)
-    let radius: CGFloat = 18
+    let radius: CGFloat = 26
     var panel: NSPanel!
     var tint: NSView!
+    var glassBackground: GlassBackground?
     let artwork = NSImageView()
     let title = NSTextField(labelWithString: "Rien en lecture")
     let artist = NSTextField(labelWithString: "")
@@ -1341,6 +1342,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var playButton: NSButton!
     var watchdogTicks = 0
     var frameTimer: Timer?
+    var saveOrigin: DispatchWorkItem?
     var quietFrames = 0
     var artworkKey: String? // base64 of the artwork shown: decoded once per track
     let bars = Bars()
@@ -1360,31 +1362,37 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel = NSPanel(contentRect: NSRect(origin: origin, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
-        panel.isMovableByWindowBackground = true // drag anywhere with the mouse
+        panel.isMovableByWindowBackground = false // DragView: macOS's drag queued its events behind the frames
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        panel.alphaValue = opacity
         panel.delegate = self
 
-        let glass: NSView
+        // [media] opacity on the background only: the artwork and the text stay opaque
+        let glass = DragView(frame: NSRect(origin: .zero, size: size))
         if isGlass { // ui-style = 'glass' (Sources/SkylandGlass, compiled in)
             panel.hasShadow = false // the glass draws its own
-            glass = NSView(frame: NSRect(origin: .zero, size: size))
-            glass.addSubview(GlassBackground(radius: radius))
+            let background = GlassBackground(radius: radius) // whole: its rim stays defined, the tint takes the opacity
+            glass.addSubview(background)
+            glassBackground = background
+            glass.onDrag = { dragging in // no capture while it moves, caught up where it lands
+                if dragging { background.pause() } else { background.refreshShape() }
+            }
         } else {
-            let effect = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+            let effect = NSVisualEffectView(frame: glass.bounds)
             effect.material = .hudWindow
             effect.state = .active
-            // A mask image (not layer.cornerRadius) also shapes the window border and
-            // shadow: with cornerRadius macOS kept drawing a 1 px rectangular outline.
+            // A mask image (not layer.cornerRadius) shapes the blur and the window outline:
+            // with cornerRadius macOS kept drawing a 1 px rectangular outline.
             effect.maskImage = roundedMask(radius: radius)
-            glass = effect
+            effect.alphaValue = opacity
+            glass.addSubview(effect)
         }
         panel.contentView = glass
         tint = NSView(frame: glass.bounds)
+        tint.alphaValue = opacity
         tint.wantsLayer = true
-        tint.layer?.cornerRadius = radius
+        tint.layer?.cornerRadius = radius // glass: no border of its own, the glass draws the rim
         glass.addSubview(tint)
 
         artwork.frame = NSRect(x: 14, y: 14, width: 88, height: 88)
@@ -1434,7 +1442,8 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // streams left by a widget that did not stop them (now children of launchd)
         try? Process.run(URL(fileURLWithPath: "/usr/bin/pkill"), arguments: ["-P", "1", "-f", "mediaremote-adapter\\.pl .* stream "])
         startStream()
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        // .common: they keep running while the widget is dragged (the event tracking mode)
+        let progress = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.updateProgress()
                 self?.applyThemeIfChanged()
@@ -1444,6 +1453,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 if self.watchdogTicks % (self.state["playing"] as? Bool == true ? 8 : 30) == 0 { self.checkStream() }
             }
         }
+        RunLoop.main.add(progress, forMode: .common)
     }
 
     // MARK: frames
@@ -1453,9 +1463,11 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func startFrames() {
         quietFrames = 0
         guard frameTimer == nil, panel.occlusionState.contains(.visible) else { return }
-        frameTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.frame() }
         }
+        RunLoop.main.add(timer, forMode: .common) // the wave keeps moving while the widget is dragged
+        frameTimer = timer
     }
 
     func stopFrames() {
@@ -1495,7 +1507,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if audioware { applyAudioware(); return }
         let c = themeColors()
         let fg = c["fg"] ?? .white, dim = c["fg_dim"] ?? .lightGray
-        tint.layer?.backgroundColor = (c["bg_card"] ?? .black).withAlphaComponent(isGlass ? 0.2 : 0.55).cgColor
+        setTint((c["bg_card"] ?? .black).withAlphaComponent(isGlass ? 0.2 : 0.55))
         title.textColor = fg
         artist.textColor = dim
         source.textColor = (c["accent"] ?? fg).withAlphaComponent(0.9)
@@ -1507,6 +1519,16 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         artwork.layer?.backgroundColor = (c["bg_hover"] ?? .darkGray).cgColor
     }
 
+    /// glass: the tint goes in the glass, under its rim and glare (a view over it hid them)
+    func setTint(_ color: NSColor) {
+        if let glassBackground {
+            glassBackground.tint = color.withAlphaComponent(color.alphaComponent * tint.alphaValue)
+            tint.layer?.backgroundColor = nil
+        } else {
+            tint.layer?.backgroundColor = color.cgColor
+        }
+    }
+
     /// Fixed cold palette of the audioware style, the skyland theme is ignored.
     /// The wave in the theme's colors: its glow is the accent, or the highlight when the
     /// accent has no color (white, black, gray); the cover's cyan without a theme.
@@ -1516,7 +1538,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let glow: NSColor? = c.isEmpty ? nil : [c["accent"], c["highlight"]].first(where: colorful) ?? c["accent"]
         let background = c["bg"] ?? AudiowareWave.night
         wave.setTheme(accent: glow, background: c["bg"])
-        tint.layer?.backgroundColor = background.withAlphaComponent(0.92).cgColor
+        setTint(background.withAlphaComponent(isGlass ? 0.35 : 0.92)) // glass: let it show, refraction included
         title.textColor = c["fg"] ?? AudiowareWave.ice
         artist.textColor = c["fg_dim"] ?? AudiowareWave.electric
         source.textColor = (glow ?? AudiowareWave.cyan).withAlphaComponent(0.9)
@@ -1628,8 +1650,15 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: window
 
+    /// Saved once the drag stops, not on every mouse event of it.
     func windowDidMove(_ notification: Notification) {
-        defaults.set(NSStringFromPoint(panel.frame.origin), forKey: "origin")
+        saveOrigin?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            defaults.set(NSStringFromPoint(panel.frame.origin), forKey: "origin")
+        }
+        saveOrigin = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -1648,6 +1677,32 @@ func squared(_ image: NSImage) -> NSImage {
     return NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
         image.draw(in: rect, from: crop, operation: .copy, fraction: 1)
         return true
+    }
+}
+
+/// Drags the widget anywhere on its background: each step puts the window where the mouse
+/// is now (from where it was pressed), so a busy frame never leaves moves queued behind it,
+/// and a released mouse stops it at once.
+final class DragView: NSView {
+    var onDrag: (Bool) -> Void = { _ in }
+    private var start: (mouse: NSPoint, origin: NSPoint)?
+
+    override func mouseDown(with event: NSEvent) {
+        guard let window else { return }
+        start = (NSEvent.mouseLocation, window.frame.origin)
+        onDrag(true)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let start, let window else { return }
+        let mouse = NSEvent.mouseLocation
+        window.setFrameOrigin(NSPoint(x: start.origin.x + mouse.x - start.mouse.x, y: start.origin.y + mouse.y - start.mouse.y))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard start != nil else { return }
+        start = nil
+        onDrag(false)
     }
 }
 

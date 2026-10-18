@@ -33,6 +33,9 @@ final class MetalGlass: GlassRenderer {
 
     let view: NSView
     private let metalLayer: CAMetalLayer
+    /// skyland: Core Animation's glass until the capture's first picture (it takes a few
+    /// frames): the panel showed clear, then its glass all at once
+    private let standIn = BackdropGlass()
     private let capture = BackdropCapture()
     private var textureCache: CVMetalTextureCache?
     /// the last picture of what is behind, kept alive while the GPU reads it
@@ -46,7 +49,13 @@ final class MetalGlass: GlassRenderer {
         guard let device = Self.device, Self.pipeline != nil else { return nil }
         let layer = CAMetalLayer()
         metalLayer = layer
-        view = MetalHost(layer: layer)
+        let host = MetalHost(layer: layer)
+        view = NSView()
+        for sub in [standIn.view, host] {
+            sub.frame = view.bounds
+            sub.autoresizingMask = [.width, .height]
+            view.addSubview(sub)
+        }
         metalLayer.device = device
         metalLayer.pixelFormat = .bgra8Unorm
         metalLayer.isOpaque = false
@@ -64,6 +73,7 @@ final class MetalGlass: GlassRenderer {
         self.window = window
         if shapes.isEmpty {
             capture.stop()
+            backdrop = nil // shown again, the stand-in until a new picture (not this old one)
         } else if let screen = window.screen ?? NSScreen.main,
                   let display = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
         {
@@ -75,16 +85,25 @@ final class MetalGlass: GlassRenderer {
             capture.follow(display: display, window: local, screen: CGSize(width: screenFrame.width, height: screenFrame.height),
                            scale: screen.backingScaleFactor)
         }
+        standIn.view.isHidden = backdrop != nil
+        if backdrop == nil { // its blur as the shader's (backdrop's own is 4 times stronger)
+            var light = settings
+            light.blur /= 4
+            standIn.update(shapes, settings: light, window: window)
+        }
         render()
     }
 
     private func received(_ buffer: CVPixelBuffer) {
-        guard let textureCache else { return }
+        // skyland: asked before its window was on screen, the stream sees the glass itself; drawn,
+        // it darkened a little more each frame. The stand-in stays until a picture without it.
+        guard let textureCache, capture.trusted else { return }
         var texture: CVMetalTexture?
         CVMetalTextureCacheCreateTextureFromImage(nil, textureCache, buffer, nil, .bgra8Unorm,
                                                   CVPixelBufferGetWidth(buffer), CVPixelBufferGetHeight(buffer), 0, &texture)
         guard let texture else { return }
         backdrop = texture
+        standIn.view.isHidden = true
         render()
     }
 
@@ -107,8 +126,9 @@ final class MetalGlass: GlassRenderer {
             var gpuShapes = shapes.prefix(32).map { shape in
                 GPUShape(rect: SIMD4(Float(shape.rect.minX) * s, Float(shape.rect.minY) * s, Float(shape.rect.width) * s, Float(shape.rect.height) * s),
                          tint: SIMD4(Float(shape.tint.red), Float(shape.tint.green), Float(shape.tint.blue), Float(shape.tint.alpha)),
-                         radius: Float(shape.radius) * s, clear: shape.style == "clear" ? 1 : shape.style == "lens" ? 2 : 0,
-                         pad: SIMD2(Float(shape.lift), 0))
+                         radius: Float(shape.radius) * s, clear: shape.style == "clear" ? 1 : shape.style == "lens" ? 2 : shape.style == "hover" ? 3 : 0,
+                         pad: SIMD2(Float(shape.lift), 0),
+                         tail: shape.tail.map { SIMD4(Float($0.minX) * s, Float($0.minY) * s, Float($0.width) * s, Float($0.height) * s) } ?? .zero)
             }
             let origin = capture.origin(of: window, scale: scale)
             var uniforms = GPUUniforms(size: SIMD2(Float(size.width), Float(size.height)), origin: SIMD2(Float(origin.x), Float(origin.y)),
@@ -151,6 +171,7 @@ private struct GPUShape {
     var radius: Float
     var clear: Float
     var pad = SIMD2<Float>(0, 0)
+    var tail: SIMD4<Float> // a lens's drop left behind (0: none)
 }
 
 /// A view whose layer is the Metal layer, letting the mouse through to the items' view.
@@ -182,6 +203,8 @@ final class BackdropCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     private var stream: SCStream?
     /// skyland's windows are left out by app; until it has one on screen, by none
     private var excludesSelf = false
+    /// its pictures leave out the glass's own window (or it gave up asking): fit to be shown
+    var trusted: Bool { excludesSelf || selfRetries >= 10 }
     private var asking = false
     private var selfRetries = 0
     /// the glass's window, which the stream must leave out
@@ -277,6 +300,7 @@ final class BackdropCapture: NSObject, SCStreamOutput, SCStreamDelegate {
     func stop() {
         stream?.stopCapture(completionHandler: nil)
         stream = nil
+        region = .zero // skyland: the next follow starts it again (paused while a window was dragged)
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {

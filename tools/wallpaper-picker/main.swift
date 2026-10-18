@@ -171,6 +171,8 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     let maxRows = 14 // ponytail: no scrolling in the theme list, past this rows are hidden until searched
     var panel: KeyPanel!
     var blur: NSView! // NSVisualEffectView, or a glass shape (ui-style = 'glass')
+    /// glass: skylandbar's look, a lightly tinted panel and a lens on the selection
+    var surface: GlassSurface?
     var content: NSView! // theme tint over the blur, holds the views
     var showingThemes = true
 
@@ -196,25 +198,27 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         if glass {
             panel.hasShadow = false // the glass draws its own
             blur = NSView()
-            blur.addSubview(GlassBackground(radius: 14, tint: skylandTheme["bg"]?.withAlphaComponent(0.4)))
+            let surface = GlassSurface()
+            blur.addSubview(surface)
+            self.surface = surface
         } else {
             let effect = NSVisualEffectView()
             effect.material = .hudWindow
             effect.state = .active
             effect.wantsLayer = true
-            effect.layer?.cornerRadius = 14
+            effect.layer?.cornerRadius = 24
             effect.layer?.masksToBounds = true
-            effect.maskImage = roundedMask(radius: 14)
+            effect.maskImage = roundedMask(radius: 24)
             blur = effect
         }
         panel.contentView = blur
         content = NSView()
         content.autoresizingMask = [.width, .height]
         content.wantsLayer = true
-        content.layer?.cornerRadius = 14
+        content.layer?.cornerRadius = 24
         // metal: the blur stays a hint, gray otherwise; glass: tinted already
         content.layer?.backgroundColor = glass ? nil : skylandTheme["bg"]?.withAlphaComponent(0.85).cgColor
-        content.layer?.borderWidth = skylandTheme.isEmpty ? 0 : 1
+        content.layer?.borderWidth = skylandTheme.isEmpty || glass ? 0 : 1 // glass: its own rim
         content.layer?.borderColor = themeAccent.withAlphaComponent(0.35).cgColor
         blur.addSubview(content)
         if let bg = skylandTheme["bg"]?.usingColorSpace(.sRGB) { // the search field and its text follow a light or dark theme
@@ -235,6 +239,10 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         panel.setFrame(NSRect(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.midY - size.height / 2,
                               width: size.width, height: size.height), display: true)
         content.frame = blur.bounds
+        if let surface {
+            surface.frame = blur.bounds
+            surface.panels = [GlassSurface.Shape(rect: blur.bounds, radius: 24, tint: themeAccent.withAlphaComponent(0.08))]
+        }
     }
 
     // MARK: theme list
@@ -272,7 +280,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         rows = shown.enumerated().map { position, index in
             let rowView = NSView(frame: NSRect(x: 0, y: listHeight - CGFloat(position + 1) * rowHeight, width: list.frame.width, height: rowHeight))
             rowView.wantsLayer = true
-            rowView.layer?.cornerRadius = 7
+            rowView.layer?.cornerRadius = 14
             let name = NSTextField(labelWithString: themes[index].name)
             name.font = .systemFont(ofSize: 15)
             name.textColor = themeFg
@@ -291,6 +299,13 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
 
     func selectRow(_ index: Int) {
         row = max(0, min(rows.count - 1, index))
+        if let surface, rows.indices.contains(row) { // a lens flows to the row
+            blur.layoutSubtreeIfNeeded()
+            surface.fluid = true // small rows: the lens flows like a drop
+            surface.selection = GlassSurface.Shape(rect: surface.convert(rows[row].bounds, from: rows[row]), radius: 14,
+                                                   tint: themeAccent.withAlphaComponent(0.30))
+            return
+        }
         for (i, rowView) in rows.enumerated() {
             rowView.layer?.backgroundColor = i == row ? themeAccent.withAlphaComponent(0.22).cgColor : nil
         }
@@ -308,17 +323,21 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         files = themes[theme].files
         content.subviews.forEach { $0.removeFromSuperview() }
         let screen = NSScreen.main ?? NSScreen.screens[0]
-        let width = min(screen.visibleFrame.width * 0.85, CGFloat(files.count) * (thumbSize.width + spacing) + spacing)
-        let height = thumbSize.height + 2 * spacing
+        // glass: room around the thumbnails for the rim and the lens; as many whole ones as fit,
+        // scrolling one by one keeps them whole (none cut at the edge)
+        let pad = surface == nil ? spacing : 24, step = thumbSize.width + spacing
+        let fit = max(1, ((screen.visibleFrame.width * 0.85 - 2 * pad + spacing) / step).rounded(.down))
+        let width = min(fit, CGFloat(files.count)) * step - spacing + 2 * pad
+        let height = thumbSize.height + 2 * pad
         resize(NSSize(width: width, height: height))
         panel.makeFirstResponder(nil)
 
-        let strip = NSView(frame: NSRect(x: 0, y: 0, width: CGFloat(files.count) * (thumbSize.width + spacing) + spacing, height: height))
+        let strip = NSView(frame: NSRect(x: 0, y: 0, width: CGFloat(files.count) * step - spacing, height: height))
         cells = files.enumerated().map { index, file in
-            let cell = NSImageView(frame: NSRect(x: spacing + CGFloat(index) * (thumbSize.width + spacing), y: spacing, width: thumbSize.width, height: thumbSize.height))
+            let cell = NSImageView(frame: NSRect(x: CGFloat(index) * step, y: pad, width: thumbSize.width, height: thumbSize.height))
             cell.imageScaling = .scaleProportionallyUpOrDown
             cell.wantsLayer = true
-            cell.layer?.cornerRadius = 10
+            cell.layer?.cornerRadius = 16
             cell.layer?.masksToBounds = true
             cell.layer?.backgroundColor = (skylandTheme["bg_card"] ?? .black).withAlphaComponent(0.6).cgColor
             cell.toolTip = file.lastPathComponent
@@ -329,7 +348,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             }
             return cell
         }
-        scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        scroll = NSScrollView(frame: NSRect(x: pad, y: 0, width: width - 2 * pad, height: height)) // within the pad: the next one never peeks in
         scroll.drawsBackground = false
         scroll.hasHorizontalScroller = false
         scroll.documentView = strip
@@ -340,11 +359,18 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
 
     func select(_ index: Int) {
         selected = max(0, min(files.count - 1, index))
+        scroll.contentView.scrollToVisible(cells[selected].frame)
+        if let surface { // a lens flows under the thumbnail, a glowing frame around it
+            let cell = cells[selected]
+            surface.fluid = false // big thumbnails: it slides in one piece
+            surface.selection = GlassSurface.Shape(rect: surface.convert(cell.bounds, from: cell).insetBy(dx: -6, dy: -6), radius: 22,
+                                                   tint: themeAccent.withAlphaComponent(0.30))
+            return
+        }
         for (i, cell) in cells.enumerated() {
             cell.layer?.borderWidth = i == selected ? 3 : 0
             cell.layer?.borderColor = themeAccent.cgColor
         }
-        scroll.contentView.scrollToVisible(cells[selected].frame.insetBy(dx: -spacing, dy: 0))
     }
 
     func choose() {

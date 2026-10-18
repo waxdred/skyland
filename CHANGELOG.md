@@ -4,6 +4,13 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## Unreleased
+
+**Liquid Glass**
+- skylandbar's glass in skyland's panels (`ui-style = 'glass'`): lightly tinted glass, the
+  selection a lens of glass flowing on springs and leaving a drop behind, a lighter drop
+  under the mouse. The window switcher and the wallpaper picker use it (`GlassSurface`).
+
 ## v0.3.0
 
 **Overview**

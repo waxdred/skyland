@@ -28,6 +28,7 @@ public final class GlassBackground: NSView {
     public var blur = 2.0 { didSet { refresh() } }
     private var renderer: GlassRenderer
     private var moved: NSObjectProtocol?
+    private var settle: DispatchWorkItem?
 
     public init(radius: CGFloat, tint: NSColor? = nil) {
         self.radius = radius
@@ -50,13 +51,25 @@ public final class GlassBackground: NSView {
         refresh()
     }
 
+    override public func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        // made at 0 x 0, autoresizing never grows it: it fills its superview, placed anywhere after
+        if frame.isEmpty, let superview { frame = superview.bounds }
+    }
+
     override public func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         moved.map(NotificationCenter.default.removeObserver)
         moved = window.map { window in
             // metal: the capture follows the window
+            // follows the window once it stops: a drag moved it on every mouse event, and
+            // each move past the captured area started the capture again (a slow drag)
             NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: window, queue: .main) { [weak self] _ in
-                self?.refresh()
+                guard let self else { return }
+                self.settle?.cancel()
+                let work = DispatchWorkItem { [weak self] in self?.refresh() }
+                self.settle = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
             }
         }
         refresh()
