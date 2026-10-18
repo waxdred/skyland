@@ -140,7 +140,7 @@ final class SettingsModel: ObservableObject {
     @Published var pending: [String: String] = [:]
     @Published var error: String? = nil
     @Published var saved = false
-    @Published var colors = SettingsColors()
+    @Published var colors = SettingsColors() { didSet { settingsGlass?.tint = settingsGlassTint() } }
 
     init() { load() }
 
@@ -214,7 +214,7 @@ private struct SettingsView: View {
         }
         .frame(minWidth: 620, minHeight: 560)
         .tint(model.colors.accent)
-        .background(model.colors.background.opacity(isGlassStyle ? 0.45 : 0.8)) // the theme over the window blur or glass, see-through
+        .background(model.colors.background.opacity(isGlassStyle ? 0 : 0.8)) // the theme over the window blur, see-through; glass: tinted in the glass, under its rim
         .preferredColorScheme(model.colors.dark ? .dark : .light)
     }
 }
@@ -290,7 +290,7 @@ private struct GeneralView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .background(isGlassStyle ? AnyShapeStyle(model.colors.background.opacity(0.6)) : AnyShapeStyle(.ultraThinMaterial)) // glass: a light tint, the rows scrolling under stay out of the buttons' way
     }
 
     @ViewBuilder
@@ -332,6 +332,8 @@ private struct GeneralView: View {
 }
 
 @MainActor private var settingsWindow: NSWindow? = nil
+@MainActor private var settingsGlass: GlassBackground? = nil
+@MainActor private func settingsGlassTint() -> NSColor? { skylandThemeColors()["bg"]?.withAlphaComponent(0.45) }
 @MainActor private let settingsModel = SettingsModel()
 @MainActor private let settingsKeys = KeysModel()
 @MainActor private let settingsRules = RulesModel()
@@ -362,7 +364,8 @@ func showSettingsWindow() {
         let blur: NSView
         if isGlassStyle {
             blur = NSView()
-            let glass = GlassBackground(radius: 12)
+            let glass = GlassBackground(radius: 12, tint: settingsGlassTint())
+            settingsGlass = glass
             glass.blur = 4 // a form over whatever is behind: a little more than the panels' 2
             blur.addSubview(glass)
         } else {
