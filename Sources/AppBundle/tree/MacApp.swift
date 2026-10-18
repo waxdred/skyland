@@ -167,7 +167,7 @@ final class MacApp: AbstractApp {
         }
         switch job.isCancelled {
             case true: return
-            case false: semaphore.wait()
+            case false: _ = semaphore.wait(timeout: .now() + 1) // skyland: an app that does not answer keeps no one from quitting
         }
     }
 
@@ -186,11 +186,13 @@ final class MacApp: AbstractApp {
     func getAxRectForTermination(_ windowId: UInt32) -> Rect? {
         let future = CompletableFuture<Rect?>()
         let job = withWindowAsync(windowId, .nonCancellable) { window, job in
-            future.complete(try AppBundle.getAxRect(window: window, job: job))
+            // skyland: completed when it fails too, and a second at most for an app that does not
+            // answer: quitting waited for good, the window manager stuck (kill -9 only)
+            future.complete((try? AppBundle.getAxRect(window: window, job: job)) ?? nil)
         }
         return switch job.isCancelled {
             case true: nil
-            case false: future.blockingGet()
+            case false: future.blockingGet(timeout: 1) ?? nil
         }
     }
 
