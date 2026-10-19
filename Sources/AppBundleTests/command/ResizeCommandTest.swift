@@ -152,6 +152,8 @@ final class ResizeCommandTest: XCTestCase {
 
         let result = await parseCommand("resize height +2").cmdOrDie.run(.defaultEnv, .emptyStdin)
         assertEquals(result.exitCode.rawValue, 2)
+        // skyland: a tiled window, not a floating one (#74)
+        assertEquals(result.stderr, ["Nothing to resize: the window is in no vertical split (one above the other) of tiles"])
     }
 
     func testSingleChildParent_failsCleanly() async {

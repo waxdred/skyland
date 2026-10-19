@@ -34,7 +34,16 @@ struct ResizeCommand: Command {
                 parent = node?.parent as? TilingContainer
         }
         guard let parent else {
-            return .fail(io.err("resize command doesn't support floating windows yet https://github.com/nikitabobko/AeroSpace/issues/9"))
+            // skyland: the message said floating windows for a tiled one with no split to resize in
+            if target.windowOrNil?.isFloating == true {
+                return .fail(io.err("resize command doesn't support floating windows yet https://github.com/nikitabobko/AeroSpace/issues/9"))
+            }
+            let split = switch args.dimension.val {
+                case .width: "horizontal split (side by side)"
+                case .height: "vertical split (one above the other)"
+                case .smart, .smartOpposite: "split"
+            }
+            return .fail(io.err("Nothing to resize: the window is in no \(split) of tiles"))
         }
         guard let orientation else { return .fail }
         guard let node else { return .fail }
