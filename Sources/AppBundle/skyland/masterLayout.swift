@@ -111,6 +111,34 @@ private func hasColumns(_ root: TilingContainer, _ columns: [[Window]]) -> Bool 
     }
 }
 
+/// Master off: the windows laid out again as the workspace's usual layout, in the same order
+/// (the big master and its stack stayed). Dwindle: each window halves what is left, the
+/// split turning between side by side and one above the other; else even tiles in a row.
+@MainActor
+func leaveMasterLayout(_ workspace: Workspace, _ order: [Window]) {
+    laidOutCount[workspace.name] = nil
+    orders[workspace.name] = nil
+    guard order.count >= 2 else { return }
+    let root = workspace.rootTilingContainer
+    for window in order { window.unbindFromParent() }
+    for child in root.children { child.unbindFromParent() } // emptied containers
+    root.layout = .tiles
+    root.changeOrientation(.h)
+    guard config.dwindle else {
+        for window in order { window.bind(to: root, adaptiveWeight: WEIGHT_AUTO, index: INDEX_BIND_LAST) }
+        return
+    }
+    var parent = root
+    for (index, window) in order.enumerated() {
+        if index == order.count - 1 {
+            window.bind(to: parent, adaptiveWeight: WEIGHT_AUTO, index: INDEX_BIND_LAST)
+        } else {
+            window.bind(to: parent, adaptiveWeight: 1, index: INDEX_BIND_LAST)
+            parent = TilingContainer(parent: parent, adaptiveWeight: 1, parent.orientation.opposite, .tiles, index: INDEX_BIND_LAST)
+        }
+    }
+}
+
 struct MasterCommand: Command {
     let args: MasterCmdArgs
     /*conforms*/ let shouldResetClosedWindowsCache = false
@@ -122,7 +150,7 @@ struct MasterCommand: Command {
             case .on, .off, .toggle:
                 let on = args.action.val == .toggle ? !isMasterWorkspace(workspace) : args.action.val == .on
                 if on { masters.insert(workspace.name) } else { masters.remove(workspace.name) }
-                if on { applyMasterLayout(workspace) }
+                if on { applyMasterLayout(workspace) } else { leaveMasterLayout(workspace, windows) } // #76
                 return .succ
             case .swap:
                 guard isMasterWorkspace(workspace), let window = focus.windowOrNil, let index = windows.firstIndex(where: { $0 === window }),
