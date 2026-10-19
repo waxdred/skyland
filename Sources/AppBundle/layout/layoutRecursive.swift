@@ -99,8 +99,9 @@ extension Window {
 
     @MainActor
     fileprivate func layoutFullscreen(_ context: LayoutContext) {
+        // skyland: no gaps, but below a bar taller than the menu bar (bar-height): it covered the window's top
         let monitorRect = noOuterGapsInFullscreen
-            ? context.workspace.workspaceMonitor.visibleRect
+            ? context.workspace.workspaceMonitor.visibleRect(paddedBy: ResolvedGaps(inner: 0, outer: 0))
             : context.workspace.visibleRectPaddedByOuterGaps
         setAxFrame(monitorRect.topLeftCorner, CGSize(width: monitorRect.width, height: monitorRect.height))
     }
