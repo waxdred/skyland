@@ -30,7 +30,9 @@ private struct AppServerTerminationHandler: TerminationHandler {
         restoreDecorations()
         stopMenuBarPeek() // skyland: sketchybar back if the menu bar was down
         // Make all windows fullscreen before Quit
-        for window in MacWindow.allWindowsMap.values {
+        // popups (panels, bars: skylandbar's, sketchybar's) are not skyland's to place: centered
+        // here, a bar came back in the middle of the screen
+        for window in MacWindow.allWindowsMap.values where !(window.parent is MacosPopupWindowsContainer) {
             // makeAllWindowsVisibleAndRestoreSize may be invoked when something went wrong (e.g. some windows are unbound)
             // that's why it's not allowed to use `.parent` call in here
             let monitor = window.macApp.getAxRectForTermination(window.windowId)?.center.monitorApproximation ?? mainMonitorInfo
