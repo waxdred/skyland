@@ -1,5 +1,7 @@
 // skyland wallpaper picker (built with Sources/SkylandGlass for ui-style = 'glass'), like 43PR's quickshell hyprquickpaper.
 //   skyland-wallpaper-picker <dir>     pick an image: prints its path, exit 1 if cancelled
+//   skyland-wallpaper-picker --resident <dir>   stays running, shown and hidden by SIGUSR1 (alt-w): a
+//       picked image is set with $SKYLAND_WALLPAPER_SET set <file>; opens at once, no app to start
 //   skyland-wallpaper-picker --themes <file.css...>   pick a theme from color previews: prints its path
 //   skyland-wallpaper-picker --set <file>   set it as wallpaper on every screen
 //   skyland-wallpaper-picker --blur <in> <out.jpg> <radius>   blurred copy (lock screen)
@@ -70,9 +72,18 @@ if args.count == 3, args[1] == "--set" {
     exit(0)
 }
 let pickingThemes = args.count > 2 && args[1] == "--themes"
-guard args.count == 2 || pickingThemes else {
-    FileHandle.standardError.write("usage: skyland-wallpaper-picker <dir> | --themes <file.css...> | --set <file>\n".data(using: .utf8)!)
+let resident = args.count == 3 && args[1] == "--resident"
+guard args.count == 2 || pickingThemes || resident else {
+    FileHandle.standardError.write("usage: skyland-wallpaper-picker <dir> | --resident <dir> | --themes <file.css...> | --set <file>\n".data(using: .utf8)!)
     exit(2)
+}
+let cache = NSHomeDirectory() + "/.cache/skyland"
+if resident {
+    // first thing: a SIGUSR1 sent while it starts must not end it (its default action), and the
+    // pid must be there for the next key (a cold start took seconds: a second picker started)
+    signal(SIGUSR1, SIG_IGN)
+    try? FileManager.default.createDirectory(atPath: cache, withIntermediateDirectories: true)
+    try? String(getpid()).write(toFile: cache + "/picker.pid", atomically: true, encoding: .utf8)
 }
 
 let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "webp", "heic", "gif", "bmp", "tiff"]
@@ -84,17 +95,24 @@ func images(in dir: URL) -> [URL] {
 }
 
 // --themes: one group of CSS themes, shown as color previews in the wallpaper strip
-// Else themes: one per sub-folder of <dir> (skyland-wallpaper fetch user/), plus <dir> itself for loose images
-let root = URL(fileURLWithPath: pickingThemes ? "/" : args[1])
-let subdirs = pickingThemes ? [] : ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])) ?? [])
-    .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
-    .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-let themes: [(name: String, files: [URL])] = pickingThemes
-    ? [("themes", args.dropFirst(2).map { URL(fileURLWithPath: $0) })]
-    : (subdirs + [root])
-    .map { ($0.lastPathComponent, images(in: $0)) }
-    .filter { !$0.1.isEmpty }
-if themes.isEmpty {
+// Else themes: one per sub-folder of <dir> (skyland-wallpaper fetch user/), plus <dir> itself for loose images.
+// Resident: read again at each opening (new wallpapers, another dir in the config).
+var themes: [(name: String, files: [URL])] = []
+func loadThemes() {
+    if pickingThemes {
+        themes = [("themes", args.dropFirst(2).map { URL(fileURLWithPath: $0) })]
+        return
+    }
+    // resident: the dir bin/skyland-wallpaper last asked for
+    let asked = resident ? (try? String(contentsOfFile: cache + "/picker-dir", encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) : nil
+    let root = URL(fileURLWithPath: asked.flatMap { $0.isEmpty ? nil : $0 } ?? args[args.count - 1])
+    let subdirs = ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])) ?? [])
+        .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+        .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    themes = (subdirs + [root]).map { ($0.lastPathComponent, images(in: $0)) }.filter { !$0.1.isEmpty }
+}
+loadThemes()
+if themes.isEmpty && !resident {
     FileHandle.standardError.write("no images in \(args[1])\n".data(using: .utf8)!)
     exit(1)
 }
@@ -128,9 +146,16 @@ func themeColors(_ url: URL) -> [String: NSColor]? {
 }
 
 /// The current skyland theme (skyland-theme), for the picker itself; system colors without one.
-let skylandTheme = themeColors(URL(fileURLWithPath: NSHomeDirectory() + "/.cache/skyland/theme.css")) ?? [:]
-let themeFg = skylandTheme["fg"] ?? .labelColor, themeDim = skylandTheme["fg_muted"] ?? .secondaryLabelColor
-let themeAccent = skylandTheme["accent"] ?? .white
+/// Resident: read again at each opening (a new wallpaper brings new colors).
+var skylandTheme: [String: NSColor] = [:]
+var themeFg = NSColor.labelColor, themeDim = NSColor.secondaryLabelColor, themeAccent = NSColor.white
+func loadColors() {
+    skylandTheme = themeColors(URL(fileURLWithPath: cache + "/theme.css")) ?? [:]
+    themeFg = skylandTheme["fg"] ?? .labelColor
+    themeDim = skylandTheme["fg_muted"] ?? .secondaryLabelColor
+    themeAccent = skylandTheme["accent"] ?? .white
+}
+loadColors()
 
 /// Color preview of a theme file (`@define-color key #rrggbb;`): a small window
 /// in the theme on its background, the terminal palette, and the theme name.
@@ -188,7 +213,30 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     var scroll: NSScrollView!
     var selected = 0
 
+    /// resident: SIGUSR1 shows or hides it
+    var toggle: DispatchSourceSignal?
+    var keyMonitor: Any?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if resident {
+            let source = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
+            source.setEventHandler { [weak self] in
+                guard let self else { return }
+                if self.panel?.isVisible == true { self.close() } else { self.open() }
+            }
+            source.resume()
+            toggle = source
+        }
+        open() // started by the key: shown at once
+    }
+
+    /// Built again at each opening: the style (metal / glass) and the theme may have changed.
+    func open() {
+        if resident {
+            loadThemes()
+            loadColors()
+            guard !themes.isEmpty else { return }
+        }
         panel = KeyPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .modalPanel // above floating windows raised by skyland
         panel.isOpaque = false
@@ -225,8 +273,10 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             panel.appearance = NSAppearance(named: bg.brightnessComponent < 0.5 ? .darkAqua : .aqua)
         }
 
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.key(event) == true ? nil : event
+        if keyMonitor == nil { // once: a resident picker opens many times
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                self?.key(event) == true ? nil : event
+            }
         }
         if themes.count == 1 { showWallpapers(0) } else { showThemes() }
         NSApp.activate(ignoringOtherApps: true)
@@ -374,8 +424,26 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     }
 
     func choose() {
-        print(files[selected].path)
-        exit(0)
+        guard resident else {
+            print(files[selected].path)
+            exit(0)
+        }
+        // bin/skyland-wallpaper set: the wallpaper, its colors, the theme (seconds of matugen: not here)
+        let set = Process()
+        set.executableURL = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SKYLAND_WALLPAPER_SET"] ?? "/usr/bin/false")
+        set.arguments = ["set", files[selected].path]
+        try? set.run()
+        close()
+    }
+
+    /// Cancelled or picked: resident, hidden until the next SIGUSR1; else the process ends.
+    func close() {
+        guard resident else { exit(1) }
+        panel?.orderOut(nil)
+        panel = nil
+        surface = nil
+        cells = []
+        rows = []
     }
 
     @objc func clicked(_ gesture: NSClickGestureRecognizer) {
@@ -390,7 +458,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
     func key(_ event: NSEvent) -> Bool {
         if showingThemes {
             switch event.keyCode {
-                case 53: exit(1) // esc
+                case 53: close() // esc
                 case 36, 76: if !shown.isEmpty { showWallpapers(shown[row]) } // return, keypad enter
                 case 126: selectRow(row - 1) // up
                 case 125: selectRow(row + 1) // down
@@ -399,7 +467,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             return true
         }
         switch event.keyCode {
-            case 53: if themes.count > 1 { showThemes() } else { exit(1) } // esc: back to themes
+            case 53: if themes.count > 1 { showThemes() } else { close() } // esc: back to themes
             case 36, 76: choose() // return, keypad enter
             case 123: select(selected - 1) // left
             case 124: select(selected + 1) // right
@@ -407,7 +475,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
                 switch event.charactersIgnoringModifiers {
                     case "h": select(selected - 1)
                     case "l": select(selected + 1)
-                    case "q": exit(1)
+                    case "q": close()
                     default: break
                 }
         }

@@ -20,6 +20,7 @@ bin="$(swiftly run swift build -c $cfg --show-bin-path)"
 rm -f .build/aerospace
 cp "$bin/aerospace" .build/aerospace
 swiftc -O tools/wallpaper-picker/main.swift Sources/SkylandGlass/*.swift -o .build/skyland-wallpaper-picker # + ui-style glass
+pkill -f "skyland-wallpaper-picker --resident" || true # the resident picker (alt-w) starts again, rebuilt, at the next pick
 swiftc -O tools/keys-help.swift -o .build/skyland-keys
 # media widget + its now playing backend (git submodule, BSD-3)
 [[ -f third_party/mediaremote-adapter/CMakeLists.txt ]] || git submodule update --init third_party/mediaremote-adapter
