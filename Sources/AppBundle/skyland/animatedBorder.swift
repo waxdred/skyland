@@ -65,9 +65,13 @@ func updateAnimatedBorder() {
             borderState = ""
         }
     }
+    watchScreenChanges()
     let width = CGFloat(deco.borderWidth)
     let colors = themeBorderColors()
-    let state = "\(frame) \(level) \(deco.borderWidth) \(deco.rounding) \(deco.borderRotateMs) \(colors.map(\.hashValue))"
+    let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+    // the screens in it: placed while they were changing (locked, asleep), the same window
+    // frame kept the border where it was
+    let state = "\(frame) \(level) \(primaryHeight) \(deco.borderWidth) \(deco.rounding) \(deco.borderRotateMs) \(colors.map(\.hashValue))"
     if state == borderState, borderWindow?.isVisible == true {
         borderWindow?.order(.above, relativeTo: Int(window.windowId)) // keep it right above its window
         return
@@ -76,7 +80,6 @@ func updateAnimatedBorder() {
     let panel = borderWindow ?? makeBorderWindow()
     // around the window, like JankyBorders: the stroke sits outside the window frame
     let outer = frame.insetBy(dx: -width, dy: -width)
-    let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
     CATransaction.begin()
     CATransaction.setDisableActions(true)
     panel.setFrame(NSRect(x: outer.minX, y: primaryHeight - outer.maxY, width: outer.width, height: outer.height), display: false)
@@ -102,6 +105,26 @@ func updateAnimatedBorder() {
         gradient.add(spin, forKey: "rotate")
     }
     panel.order(.above, relativeTo: Int(window.windowId))
+}
+
+@MainActor private var screenWatchers: [NSObjectProtocol] = []
+
+/// Unlocked, woken up, a screen added or changed: the border is placed again once the
+/// screens settled (twice: they come back in steps).
+@MainActor private func watchScreenChanges() {
+    guard screenWatchers.isEmpty else { return }
+    let again = { (_: Notification) in
+        MainActor.assumeIsolated {
+            borderState = ""
+            for delay in [0.5, 1.5] { DispatchQueue.main.asyncAfter(deadline: .now() + delay) { updateAnimatedBorder() } }
+        }
+    }
+    screenWatchers = [
+        DistributedNotificationCenter.default().addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main, using: again),
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main, using: again),
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.sessionDidBecomeActiveNotification, object: nil, queue: .main, using: again),
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main, using: again),
+    ]
 }
 
 @MainActor
