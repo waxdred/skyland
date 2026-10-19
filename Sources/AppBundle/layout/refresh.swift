@@ -122,6 +122,7 @@ func refreshModel_nonCancellable(decorate: Bool = true) async {
     applyDecorations()
     saveWorkspaceMemory()
     refreshOverview()
+    refreshSwitcher() // skyland: cancelled by a workspace change or a closed window
     updateBar() // skyland: sketchybar workspaces and title
 }
 

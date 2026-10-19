@@ -26,7 +26,7 @@ func initTerminationHandler() {
 private struct AppServerTerminationHandler: TerminationHandler {
     @MainActor
     func beforeTermination() {
-        saveWorkspaceMemory()
+        saveWorkspaceMemory(now: true)
         restoreDecorations()
         stopMenuBarPeek() // skyland: sketchybar back if the menu bar was down
         // Make all windows fullscreen before Quit
