@@ -13,3 +13,6 @@
     }
     nativeFocused?.macAppUnsafe.lastNativeFocusedWindowId = nativeFocused?.windowId
 }
+
+// skyland: the next session takes macOS' focused window again, even if it did not change
+@MainActor func forgetLastKnownNativeFocus() { lastKnownNativeFocusedWindowId = nil }
