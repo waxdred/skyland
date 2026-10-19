@@ -101,8 +101,8 @@ func hideStartupHud() {
         panel.orderOut(nil)
         return
     }
-    // shown for a second at least: a fast start flashed it for a frame or two
-    let wait = max(0.3, 1 - Date.now.timeIntervalSince(startupHudShown))
+    // shown for 2 s at least: a fast start flashed it for a moment, nothing could be read
+    let wait = max(0.3, 2 - Date.now.timeIntervalSince(startupHudShown))
     DispatchQueue.main.asyncAfter(deadline: .now() + wait) {
         if let layer = panel.contentView?.layer {
             let bounds = layer.bounds
