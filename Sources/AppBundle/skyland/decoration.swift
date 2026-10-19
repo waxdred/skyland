@@ -86,10 +86,34 @@ func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inou
 // startup refresh nor shortly after (windows can be registered a bit later).
 @MainActor private var firstApplyDate: Date? = nil
 
+/// Windows checked for a transform left over from before skyland (or this payload) started.
+@MainActor private var untransformed: Set<UInt32> = []
+@MainActor private var untransformedSince: (inode: ino_t, date: Date) = (0, .distantPast)
+
+/// A WindowServer transform outlives the animation that set it when skyland or Dock dies
+/// mid-way (killed, crashed): the window stays drawn at the animated size and place, a lone
+/// window looking stuck in a split (#72). Each window skyland finds in the first seconds of
+/// a payload is put back to its real frame; later ones are new, their open animation is ours.
+@MainActor
+private func clearStaleTransforms() {
+    var st = stat()
+    let inode = unsafe stat(skylandSaSocketPath, &st) == 0 ? st.st_ino : 0
+    guard inode != 0 else { return } // no payload: no transform either
+    if inode != untransformedSince.inode {
+        untransformedSince = (inode, .now)
+        untransformed = []
+    }
+    guard Date.now.timeIntervalSince(untransformedSince.date) < 5 else { return }
+    for windowId in MacWindow.allWindowsMap.keys where untransformed.insert(windowId).inserted && !isAlphaTracked(windowId) {
+        skylandSa("untransform \(windowId)")
+    }
+}
+
 @MainActor
 func applyDecorations() {
     updateAnimatedBorder()
     guard TrayMenuModel.shared.isEnabled else { return } // disabled: stock macOS look (restoreDecorations)
+    clearStaleTransforms()
     let deco = config.decoration
     let anim = config.animations
     // focus / dim fades: fadeSwitch / fadeDim of the animation tree (animationTracks.swift)
