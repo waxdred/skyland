@@ -92,7 +92,17 @@ func playTrack(_ event: WindowEvent, _ window: Window, rect: Rect, direction: Do
     if let mode { track.mode = mode }
     skylandSa(track.payloadCommand)
     let until = Date.now + track.durationMs / 1000
-    if track.channels.contains(.alpha) { alphaTracked[window.windowId] = until }
+    if track.channels.contains(.alpha) {
+        alphaTracked[window.windowId] = until
+        // a track cut short (another one on the window, a frame only one) leaves the opacity where
+        // it was, 0 for a window coming back from a hidden workspace: once it is over, the opacity
+        // the decoration pass holds for the window is sent again
+        let windowId = window.windowId
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(Int(track.durationMs) + 100))
+            if alphaTracked[windowId] == until { settleOpacity(windowId) }
+        }
+    }
     if track.channels.contains(.brightness) { brightnessTracked[window.windowId] = until }
     if track.channels.contains(.frame) { pauseAnimatedBorder(ms: Int(track.durationMs)) }
     let style = animator.effectiveStyle(event, animator.settings.resolve(event.node).style, context)
