@@ -74,9 +74,17 @@ download() { # api-url-prefix dest-dir
 case "${1:-}" in
     pick)
         [[ -x "$PICKER" ]] || die "picker not built: run bin/skyland-build"
-        pkill -f "$PICKER" && exit 0 # a picker open already: the key closes it
-        file="$("$PICKER" "$dir")" || exit 0 # cancelled
-        exec "$0" set "$file"
+        # A resident picker: shown or hidden by SIGUSR1, no app to start (about 200 ms each time
+        # before). The first pick starts it, shown; it sets the wallpaper itself ($0 set).
+        mkdir -p "$CACHE"
+        echo "$dir" > "$CACHE/picker-dir"
+        pid="$(cat "$CACHE/picker.pid" 2>/dev/null || true)"
+        # the pid must still be the picker: SIGUSR1 ends most other processes
+        if [[ -n "$pid" ]] && ps -p "$pid" -o command= 2>/dev/null | grep -q -- "--resident"; then
+            kill -USR1 "$pid"
+            exit 0
+        fi
+        SKYLAND_WALLPAPER_SET="$REPO/bin/skyland-wallpaper" nohup "$PICKER" --resident "$dir" >/dev/null 2>&1 &
         ;;
     set)
         file="${2:-}"

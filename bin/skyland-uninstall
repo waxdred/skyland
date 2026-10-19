@@ -26,6 +26,7 @@ step "Quit Skyland"
 pkill -x Skyland 2>/dev/null
 pkill -x AeroSpaceApp 2>/dev/null # its process name before v0.4
 pkill -x borders 2>/dev/null
+pkill -f "skyland-wallpaper-picker --resident" 2>/dev/null # alt-w's resident picker
 # wait for its clean exit: it resets window transforms through the payload,
 # which must still be alive (Dock is killed below)
 for _ in $(seq 1 20); do pgrep -xq "Skyland|AeroSpaceApp" || break; sleep 0.25; done

@@ -54,7 +54,7 @@ case "${1:-apply}" in
     apply) ;;
     pick)
         [[ -x "$PICKER" ]] || die "picker not built: run bin/skyland-build"
-        pkill -f "$PICKER" && exit 0 # a picker open already: the key closes it
+        pkill -f "$PICKER --themes" && exit 0 # a theme picker open already: the key closes it (not the resident wallpaper picker)
         themes=("$(dirname "$("$REPO/bin/skyland-config" theme dark)")"/*.css)
         for wallpaper in "$CACHE/themes/wallpaper-dark.css" "$CACHE/themes/wallpaper-light.css"; do
             [[ -r "$wallpaper" ]] && themes+=("$wallpaper")
