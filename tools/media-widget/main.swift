@@ -1295,13 +1295,34 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
         bandCount = bands
     }
 
+    private var starting = false
+    /// started and not stopped since: a tap that comes after a stop is let go
+    private var wanted = false
+
     func start() {
-        guard stream == nil, tap == nil else { return }
-        if #available(macOS 14.2, *), let tap = SystemAudioTap(queue: queue, onSamples: { [weak self] rate, chunk in self?.consume(chunk, rate: rate) }) {
-            self.tap = tap
+        wanted = true
+        guard stream == nil, tap == nil, !starting else { return }
+        if #available(macOS 14.2, *) {
+            // off the main thread: starting the tap waits for the audio permission's answer
+            // (the widget hung, a spinning cursor over it, while macOS asked)
+            starting = true
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self else { return }
+                let tap = SystemAudioTap(queue: self.queue, onSamples: { [weak self] rate, chunk in self?.consume(chunk, rate: rate) })
+                DispatchQueue.main.async {
+                    self.starting = false
+                    guard self.wanted else { return } // stopped meanwhile: the tap goes with this closure
+                    if let tap { self.tap = tap } else { self.startStream() }
+                }
+            }
             return
         }
-        Task { // older macOS, or no tap: ScreenCaptureKit's audio
+        startStream()
+    }
+
+    /// ScreenCaptureKit's audio: older macOS, or no tap.
+    private func startStream() {
+        Task {
             guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false),
                   let display = content.displays.first else { return }
             let config = SCStreamConfiguration()
@@ -1320,6 +1341,7 @@ final class AudioBands: NSObject, SCStreamOutput, @unchecked Sendable {
     }
 
     func stop() {
+        wanted = false
         let stream = self.stream
         self.stream = nil
         tap = nil // its deinit stops it
