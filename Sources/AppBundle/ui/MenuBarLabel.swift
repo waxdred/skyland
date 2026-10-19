@@ -2,6 +2,8 @@ import Common
 import Foundation
 import SwiftUI
 
+@MainActor private let trayRenderer = ImageRenderer(content: AnyView(EmptyView()))
+
 @MainActor
 struct MenuBarLabel: View {
     @Environment(\.colorScheme) var menuColorScheme: ColorScheme
@@ -25,8 +27,7 @@ struct MenuBarLabel: View {
 
     var body: some View {
         if #available(macOS 14, *) { // https://github.com/nikitabobko/AeroSpace/issues/1122
-            let renderer = ImageRenderer(content: menuBarContent)
-            switch renderer.cgImage {
+            switch renderedImage() {
                 // Using scale: 1 results in a blurry image for unknown reasons
                 case let cgImage?: Image(cgImage, scale: 2, label: Text(viewModel.trayText))
 
@@ -36,6 +37,22 @@ struct MenuBarLabel: View {
         } else { // macOS 13 and lower
             Text(viewModel.trayText)
         }
+    }
+
+    /// skyland: drawn into a bitmap on the CPU. `cgImage` renders on the GPU: each workspace
+    /// switch allocated about 200 MB of graphics memory for about 1 s (#100).
+    private func renderedImage() -> CGImage? {
+        trayRenderer.content = AnyView(menuBarContent)
+        var image: CGImage?
+        trayRenderer.render { size, draw in
+            guard size.width >= 1, size.height >= 1,
+                  let context = CGContext(data: nil, width: Int(size.width.rounded(.up)), height: Int(size.height.rounded(.up)), bitsPerComponent: 8,
+                                          bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return }
+            draw(context)
+            image = context.makeImage()
+        }
+        return image
     }
 
     var menuBarContent: some View {
