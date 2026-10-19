@@ -33,7 +33,11 @@ elif pgrep -xq Skyland; then bad "config has errors" "skyland reload-config --dr
 windows="$("$CLI" list-windows --all --format '%{window-id}' </dev/null 2>/dev/null | wc -l | tr -d ' ')"
 if [[ "${windows:-0}" -gt 0 ]]; then ok "manages $windows windows (Accessibility works)"
 elif pgrep -xq Skyland; then opt "no window managed" "no app open, or Accessibility not granted to Skyland"; fi
-opt "Screen Recording for Skyland: check it by hand (System Settings > Privacy & Security)" "gives the overview live thumbnails and, before macOS 26, the glass's refraction"
+case "$(cat "$HOME/.cache/skyland/screen-recording" 2>/dev/null)" in # written by Skyland at start
+    yes) ok "Screen Recording for Skyland (live thumbnails in the overview and the switcher)" ;;
+    no) opt "Screen Recording not allowed to Skyland" "System Settings > Privacy & Security > Screen Recording: allow Skyland, then restart it (live thumbnails instead of app icons)" ;;
+    *) opt "Screen Recording for Skyland: unknown (start Skyland once)" "System Settings > Privacy & Security > Screen Recording" ;;
+esac
 
 # trackpad swipe vs the macOS gesture with as many fingers (2 = on: full-screen apps /
 # Mission Control), built-in and Magic Trackpad

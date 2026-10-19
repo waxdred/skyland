@@ -172,6 +172,7 @@ extension Workspace {
 }
 
 @MainActor private func onWorkspaceChanged(_ oldWorkspace: String, _ newWorkspace: String, _ focus: LiveFocus) {
+    refreshThumbnailCache(focus.workspace) // skyland
     broadcastEvent(.workspaceChanged(
         workspace: newWorkspace,
         prevWorkspace: oldWorkspace,

@@ -30,6 +30,7 @@ import Foundation
         startMenuBarPeek() // skyland
         startSystemPromptWatch() // skyland
         startSkylandBar() // skyland
+        writeScreenRecordingState() // skyland: for skyland doctor (overview.swift)
         Workspace.garbageCollectUnusedWorkspaces() // init workspaces
         _ = Workspace.all.first?.focusWorkspace()
         await runHeavyCompleteRefreshSession(
