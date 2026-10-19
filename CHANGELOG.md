@@ -6,6 +6,11 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+**Startup**
+- A "starting" HUD (skyland's icon, the windows found, a running line) while skyland lays
+  the windows out, gone with a short scale and fade; `[decoration] startup-hud = false` turns
+  it off.
+
 **Liquid Glass**
 - `glass` panels never use the metal engine (its screen capture blacked protected videos):
   Apple's glass on macOS 26 and later, the backdrop blur before.

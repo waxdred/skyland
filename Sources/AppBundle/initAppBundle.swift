@@ -20,6 +20,7 @@ import Foundation
 
         await bootstrapConfig_nonCancellable()
         _ = await reloadConfig_nonCancellable()
+        showStartupHud() // skyland: hidden once the windows are laid out
 
         startUnixSocketServer()
         GlobalObserver.initObserver()
@@ -42,6 +43,7 @@ import Foundation
             smartLayoutAtStartup()
             _ = await config.afterStartupCommand.run(.defaultEnv, .emptyStdin)
         }
+        hideStartupHud() // skyland
     }
 }
 
