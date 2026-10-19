@@ -69,6 +69,10 @@ func parseDecoration(_ raw: OrderedJson, _ backtrace: ConfigBacktrace, _ c: inou
 
 // Last value sent per window, so a refresh only sends what changed.
 @MainActor private var sentOpacity: [UInt32: Int] = [:]
+/// The opacity held for the window, sent again (the end of an alpha track)
+@MainActor func settleOpacity(_ windowId: UInt32) {
+    if let opacity = sentOpacity[windowId] { skylandSa("alpha \(windowId) \(Double(opacity) / 100)") }
+}
 @MainActor private var sentRounding: [UInt32: Int] = [:]
 @MainActor private var sentDim: [UInt32: Int] = [:]
 // Floating windows stay above tiles (payload `layer`); ids currently raised.
