@@ -134,7 +134,8 @@ app's windows. The payload (`osax/payload.m`) listens on
 
 ## Requirements
 
-- Apple Silicon Mac, macOS 15 (tested on 15.6.1), [Homebrew](https://brew.sh)
+- Apple Silicon Mac, macOS 15 or later (tested on 15.6.1 and 27.0.1, see
+  [docs/compatibility.md](docs/compatibility.md)), [Homebrew](https://brew.sh)
 - everything else comes with `skyland install`: Swift 6.4 through
   [swiftly](https://github.com/swiftlang/swiftly), `cmake`, `jq`, `sketchybar`,
   `borders`, Hack Nerd Font (see `Brewfile`); `matugen` for wallpaper colors
