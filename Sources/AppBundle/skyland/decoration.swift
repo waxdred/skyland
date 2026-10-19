@@ -144,6 +144,7 @@ func applyDecorations() {
     firstApplyDate = startedAt
     let startingUp = isStartup || Date.now.timeIntervalSince(startedAt) < 2
     let focusedId = focus.windowOrNil?.windowId
+    let popupPids = pidsShowingPopup() // once per pass: isAlwaysOpaque per window would scan them all
     var alive = Set<UInt32>()
     var newWindows: [UInt32] = []
     // Floating windows go back to the normal level while a password / Touch ID
@@ -161,7 +162,7 @@ func applyDecorations() {
         }
         // Hidden in a corner = workspace switched away: fade out while it slides out
         let opacity = (fades && window.isHiddenInCorner) || isHiddenGroupTab(window) ? 0
-            : windowOpacity(windowId, focused: windowId == focusedId) // window-rule opacity, else [decoration]
+            : windowOpacity(windowId, focused: windowId == focusedId, popupPids: popupPids) // window-rule opacity, else [decoration]
         // a track that drives the opacity ends at it: nothing to send meanwhile
         if isAlphaTracked(windowId) {
             sentOpacity[windowId] = opacity
@@ -182,7 +183,7 @@ func applyDecorations() {
             if raise { raisedWindows.insert(windowId) } else { raisedWindows.remove(windowId) }
             skylandSa("layer \(windowId) \(raise ? 1 : 0)")
         }
-        let dim = windowId == focusedId || overrides(windowId).noDim || isAlwaysOpaque(windowId) ? 0 : min(100, max(0, deco.dimInactive))
+        let dim = windowId == focusedId || overrides(windowId).noDim || isAlwaysOpaque(windowId, popupPids: popupPids) ? 0 : min(100, max(0, deco.dimInactive))
         if payloadCapabilities.contains("dim"), sentDim[windowId, default: 0] != dim, !isBrightnessTracked(windowId) {
             let from = sentDim[windowId, default: 0]
             sentDim[windowId] = dim

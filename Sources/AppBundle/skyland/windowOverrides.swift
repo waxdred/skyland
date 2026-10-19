@@ -41,18 +41,25 @@ let alwaysOpaqueApps: Set<String> = [
 /// an app showing one: the save panel runs in another process that refuses clicks while its
 /// window, or the window it hangs from, is not fully opaque (a download's save sheet in Brave
 /// could not be clicked).
+/// `popupPids`: pidsShowingPopup(), computed once by a caller that asks for every window.
 @MainActor
-func isAlwaysOpaque(_ windowId: UInt32) -> Bool {
+func isAlwaysOpaque(_ windowId: UInt32, popupPids: Set<Int32>? = nil) -> Bool {
     guard let window = MacWindow.allWindowsMap[windowId] else { return false }
     if window.app.rawAppBundleId.map(alwaysOpaqueApps.contains) == true { return true }
     if window.parent is MacosPopupWindowsContainer { return true }
-    return MacWindow.allWindowsMap.values.contains { $0.parent is MacosPopupWindowsContainer && $0.app.pid == window.app.pid }
+    return (popupPids ?? pidsShowingPopup()).contains(window.app.pid)
+}
+
+/// The apps showing a popup (sheet, dialog) right now.
+@MainActor
+func pidsShowingPopup() -> Set<Int32> {
+    Set(MacWindow.allWindowsMap.values.lazy.filter { $0.parent is MacosPopupWindowsContainer }.map(\.app.pid))
 }
 
 /// The window's opacity in percent: its own override, else [decoration].
 @MainActor
-func windowOpacity(_ windowId: UInt32, focused: Bool) -> Int {
-    if isAlwaysOpaque(windowId) { return 100 }
+func windowOpacity(_ windowId: UInt32, focused: Bool, popupPids: Set<Int32>? = nil) -> Int {
+    if isAlwaysOpaque(windowId, popupPids: popupPids) { return 100 }
     let o = overrides(windowId), deco = config.decoration
     return focused ? o.activeOpacity ?? deco.activeOpacity : o.inactiveOpacity ?? deco.inactiveOpacity
 }

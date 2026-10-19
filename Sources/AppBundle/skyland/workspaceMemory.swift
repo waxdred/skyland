@@ -16,6 +16,7 @@ private let memoryUrl = FileManager.default.homeDirectoryForCurrentUser.appendin
 
 @MainActor private var loaded: [UInt32: RememberedWindow]? = nil
 @MainActor private var lastSaved: [UInt32: RememberedWindow] = [:]
+@MainActor private var pendingSave: Task<Void, Never>? = nil
 
 /// Workspace a window was on before skyland restarted, if any.
 @MainActor
@@ -25,9 +26,10 @@ func rememberedWorkspace(windowId: UInt32, appId: String?) -> Workspace? {
     return Workspace.get(byName: entry.workspace)
 }
 
-/// Called after every refresh and before quitting; writes only on change.
+/// Called after every refresh and before quitting (`now`); writes only on change, 1 s after the
+/// last one: a burst of windows opening wrote the file (temporary file + rename) on each refresh.
 @MainActor
-func saveWorkspaceMemory() {
+func saveWorkspaceMemory(now: Bool = false) {
     // Keep the previous run's memory before the first write: the startup refresh
     // can run before windows are registered and would save an empty map.
     if loaded == nil { loaded = loadWorkspaceMemory() }
@@ -37,7 +39,15 @@ func saveWorkspaceMemory() {
         guard let workspace = window.nodeWorkspace else { continue }
         current[windowId] = RememberedWindow(workspace: workspace.name, appId: window.app.rawAppBundleId)
     }
+    pendingSave?.cancel()
     if current == lastSaved { return }
+    if !now {
+        pendingSave = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1))
+            if !Task.isCancelled { saveWorkspaceMemory(now: true) }
+        }
+        return
+    }
     lastSaved = current
     let json = Dictionary(uniqueKeysWithValues: current.map { (String($0.key), $0.value) })
     guard let data = try? JSONEncoder().encode(json) else { return }
