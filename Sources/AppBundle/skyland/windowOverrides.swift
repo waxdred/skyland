@@ -56,6 +56,18 @@ func pidsShowingPopup() -> Set<Int32> {
     Set(MacWindow.allWindowsMap.values.lazy.filter { $0.parent is MacosPopupWindowsContainer }.map(\.app.pid))
 }
 
+/// A floating window found with its middle off its monitor, on a shown workspace: its app
+/// saved the frame skyland gave it while its workspace was hidden (the corner), and opened it
+/// there again (Calculator quit on a hidden workspace came back 1 px from the edge). Centered,
+/// as Hyprland places floating windows.
+@MainActor
+func centerIfOffscreen(_ window: Window, _ rect: Rect?) {
+    guard window.isFloating, let rect, let workspace = window.nodeWorkspace, workspace.isVisible else { return }
+    let area = workspace.workspaceMonitor.visibleRect
+    guard !area.contains(rect.center) else { return }
+    window.setAxFrame(CGPoint(x: area.topLeftX + (area.width - rect.width) / 2, y: area.topLeftY + (area.height - rect.height) / 2), nil)
+}
+
 /// The window's opacity in percent: its own override, else [decoration].
 @MainActor
 func windowOpacity(_ windowId: UInt32, focused: Bool, popupPids: Set<Int32>? = nil) -> Int {

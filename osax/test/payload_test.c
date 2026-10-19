@@ -368,6 +368,34 @@ static void test_random(void)
     assert(running() == 0);
 }
 
+// Skyland gone (the guard): animations stop, the windows it touched are shown as they are
+static void test_reset_touched(void)
+{
+    ntouched = 0; // the windows of the tests before are gone
+    add_window(0, 21, CGRectMake(0, 0, 800, 600));
+    add_window(1, 22, CGRectMake(800, 0, 800, 600));
+    add_window(2, 23, CGRectMake(0, 600, 800, 600));
+    add_window(3, 24, CGRectMake(800, 600, 800, 600));
+    fake_now = 0;
+    assert(strcmp(command("fade 21 0 500 0 0 1 1"), "ok\n") == 0); // fading out
+    frame_at(100);
+    assert(win(21)->alpha < 1);
+    assert(strcmp(command("animate 22 0 0 300 200 500 0 0 1 1"), "ok\n") == 0); // moving
+    frame_at(150);
+    assert(strcmp(command("dim 23 0.4"), "ok\n") == 0); // darker
+    assert(running() > 0);
+    int untouched = win(24)->alphas + win(24)->transforms + win(24)->brightnesses;
+    reset_touched();
+    assert(running() == 0);
+    assert(win(21)->alpha == 1);
+    assert(win(22)->transform.tx == -800 && win(22)->transform.ty == 0 && win(22)->transform.a == 1);
+    assert(win(23)->brightness == 0);
+    assert(win(24)->alphas + win(24)->transforms + win(24)->brightnesses == untouched); // never touched
+    win(21)->alpha = 0.5f;
+    reset_touched(); // forgotten once reset
+    assert(win(21)->alpha == 0.5f);
+}
+
 int main(void)
 {
     test_ping();
@@ -379,6 +407,7 @@ int main(void)
     test_bad_tracks();
     test_longest_track();
     test_random();
+    test_reset_touched();
     assert(link_starts > 0 && link_stops > 0);
     puts("payload ok");
     return 0;

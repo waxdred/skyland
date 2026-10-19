@@ -134,7 +134,8 @@ app's windows. The payload (`osax/payload.m`) listens on
 
 ## Requirements
 
-- Apple Silicon Mac, macOS 15 (tested on 15.6.1), [Homebrew](https://brew.sh)
+- Apple Silicon Mac, macOS 15 or later (tested on 15.6.1 and 27.0.1, see
+  [docs/compatibility.md](docs/compatibility.md)), [Homebrew](https://brew.sh)
 - everything else comes with `skyland install`: Swift 6.4 through
   [swiftly](https://github.com/swiftlang/swiftly), `cmake`, `jq`, `sketchybar`,
   `borders`, Hack Nerd Font (see `Brewfile`); `matugen` for wallpaper colors
@@ -512,7 +513,8 @@ each problem.
 
 - **A window is invisible**: `killall Dock` resets alpha and transforms set by the
   payload; `skyland enable off` brings windows hidden in the corner back.
-  skyland restores both on quit and on SIGTERM, not on SIGKILL.
+  skyland restores both on quit and on SIGTERM; on a crash or SIGKILL the Dock
+  payload shows the windows it changed again (alpha 1, real frame, no dim).
 - **No rounding / opacity / animations**: the payload is not loaded
   (`skyland-sa send ping` must answer `ok fade`): `skyland-sa load`.
 - **Shortcuts do nothing**: check the Accessibility permission of `Skyland`.
