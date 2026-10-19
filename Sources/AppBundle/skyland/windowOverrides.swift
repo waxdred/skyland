@@ -37,9 +37,16 @@ let alwaysOpaqueApps: Set<String> = [
     "com.apple.Passwords", "com.apple.keychainaccess",
 ]
 
+/// Also sheets and dialogs (save / open panels, alerts: popups for skyland) and the windows of
+/// an app showing one: the save panel runs in another process that refuses clicks while its
+/// window, or the window it hangs from, is not fully opaque (a download's save sheet in Brave
+/// could not be clicked).
 @MainActor
 func isAlwaysOpaque(_ windowId: UInt32) -> Bool {
-    MacWindow.allWindowsMap[windowId].flatMap { $0.app.rawAppBundleId }.map(alwaysOpaqueApps.contains) ?? false
+    guard let window = MacWindow.allWindowsMap[windowId] else { return false }
+    if window.app.rawAppBundleId.map(alwaysOpaqueApps.contains) == true { return true }
+    if window.parent is MacosPopupWindowsContainer { return true }
+    return MacWindow.allWindowsMap.values.contains { $0.parent is MacosPopupWindowsContainer && $0.app.pid == window.app.pid }
 }
 
 /// The window's opacity in percent: its own override, else [decoration].
