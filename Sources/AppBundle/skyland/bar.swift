@@ -121,14 +121,27 @@ func startSkylandBar() {
     try? process.run()
 }
 
-/// skylandbar holds an exclusive lock on this file while it runs (its main.swift): taken, a
+/// skylandbar holds an exclusive lock on this file while it runs (its main.swift): held, a
 /// bar runs, whatever started it (a terminal, a login item); not every bar shows in
-/// NSWorkspace's running applications.
+/// NSWorkspace's running applications. F_GETLK sees the flock without taking it: taking it to
+/// test it made a bar starting at that moment exit as already running. Asked after every
+/// refresh: the answer is kept 1 s.
+@MainActor private var barRunning: (answer: Bool, at: Date)? = nil
+
+@MainActor
 private func isSkylandBarRunning() -> Bool {
-    let fd = open("/tmp/skylandbar-\(NSUserName()).lock", O_RDWR)
+    if let barRunning, Date.now.timeIntervalSince(barRunning.at) < 1 { return barRunning.answer }
+    let answer = isLockHeld("/tmp/skylandbar-\(NSUserName()).lock")
+    barRunning = (answer, .now)
+    return answer
+}
+
+private func isLockHeld(_ path: String) -> Bool {
+    let fd = open(path, O_RDONLY)
     guard fd >= 0 else { return false } // never started
     defer { close(fd) }
-    guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { return true }
-    flock(fd, LOCK_UN)
-    return false
+    var lock = flock()
+    lock.l_type = Int16(F_WRLCK)
+    lock.l_whence = Int16(SEEK_SET)
+    return unsafe fcntl(fd, F_GETLK, &lock) == 0 && lock.l_type != Int16(F_UNLCK)
 }
