@@ -29,9 +29,23 @@ struct WindowOverrides: Equatable {
     if windowOverrides.keys.contains(where: { !alive.contains($0) }) { windowOverrides = windowOverrides.filter { alive.contains($0.key) } }
 }
 
+/// Apps whose windows stay opaque and undimmed: their privacy and security panes ignore
+/// clicks in a window that is not fully opaque (clickjacking protection), so System
+/// Settings' panes took no mouse input at inactive-opacity 98.
+let alwaysOpaqueApps: Set<String> = [
+    "com.apple.systempreferences", "com.apple.SecurityAgent", "com.apple.UserNotificationCenter",
+    "com.apple.Passwords", "com.apple.keychainaccess",
+]
+
+@MainActor
+func isAlwaysOpaque(_ windowId: UInt32) -> Bool {
+    MacWindow.allWindowsMap[windowId].flatMap { $0.app.rawAppBundleId }.map(alwaysOpaqueApps.contains) ?? false
+}
+
 /// The window's opacity in percent: its own override, else [decoration].
 @MainActor
 func windowOpacity(_ windowId: UInt32, focused: Bool) -> Int {
+    if isAlwaysOpaque(windowId) { return 100 }
     let o = overrides(windowId), deco = config.decoration
     return focused ? o.activeOpacity ?? deco.activeOpacity : o.inactiveOpacity ?? deco.inactiveOpacity
 }

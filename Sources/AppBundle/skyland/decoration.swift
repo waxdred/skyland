@@ -151,7 +151,7 @@ func applyDecorations() {
             if raise { raisedWindows.insert(windowId) } else { raisedWindows.remove(windowId) }
             skylandSa("layer \(windowId) \(raise ? 1 : 0)")
         }
-        let dim = windowId == focusedId || overrides(windowId).noDim ? 0 : min(100, max(0, deco.dimInactive))
+        let dim = windowId == focusedId || overrides(windowId).noDim || isAlwaysOpaque(windowId) ? 0 : min(100, max(0, deco.dimInactive))
         if payloadCapabilities.contains("dim"), sentDim[windowId, default: 0] != dim, !isBrightnessTracked(windowId) {
             let from = sentDim[windowId, default: 0]
             sentDim[windowId] = dim
