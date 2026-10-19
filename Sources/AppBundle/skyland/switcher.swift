@@ -124,8 +124,15 @@ private final class SwitcherPanel: NSPanel {
         setFrame(NSRect(x: screen.visibleFrame.midX - size.width / 2, y: screen.visibleFrame.midY - size.height / 2,
                         width: size.width, height: size.height), display: false)
         view.frame = NSRect(origin: .zero, size: size)
+        // the keys (esc, return, arrows, typing) come to a key panel of the active app only:
+        // opened with no modifier held (a script, the CLI), they never came and it stayed (#77)
+        if held.isEmpty { NSApp.activate(ignoringOtherApps: true) }
         makeKeyAndOrderFront(nil)
         makeFirstResponder(view)
+        // a click elsewhere closes it, as a menu would
+        monitors.append(NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            MainActor.assumeIsolated { self?.close(confirm: false) }
+        } as Any)
         if !held.isEmpty {
             // flagsChanged goes to the key panel (local) or, focus elsewhere, to the global monitor
             let released: (NSEvent) -> Void = { [weak self] event in
