@@ -127,6 +127,7 @@ private func handleMouse(_ type: CGEventType, _ location: CGPoint, _ flags: CGEv
         case .leftMouseUp, .rightMouseUp:
             guard let drag = skylandMouseDrag else { return false }
             skylandMouseDrag = nil
+            hideDropPreview()
             let running = dragFeedback
             Task { @MainActor in
                 await running?.value
