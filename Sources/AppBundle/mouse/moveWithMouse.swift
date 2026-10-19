@@ -68,9 +68,59 @@ private func moveTilingWindow(_ window: Window) {
             adaptiveWeight: WEIGHT_AUTO,
             index: index,
         )
+    } else if let swapTarget, let targetRect = swapTarget.lastAppliedLayoutPhysicalRect,
+              let side = dropSide(mouseLocation, targetRect)
+    {
+        // skyland: on a tile's edge, the window goes beside it, on that side (#82); while
+        // dragging only a preview of the place, the tree changed at the drop
+        if skylandDropLocation == nil {
+            showDropPreview(dropPreviewRect(targetRect, side))
+        } else {
+            hideDropPreview()
+            insertBeside(window, swapTarget, side)
+        }
     } else if let swapTarget {
+        hideDropPreview()
         swapWindows(mruDominant: window, swapTarget)
+    } else {
+        hideDropPreview()
     }
+}
+
+/// skyland: the side of a tile the mouse is on, its outer quarter; nil in the middle (a swap).
+func dropSide(_ point: CGPoint, _ rect: Rect) -> CardinalDirection? {
+    let fx = (point.x - rect.topLeftX) / max(rect.width, 1), fy = (point.y - rect.topLeftY) / max(rect.height, 1)
+    let distances: [(CardinalDirection, CGFloat)] = [(.left, fx), (.right, 1 - fx), (.up, fy), (.down, 1 - fy)]
+    guard let nearest = distances.min(by: { $0.1 < $1.1 }), nearest.1 < 0.25 else { return nil }
+    return nearest.0
+}
+
+/// The half of the tile the window would take.
+func dropPreviewRect(_ rect: Rect, _ side: CardinalDirection) -> Rect {
+    switch side {
+        case .left: Rect(topLeftX: rect.topLeftX, topLeftY: rect.topLeftY, width: rect.width / 2, height: rect.height)
+        case .right: Rect(topLeftX: rect.topLeftX + rect.width / 2, topLeftY: rect.topLeftY, width: rect.width / 2, height: rect.height)
+        case .up: Rect(topLeftX: rect.topLeftX, topLeftY: rect.topLeftY, width: rect.width, height: rect.height / 2)
+        case .down: Rect(topLeftX: rect.topLeftX, topLeftY: rect.topLeftY + rect.height / 2, width: rect.width, height: rect.height / 2)
+    }
+}
+
+/// `window` beside `target` on `side`: in the target's split when it runs that way, else the
+/// target and the window in a new split of their own, where the target was.
+@MainActor
+func insertBeside(_ window: Window, _ target: Window, _ side: CardinalDirection) {
+    if window == target { return }
+    window.unbindFromParent()
+    let orientation: Orientation = side == .left || side == .right ? .h : .v
+    let after = side == .right || side == .down
+    if let parent = target.parent as? TilingContainer, parent.layout == .tiles, parent.orientation == orientation {
+        window.bind(to: parent, adaptiveWeight: WEIGHT_AUTO, index: target.ownIndex.orDie() + (after ? 1 : 0))
+        return
+    }
+    let binding = target.unbindFromParent()
+    let split = TilingContainer(parent: binding.parent, adaptiveWeight: binding.adaptiveWeight, orientation, .tiles, index: binding.index)
+    target.bind(to: split, adaptiveWeight: WEIGHT_AUTO, index: INDEX_BIND_LAST)
+    window.bind(to: split, adaptiveWeight: WEIGHT_AUTO, index: after ? INDEX_BIND_LAST : 0)
 }
 
 @MainActor

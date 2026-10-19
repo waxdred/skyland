@@ -6,6 +6,10 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+**Mouse**
+- alt + drag a tile onto another tile's edge (its outer quarter): it goes beside it on that
+  side, a preview of the place in the theme accent while dragging; the middle still swaps.
+
 **Startup**
 - A "starting" HUD (skyland's icon, the windows found, a running line) while skyland lays
   the windows out, gone with a short scale and fade; `[decoration] startup-hud = false` turns
