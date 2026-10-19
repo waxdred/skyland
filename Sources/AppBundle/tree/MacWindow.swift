@@ -39,6 +39,7 @@ final class MacWindow: Window {
         if try await !restoreClosedWindowsCacheIfNeeded(newlyDetectedWindow: window) {
             await runOnWindowDetected(ifConventional: window)
         }
+        centerIfOffscreen(window, rect) // skyland
         return window
     }
 
