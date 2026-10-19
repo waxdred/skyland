@@ -22,10 +22,10 @@ final class MacWindow: Window {
         let data = try await unbindAndGetBindingDataForNewWindow(
             windowId,
             macApp,
-            isStartup
-                ? rememberedWorkspace(windowId: windowId, appId: macApp.rawAppBundleId) // skyland
-                    ?? (rect?.center.monitorApproximation ?? mainMonitorInfo).activeWorkspace
-                : focus.workspace,
+            // skyland: the workspace a window had before skyland restarted, also for a window found
+            // after the startup refresh (an app slow to answer): it went to the focused workspace
+            rememberedWorkspace(windowId: windowId, appId: macApp.rawAppBundleId)
+                ?? (isStartup ? (rect?.center.monitorApproximation ?? mainMonitorInfo).activeWorkspace : focus.workspace),
             window: nil,
             .cancellable,
         )
