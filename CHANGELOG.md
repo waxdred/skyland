@@ -7,6 +7,8 @@ is also the text of its GitHub release.
 ## Unreleased
 
 **Liquid Glass**
+- `glass` panels never use the metal engine (its screen capture blacked protected videos):
+  Apple's glass on macOS 26 and later, the backdrop blur before.
 - Protected videos (Netflix, Prime Video) play again: the metal glass takes snapshots of
   what is behind instead of running a capture stream (macOS hides protected content while
   one runs, and the media widget's never stopped). A new snapshot when the front app
