@@ -289,6 +289,8 @@ private func zoomIn() -> Int {
 @MainActor
 func captureWindowThumbnails(_ ids: Set<UInt32>, _ onImage: @escaping @MainActor (UInt32, NSImage) -> Void) {
     guard #available(macOS 14, *) else { return }
+    // a window of a hidden workspace comes back empty: its last picture first (#78)
+    for id in ids { if let cached = thumbnailCache[id] { onImage(id, cached) } }
     Task { @MainActor in
         // Asks for Screen Recording permission the first time; without it the cards keep app icons
         guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false) else { return }
@@ -301,9 +303,38 @@ func captureWindowThumbnails(_ ids: Set<UInt32>, _ onImage: @escaping @MainActor
             configuration.showsCursor = false
             configuration.captureResolution = .nominal // a 640 px thumbnail needs no Retina capture
             guard let image = try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration),
-                  !isTransparent(image) else { continue } // windows of hidden workspaces come back empty: app icon
-            onImage(scWindow.windowID, NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height)))
+                  !isTransparent(image) else { continue } // windows of hidden workspaces come back empty: cached, else app icon
+            let picture = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+            thumbnailCache[scWindow.windowID] = picture
+            onImage(scWindow.windowID, picture)
         }
+    }
+}
+
+/// The last picture of each window, taken while it was shown: the overview and the switcher
+/// show it for the windows of hidden workspaces (captured empty there). Pruned to the
+/// windows that still exist.
+@MainActor var thumbnailCache: [UInt32: NSImage] = [:]
+
+/// `yes` / `no` in ~/.cache/skyland/screen-recording: whether Skyland may capture windows
+/// (live thumbnails). A shell cannot ask for another app; skyland doctor reads this.
+@MainActor
+func writeScreenRecordingState() {
+    let file = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/screen-recording")
+    try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try? (CGPreflightScreenCaptureAccess() ? "yes" : "no").write(to: file, atomically: true, encoding: .utf8)
+}
+
+/// The windows of the workspace just shown, once settled: their picture for later.
+@MainActor
+func refreshThumbnailCache(_ workspace: Workspace) {
+    guard CGPreflightScreenCaptureAccess() else { return } // never asks: the overview does
+    thumbnailCache = thumbnailCache.filter { MacWindow.allWindowsMap[$0.key] != nil }
+    let ids = Set(workspace.allLeafWindowsRecursive.map(\.windowId))
+    guard !ids.isEmpty else { return }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { // after the slide-in
+        guard focus.workspace === workspace else { return }
+        captureWindowThumbnails(ids) { _, _ in }
     }
 }
 
