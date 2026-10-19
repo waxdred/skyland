@@ -62,6 +62,9 @@ enum GlobalObserver {
                 try await resetManipulatedWithMouseIfPossible()
                 let mouseLocation = mouseLocation
                 let clickedMonitor = mouseLocation.monitorApproximation
+                // skyland: a Dock click on the app already in front sends no activation: macOS
+                // keeps the same focused window, so take it again (it may be on another workspace)
+                if await dockItemUnderMouseIsFrontmostApp(mouseLocation) { forgetLastKnownNativeFocus() }
                 switch true {
                     // Detect clicks on desktop of different monitors
                     case clickedMonitor.visibleRect.contains(mouseLocation) && clickedMonitor.activeWorkspace != focus.workspace:
@@ -76,4 +79,21 @@ enum GlobalObserver {
             }
         }
     }
+}
+
+@concurrent
+private nonisolated func dockItemUnderMouseIsFrontmostApp(_ location: CGPoint) async -> Bool {
+    var element: AXUIElement?
+    if unsafe AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(), Float(location.x), Float(location.y), &element) != .success {
+        return false
+    }
+    guard let element else { return false }
+    var role: CFTypeRef?
+    var url: CFTypeRef?
+    guard unsafe AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success,
+          role as? String == "AXDockItem",
+          unsafe AXUIElementCopyAttributeValue(element, kAXURLAttribute as CFString, &url) == .success,
+          let url = url as? URL
+    else { return false }
+    return NSWorkspace.shared.frontmostApplication?.bundleURL?.standardizedFileURL == url.standardizedFileURL
 }
