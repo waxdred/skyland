@@ -513,7 +513,8 @@ each problem.
 
 - **A window is invisible**: `killall Dock` resets alpha and transforms set by the
   payload; `skyland enable off` brings windows hidden in the corner back.
-  skyland restores both on quit and on SIGTERM, not on SIGKILL.
+  skyland restores both on quit and on SIGTERM; on a crash or SIGKILL the Dock
+  payload shows the windows it changed again (alpha 1, real frame, no dim).
 - **No rounding / opacity / animations**: the payload is not loaded
   (`skyland-sa send ping` must answer `ok fade`): `skyland-sa load`.
 - **Shortcuts do nothing**: check the Accessibility permission of `Skyland`.
