@@ -21,6 +21,7 @@ import AppKit
     focusFollowsMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { @MainActor event in
         let location = event.locationInWindow.withYAxisFlipped
         focusFollowsTask?.cancel()
+        let focusAtMove = focus.windowOrNil
         // skyland: still over the focused tile (and no floating window that could be
         // above it): nothing to do, no AX call. Most mouse moves end here.
         if let focused = focus.windowOrNil, !focused.isFloating,
@@ -41,6 +42,10 @@ import AppKit
             // skyland: a macOS prompt (unlock, permissions...) keeps the focus, else the
             // window under the mouse would come above it
             if !systemPromptWindows.isEmpty { return }
+            // skyland: the focus moved meanwhile (a command, a Dock click, a warp): that wins over
+            // a move made before it; and the cursor may have been warped since the event
+            if focus.windowOrNil != focusAtMove { return }
+            let location = NSEvent.mouseLocation.withYAxisFlipped
             try checkCancellation()
             // Ignores macOS menubar dropdown, but, unfortunately, it doesn't ignore non-native menu-like fake windows.
             // todo: It would be cool to somehow reuse isWindowHeuristic logic here
