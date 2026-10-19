@@ -22,6 +22,18 @@ func noteRecentWindow(_ windowId: UInt32?) {
 
 @MainActor private var switcher: SwitcherPanel? = nil
 
+/// After every refresh: an open switcher is cancelled once the workspace changed or a listed
+/// window closed (opened from a script, nothing else closed it, #98).
+@MainActor
+func refreshSwitcher() {
+    guard let switcher else { return }
+    if focus.workspace.name != switcher.workspace {
+        switcher.close(confirm: false, restore: false) // the new workspace's focus stays
+    } else if switcher.windowIds.contains(where: { MacWindow.allWindowsMap[$0] == nil }) {
+        switcher.close(confirm: false)
+    }
+}
+
 struct SwitcherCommand: Command {
     let args: SwitcherCmdArgs
     /*conforms*/ let shouldResetClosedWindowsCache = false
@@ -88,11 +100,14 @@ private final class SwitcherPanel: NSPanel {
     private let held: NSEvent.ModifierFlags
     private let previous: UInt32?
     private var monitors: [Any] = []
+    let workspace: String
+    var windowIds: [UInt32] { view.items.map(\.windowId) }
 
     init(items: [SwitcherItem], selected: Int, held: NSEvent.ModifierFlags) {
         view = SwitcherView(items: items, selected: selected)
         self.held = held
         previous = focus.windowOrNil?.windowId
+        workspace = focus.workspace.name
         super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         level = .popUpMenu
         isReleasedWhenClosed = false
@@ -117,6 +132,13 @@ private final class SwitcherPanel: NSPanel {
     }
 
     override var canBecomeKey: Bool { true }
+
+    /// Opened without a held modifier: another window took the keyboard, esc and return no
+    /// longer come here. Its focus stays.
+    override func resignKey() {
+        super.resignKey()
+        if held.isEmpty { close(confirm: false, restore: false) }
+    }
 
     func show() {
         let screen = nsScreen(of: focus.workspace.workspaceMonitor)
@@ -153,12 +175,12 @@ private final class SwitcherPanel: NSPanel {
 
     func step(_ delta: Int) { view.step(delta) }
 
-    func close(confirm: Bool) {
+    func close(confirm: Bool, restore: Bool = true) {
         guard switcher === self else { return }
         switcher = nil
         monitors.forEach(NSEvent.removeMonitor)
         monitors = []
-        let target = confirm ? view.selectedWindowId : previous
+        let target = confirm ? view.selectedWindowId : restore ? previous : nil
         orderOut(nil)
         close()
         view.thumbnails = [:] // freed with the panel, like the overview
