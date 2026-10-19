@@ -37,6 +37,11 @@
 //       dim, animate / untransform takes its channel over, the track goes on with
 //       the others.
 //
+// Guard: the windows a command made see-through, moved or darker are remembered. When the
+// Skyland app that sent it ends (quit, crash, kill -9), their animations stop and they are
+// shown again as they are: alpha 1, their real frame, no dim. A Skyland gone mid-fade left
+// windows invisible until it ran again.
+//
 // Signatures from REA decompilation of SkyLight on macOS 15.6.1 (24G90),
 // see vault note "SkyLight private API recon".
 
@@ -50,6 +55,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#ifndef SKYLAND_PAYLOAD_TEST
+#include <libproc.h>
+#endif
 #include <sys/un.h>
 #include <unistd.h>
 #include "bezier.h"
@@ -398,6 +406,45 @@ static const char *set_shadow(uint32_t wid, int on)
     return reply;
 }
 
+// The windows a command made see-through, moved or darker (the guard at the top).
+// ponytail: fixed table; full, the newest windows are not remembered
+#define MAX_TOUCHED 1024
+static uint32_t touched[MAX_TOUCHED];
+static int ntouched;
+static pthread_mutex_t touched_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void touch(uint32_t wid)
+{
+    pthread_mutex_lock(&touched_lock);
+    int known = 0;
+    for (int i = 0; i < ntouched && !known; i++) known = touched[i] == wid;
+    if (!known && ntouched < MAX_TOUCHED) touched[ntouched++] = wid;
+    pthread_mutex_unlock(&touched_lock);
+}
+
+// Skyland is gone: every animation stops, the windows it touched are shown as they are.
+static void reset_touched(void)
+{
+    pthread_mutex_lock(&anim_lock);
+    for (int i = 0; i < MAX_ANIMS; i++) if (anims[i].used) release_anim(&anims[i]);
+    pthread_mutex_unlock(&anim_lock);
+    stop_link_if_idle();
+    pthread_mutex_lock(&touched_lock);
+    int cid = SLSMainConnectionID();
+    CFTypeRef t = SLSTransactionCreate(cid);
+    for (int i = 0; i < ntouched; i++) {
+        uint32_t wid = touched[i];
+        CGRect real;
+        if (SLSGetWindowBounds(cid, wid, &real) != kCGErrorSuccess) continue; // closed meanwhile
+        set_transform(t, cid, wid, CGAffineTransformMakeTranslation(-real.origin.x, -real.origin.y));
+        set_alpha(t, cid, wid, 1);
+        set_dim(t, cid, wid, 0);
+    }
+    ntouched = 0;
+    pthread_mutex_unlock(&touched_lock);
+    if (t) { SLSTransactionCommit(t, 1); CFRelease(t); }
+}
+
 // track <wid> <ms> <mode> <channels> <n> <samples...>, see the protocol at the top
 static const char *start_track(uint32_t wid, char **save)
 {
@@ -447,6 +494,9 @@ static const char *handle(char *line)
     char *wid_str = strtok_r(NULL, " \n", &save);
     if (!wid_str) return "err missing wid\n";
     uint32_t wid = (uint32_t) strtoul(wid_str, NULL, 10);
+    for (const char **c = (const char *[]) { "track", "fade", "dim", "animate", "alpha", NULL }; *c; c++) {
+        if (strcmp(cmd, *c) == 0) touch(wid);
+    }
     if (strcmp(cmd, "track") == 0) return start_track(wid, &save); // more numbers than args[] holds
 
     double args[16];
@@ -508,6 +558,31 @@ static const char *handle(char *line)
     return reply;
 }
 
+#ifndef SKYLAND_PAYLOAD_TEST
+// The Skyland app among the clients: when it ends, reset_touched. Other clients (skyland-sa,
+// scripts) end after each command and are not watched.
+static pid_t watched;
+
+static void watch_owner(int client)
+{
+    pid_t pid;
+    socklen_t size = sizeof(pid);
+    if (getsockopt(client, SOL_LOCAL, LOCAL_PEERPID, &pid, &size) != 0 || pid == watched) return;
+    char name[64];
+    if (proc_name(pid, name, sizeof(name)) <= 0 || (strcmp(name, "Skyland") != 0 && strcmp(name, "AeroSpaceApp") != 0)) return;
+    watched = pid;
+    dispatch_source_t exit = dispatch_source_create(DISPATCH_SOURCE_TYPE_PROC, (uintptr_t) pid, DISPATCH_PROC_EXIT, link_queue);
+    dispatch_source_set_event_handler(exit, ^{
+        if (watched == pid) {
+            watched = 0;
+            reset_touched();
+        }
+        dispatch_source_cancel(exit);
+    });
+    dispatch_resume(exit);
+}
+#endif
+
 static void *serve(void *path)
 {
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -523,6 +598,9 @@ static void *serve(void *path)
         if (client < 0) continue;
         int on = 1;
         setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on)); // a client gone early must not kill Dock
+#ifndef SKYLAND_PAYLOAD_TEST
+        dispatch_sync(link_queue, ^{ watch_owner(client); }); // with the exit handler: one queue
+#endif
         // one or more commands, one per line, one reply per line, until the client
         // closes its side (an older app sends one line and waits for its reply).
         // static: one client at a time, and a track line is up to ~11 KB
