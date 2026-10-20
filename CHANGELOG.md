@@ -4,7 +4,46 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
-## Unreleased
+## v0.5.0
+
+**No window lost**
+- Dock guard: the payload remembers the windows it made see-through, moved or darker, and
+  shows them again (alpha 1, real frame, no dim) when Skyland ends, a crash or `kill -9`
+  included. A Skyland gone mid-fade left windows invisible until it ran again.
+- A floating window found off screen is centered on its monitor: an app quit while its
+  window sat in a hidden workspace's corner reopened there, 1 px from the edge.
+- `tools/e2e-visibility.swift`: switches, moves, closes and opens windows at random on two
+  spare workspaces and fails if one ends up off screen or see-through.
+- `docs/compatibility.md`: what is checked on which macOS (27.0.1, 15.6.1), what an update
+  can break, how to check a version.
+
+**Faster**
+- `alt-w` opens at once: the wallpaper picker stays running, hidden (22 MB), and a key shows
+  or hides it (about 85 ms, 180 to 255 ms before); it reads the folder, the theme and the
+  style again at each opening.
+- The menu bar icon is drawn on the CPU: each workspace switch allocated about 200 MB of
+  graphics memory for a second (25 MB now).
+- Workspace memory written 1 s after the last change, not on every refresh; the apps
+  showing a popup found once per decoration pass (it scanned every window for each one);
+  skylandbar's lock tested without taking it (a starting bar could exit as already running).
+
+**Switcher**
+- Opened with no modifier held (a script, the CLI): skyland comes forward so its keys work,
+  and it closes on a workspace change, a closed window or when another window takes the
+  keyboard.
+- Thumbnails of windows on hidden workspaces: their last picture, taken while shown.
+
+**Focus**
+- Focus follows the mouse only if the focus has not moved since the mouse did.
+- A Dock click on the app already in front goes to its window, on whatever workspace.
+- Sheets and dialogs stay opaque, and the windows of an app showing one (a save panel took
+  no clicks); System Settings and security windows stay opaque and undimmed.
+- Popups and alerts at the normal level stay over the windows.
+
+**Layout**
+- Profile: `cmd-shift-h/j/k/l` swap with the neighbour (Hyprland movewindow).
+- `master` off: the windows laid out again as dwindle, in the same order.
+- `fullscreen --no-outer-gaps` stays below a bar taller than the menu bar.
 
 **Mouse**
 - alt + drag a tile onto another tile's edge (its outer quarter): it goes beside it on that
@@ -25,6 +64,14 @@ is also the text of its GitHub release.
 - The media widget's audio bars and wave read the system's audio from a Core Audio tap
   (macOS 14.2), not a ScreenCaptureKit stream: protected videos went black as soon as they
   played with the widget open. macOS may ask once to let Skyland record the system's audio.
+- `[decoration] glass-blur`, also in the settings window.
+
+**Fixes**
+- An alpha track over, the window's opacity is sent again (a window could stay faded).
+- Startup: windows put back to their real frame (a transform left by an animation); quit:
+  popups (bars, panels) are not centered with the windows.
+- The animated border is placed again after an unlock, a wake or a screen change.
+- The media widget's audio tap starts off the main thread (it hung with a spinning cursor).
 
 ## v0.4.0
 
