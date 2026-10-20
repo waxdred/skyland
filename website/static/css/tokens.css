@@ -1,0 +1,69 @@
+/* Design tokens. Accents switch with [data-theme] (site themes, not Skyland's own themes). */
+:root {
+  color-scheme: dark;
+
+  --bg: #080a10;
+  --surface: #111521;
+  --surface-2: #161b2a;
+  --glass: rgba(255, 255, 255, 0.07);
+  --glass-strong: rgba(255, 255, 255, 0.11);
+  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-edge: rgba(255, 255, 255, 0.34);
+  --glass-fallback: rgba(20, 24, 36, 0.92);
+  --text: #f5f7ff;
+  --text-2: #9299ad;
+  --text-3: #6c7387;
+
+  --accent: #a5b4fc;
+  --accent-2: #67e8f9;
+  --accent-rgb: 165 180 252;
+  --accent-2-rgb: 103 232 249;
+  --on-accent: #0b0e18;
+
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-text: "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --fs-hero: clamp(2.75rem, 1.4rem + 4.6vw, 5.5rem);
+  --fs-h2: clamp(2.1rem, 1.4rem + 2.8vw, 3.75rem);
+  --fs-h3: 1.125rem;
+  --fs-lede: clamp(1.05rem, 0.98rem + 0.35vw, 1.25rem);
+  --fs-small: 0.8125rem;
+
+  --r-card: 24px;
+  --r-card-lg: 28px;
+  --r-el: 14px;
+  --r-pill: 999px;
+
+  --max: 1440px;
+  --gutter: clamp(16px, 4vw, 56px);
+  --section-y: clamp(96px, 14vw, 200px);
+
+  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 30px 60px -30px rgba(0, 0, 0, 0.65), 0 12px 24px -16px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 50px 100px -40px rgba(0, 0, 0, 0.75), 0 0 0 1px rgb(var(--accent-rgb) / 0.25), 0 0 48px -12px rgb(var(--accent-rgb) / 0.35);
+
+  /* Skyland's default curves (windows-bezier, workspaces-bezier in skyland.toml). */
+  --ease-skyland: cubic-bezier(0.05, 0.9, 0.1, 1);
+  --ease-ws: cubic-bezier(0, 0.75, 0.15, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --t-hover: 220ms;
+  --t-reveal: 650ms;
+  --stagger: 80ms;
+  --reveal-y: 28px;
+}
+
+[data-theme="aurora"] {
+  --accent: #6ee7b7;
+  --accent-2: #67e8f9;
+  --accent-rgb: 110 231 183;
+  --accent-2-rgb: 103 232 249;
+}
+
+[data-theme="violet"] {
+  --accent: #c4b5fd;
+  --accent-2: #f0abfc;
+  --accent-rgb: 196 181 253;
+  --accent-2-rgb: 240 171 252;
+}

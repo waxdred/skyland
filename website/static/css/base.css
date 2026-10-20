@@ -1,0 +1,147 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 1rem/1.6 var(--font-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+}
+
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+p a, li a, figcaption a { color: var(--text); text-decoration-color: rgb(var(--accent-rgb) / 0.6); }
+p a:hover, li a:hover { color: var(--accent); }
+h1, h2, h3 { margin: 0; font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+button { font: inherit; color: inherit; }
+code, kbd, pre { font-family: var(--font-mono); font-size: 0.875em; }
+code { color: var(--accent); }
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.05em 0.45em;
+  border: 1px solid var(--glass-border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--glass);
+  color: var(--text);
+  font-size: 0.8em;
+  line-height: 1.5;
+  text-align: center;
+}
+
+::selection { background: rgb(var(--accent-rgb) / 0.35); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: 12px; left: 12px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: var(--r-el);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  transform: translateY(-160%);
+  transition: transform var(--t-hover) var(--ease-out);
+}
+.skip-link:focus { transform: none; }
+
+.mono { font-family: var(--font-mono); font-size: 0.85em; letter-spacing: 0; }
+.accent-text {
+  background: linear-gradient(100deg, var(--accent) 10%, var(--accent-2) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.eyebrow {
+  margin-bottom: 20px;
+  color: var(--text-2);
+  font: 500 0.75rem/1.4 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.eyebrow__num { color: var(--accent); }
+
+.h2 { font-size: var(--fs-h2); line-height: 1.04; max-width: 14ch; text-wrap: balance; }
+.lede { max-width: 54ch; margin-top: 22px; color: var(--text-2); font-size: var(--fs-lede); line-height: 1.55; text-wrap: pretty; }
+.lede strong { color: var(--text); font-weight: 500; }
+
+.caption {
+  margin-top: 14px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
+}
+.caption code { color: var(--text-2); }
+
+.link-arrow {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 28px;
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+.link-arrow span { transition: transform var(--t-hover) var(--ease-out); }
+.link-arrow:hover span { transform: translate(2px, -2px); }
+
+/* Buttons */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform var(--t-hover) var(--ease-out), background-color var(--t-hover), border-color var(--t-hover), box-shadow var(--t-hover);
+}
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(0); }
+.btn--primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 100%, white 12%), var(--accent));
+  color: var(--on-accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 30px -10px rgb(var(--accent-rgb) / 0.6);
+}
+.btn--ghost {
+  border-color: var(--glass-border);
+  background: var(--glass);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.btn--ghost:hover { border-color: rgb(var(--accent-rgb) / 0.5); }
+
+.stars { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; color: var(--text-2); font: 500 0.75rem var(--font-mono); vertical-align: middle; }
+.stars[hidden] { display: none; }
+.stars svg { width: 12px; height: 12px; fill: currentColor; }

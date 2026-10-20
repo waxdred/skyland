@@ -20,6 +20,7 @@
 !/osax
 !/tools
 !/third_party
+!/website
 !/.gitmodules
 
 # Top level important files
@@ -38,3 +39,7 @@
 # XCode User settings
 xcuserdata/
 xcshareddata/
+
+# website
+/website/.venv/
+__pycache__/

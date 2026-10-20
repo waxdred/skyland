@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" data-theme="midnight">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Skyland — a Hyprland-inspired desktop for macOS{% endblock %}</title>
+  <meta name="description" content="{% block description %}Skyland brings a Hyprland-inspired workflow to macOS: dwindle tiling, workspaces, window groups, Bézier animations and Liquid Glass panels. Open source.{% endblock %}">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#080A10">
+  <link rel="canonical" href="{{ absolute('index') }}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Skyland">
+  <meta property="og:title" content="{{ self.title() }}">
+  <meta property="og:description" content="{{ self.description() }}">
+  <meta property="og:url" content="{{ absolute('index') }}">
+  <meta property="og:image" content="{{ absolute('static', filename='images/og.jpg') }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+
+  <!-- Reveal states only apply once JS is known to run: without it, everything is visible. -->
+  <script>document.documentElement.classList.add('js');try{var t=localStorage.getItem('skyland-site-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+
+  <link rel="preload" as="image" href="{{ url_for('static', filename='images/desktop-1600.webp') }}" imagesrcset="{{ url_for('static', filename='images/desktop-800.webp') }} 800w, {{ url_for('static', filename='images/desktop-1600.webp') }} 1600w" imagesizes="(min-width: 1200px) 56vw, 92vw">
+  {% for sheet in ['tokens', 'base', 'glass', 'layout', 'animations', 'responsive'] %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ sheet ~ '.css') }}">
+  {% endfor %}
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="atmos" aria-hidden="true">
+    <div class="atmos__glow atmos__glow--a"></div>
+    <div class="atmos__glow atmos__glow--b"></div>
+    <div class="atmos__grid"></div>
+  </div>
+
+  {% block body %}{% endblock %}
+
+  {% for script in ['navigation', 'glass-effects', 'scroll-effects', 'interactions'] %}
+  <script src="{{ url_for('static', filename='js/' ~ script ~ '.js') }}" defer></script>
+  {% endfor %}
+</body>
+</html>

@@ -1,0 +1,147 @@
+/* Motion system. Every hidden start state is scoped to .js so the page reads fine without
+   JavaScript, and everything collapses to its final state under prefers-reduced-motion. */
+
+@property --ring-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ---------- Hero entrance (~1.1 s total) ---------- */
+@keyframes intro-up {
+  from { opacity: 0; transform: translate3d(0, 24px, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes intro-depth {
+  from { opacity: 0; transform: translate3d(0, 30px, -60px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ring-sweep {
+  0% { opacity: 0; --ring-angle: 0deg; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; --ring-angle: 360deg; }
+}
+
+.js .atmos { animation: fade-in 900ms ease-out both; }
+.js .nav__inner { animation: intro-up 600ms var(--ease-out) 120ms both; }
+.js .intro { animation: intro-up 700ms var(--ease-out) both; animation-delay: calc(140ms + var(--d, 0) * 90ms); }
+.js .intro--depth { animation-name: intro-depth; animation-duration: 900ms; }
+.js .desk__ring { animation: ring-sweep 2400ms cubic-bezier(0.45, 0, 0.25, 1) 1000ms both; }
+.js .hero__chip { animation: intro-up 600ms var(--ease-out) both; }
+.js .hero__chip--a { animation-delay: 800ms; }
+.js .hero__chip--b { animation-delay: 920ms; }
+.js .scroll-cue { animation: fade-in 800ms ease-out 1100ms both; }
+
+/* ---------- Scroll reveals (IntersectionObserver adds .is-in once) ---------- */
+.js .reveal,
+.js .depth-reveal,
+.js .stagger {
+  transition:
+    opacity var(--t-reveal) var(--ease-out),
+    transform var(--t-reveal) var(--ease-out);
+  transition-delay: calc(var(--i, 0) * var(--stagger));
+}
+.js .reveal:not(.is-in) { opacity: 0; transform: translate3d(0, var(--reveal-y), 0); }
+.js .depth-reveal { transition-duration: 900ms; }
+.js .depth-reveal:not(.is-in) { opacity: 0; transform: translate3d(0, 40px, 0) scale(0.97); }
+.js .stagger:not(.is-in) { opacity: 0; transform: translate3d(0, 16px, 0); }
+/* Once revealed, hand transform back to hover / state styles. */
+.js .reveal.is-done, .js .depth-reveal.is-done, .js .stagger.is-done { transition-delay: 0ms; }
+.js .ws__tab.is-done { transition: transform var(--t-hover) var(--ease-out), background-color var(--t-hover); }
+.js .eco-card.is-done { transition: transform 280ms var(--ease-out), box-shadow 280ms var(--ease-out), border-color 280ms; }
+
+/* ---------- Demo 01 — Focus ---------- */
+[data-demo="focus"] .d-a { filter: brightness(0.6); }
+[data-demo="focus"] .d-b {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.5), 0 0 28px -6px rgb(var(--accent-rgb) / 0.6), 0 24px 40px -16px rgba(0, 0, 0, 0.8);
+  transform: translateY(-3px) scale(1.015);
+}
+@keyframes focus-out {
+  0%, 35% { filter: none; border-color: var(--accent); box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.5), 0 0 28px -6px rgb(var(--accent-rgb) / 0.6); transform: translateY(-3px) scale(1.015); }
+  100% { filter: brightness(0.6); border-color: rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.7); transform: none; }
+}
+@keyframes focus-in {
+  0%, 35% { filter: brightness(0.6); border-color: rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.7); transform: none; }
+}
+[data-demo="focus"].is-playing .d-a { animation: focus-out 1400ms var(--ease-skyland) both; }
+[data-demo="focus"].is-playing .d-b { animation: focus-in 1400ms var(--ease-skyland) both; }
+
+/* ---------- Demo 02 — Motion (cyberspace rez in, shrink out, re-tile) ---------- */
+[data-demo="motion"] .d-a { opacity: 0; transform: scale(0.6); }
+[data-demo="motion"] .d-b { left: 4%; width: 92%; }
+@keyframes shrink-out {
+  0%, 10% { opacity: 1; transform: none; }
+  45% { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+@keyframes scan {
+  0%, 8% { opacity: 0; transform: scaleX(0); }
+  18% { opacity: 1; transform: scaleX(1); }
+  30% { opacity: 1; transform: scaleX(1) scaleY(1); }
+  42%, 100% { opacity: 0; transform: scaleX(1) scaleY(30); }
+}
+@keyframes rez-in {
+  0%, 22% { opacity: 0; clip-path: inset(50% 0 50% 0); left: 52%; width: 44%; }
+  30% { opacity: 1; }
+  33% { opacity: 0.4; }
+  36% { opacity: 1; clip-path: inset(30% 0 35% 0); }
+  44% { clip-path: inset(0 0 0 0); left: 52%; width: 44%; }
+  58% { left: 52%; width: 44%; }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); left: 4%; width: 92%; }
+}
+[data-demo="motion"].is-playing .d-a { animation: shrink-out 2200ms var(--ease-out) both; }
+[data-demo="motion"].is-playing .scanline { animation: scan 2200ms linear both; }
+[data-demo="motion"].is-playing .d-b { animation: rez-in 2200ms var(--ease-skyland) both; }
+
+/* ---------- Demo 03 — Glass ---------- */
+[data-demo="glass"] .sheet::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.18) 45%, transparent 60%) no-repeat;
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  pointer-events: none;
+}
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(-14px) scale(0.92); backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheen { from { background-position: 100% 0; } to { background-position: -50% 0; } }
+@keyframes row-in { from { opacity: 0; transform: translateY(6px); } }
+[data-demo="glass"].is-playing .sheet { animation: sheet-in 700ms var(--ease-skyland) 200ms both; }
+[data-demo="glass"].is-playing .sheet::after { animation: sheen 1400ms ease-out 600ms both; }
+[data-demo="glass"].is-playing .sheet > * { animation: row-in 500ms var(--ease-out) both; }
+[data-demo="glass"].is-playing .sheet > :nth-child(1) { animation-delay: 450ms; }
+[data-demo="glass"].is-playing .sheet > :nth-child(2) { animation-delay: 530ms; }
+[data-demo="glass"].is-playing .sheet > :nth-child(3) { animation-delay: 610ms; }
+[data-demo="glass"].is-playing .sheet > :nth-child(4) { animation-delay: 690ms; }
+
+/* ---------- Cyberdeck HUD materialising ---------- */
+.js .hud__panel { transition: clip-path 800ms var(--ease-skyland), opacity 400ms; clip-path: circle(150% at 0 0); }
+.js .hud:not(.is-open) .hud__panel { clip-path: circle(0% at 0 0); opacity: 0; }
+.js .hud-card { transition: opacity 500ms var(--ease-out), transform 600ms var(--ease-skyland); transition-delay: calc(200ms + var(--i) * 90ms); }
+.js .hud:not(.is-open) .hud-card { opacity: 0; transform: translate3d(-16px, -12px, 0) scale(0.94); transition-delay: 0ms; }
+.hud.is-open .hud__orb { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 0 1px rgb(var(--accent-2-rgb) / 0.7), 0 0 50px -4px rgb(var(--accent-2-rgb) / 0.8); }
+
+/* ---------- Reduced motion: final states, no spatial transitions ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+  .js .reveal:not(.is-in), .js .depth-reveal:not(.is-in), .js .stagger:not(.is-in) { opacity: 1; transform: none; }
+  .js .desk__ring { animation: none; }
+  .desk { transform: none !important; }
+  .atmos__glow, .atmos__grid { transform: none !important; }
+  .hero__copy { transform: none !important; opacity: 1 !important; }
+  .wm__sticky { position: static; }
+}

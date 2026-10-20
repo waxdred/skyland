@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+
+{# A schematic window: title bar + a few text lines. Used only in illustrations, never as a screenshot. #}
+{% macro win(cls='', label='', lines=3, kind='') -%}
+<div class="win {{ cls }}"{% if kind %} data-kind="{{ kind }}"{% endif %}>
+  <div class="win__bar"><span class="win__dots"></span>{% if label %}<span class="win__title">{{ label }}</span>{% endif %}</div>
+  <div class="win__body">{% for i in range(lines) %}<span class="win__line" style="--w: {{ [86, 62, 74, 48, 68, 55][i % 6] }}%"></span>{% endfor %}</div>
+</div>
+{%- endmacro %}
+
+{% macro shot(name, alt, sizes='(min-width: 1200px) 56vw, 92vw', eager=false, w=1600, h=1031) -%}
+<img src="{{ url_for('static', filename='images/' ~ name ~ '-1600.webp') }}"
+     srcset="{{ url_for('static', filename='images/' ~ name ~ '-800.webp') }} 800w, {{ url_for('static', filename='images/' ~ name ~ '-1600.webp') }} 1600w"
+     sizes="{{ sizes }}" width="{{ w }}" height="{{ h }}" alt="{{ alt }}"
+     {% if eager %}fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async">
+{%- endmacro %}
+
+{% macro stars(key) -%}
+<span class="stars" data-stars="{{ key }}" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .9l2.2 4.5 4.9.7-3.6 3.5.9 4.9L8 12.2l-4.4 2.3.9-4.9L.9 6.1l4.9-.7z"/></svg><span class="stars__n"></span><span class="sr-only"> stars on GitHub</span></span>
+{%- endmacro %}
+
+{% block body %}
+<header class="nav" data-nav>
+  <div class="nav__inner glass glass--overlay">
+    <a class="nav__brand" href="#top" aria-label="Skyland, back to top">
+      <img src="{{ url_for('static', filename='images/logo-128.png') }}" width="28" height="28" alt="">
+      <span>Skyland</span>
+    </a>
+    <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="nav-menu" data-nav-toggle>
+      <span class="nav__toggle-bars" aria-hidden="true"></span><span class="sr-only">Menu</span>
+    </button>
+    <nav class="nav__menu" id="nav-menu" aria-label="Primary">
+      <ul>
+        <li><a href="#skyland">Window manager</a></li>
+        <li><a href="#workspaces">Workspaces</a></li>
+        <li><a href="#interface">Interface</a></li>
+        <li><a href="#ecosystem">Projects</a></li>
+      </ul>
+      <a class="nav__gh" href="{{ links.repo }}" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- 01 — Hero -->
+  <section class="hero" id="top" data-hero>
+    <div class="hero__inner container">
+      <div class="hero__copy" data-hero-copy>
+        <p class="eyebrow intro" style="--d: 1">Skyland <span aria-hidden="true">/</span> Personal computing</p>
+        <h1 class="hero__title intro" style="--d: 2">Your Mac.<br><span class="accent-text">Your space.</span></h1>
+        <p class="hero__lede intro" style="--d: 3"><strong>A Hyprland-inspired desktop experience for macOS.</strong>
+          Window management, fluid animations and a liquid interface. A personal cyberspace built around the way I work.</p>
+        <div class="hero__actions intro" style="--d: 4">
+          <a class="btn btn--primary" href="#skyland">Explore Skyland</a>
+          <a class="btn btn--ghost" href="{{ links.repo }}" rel="noopener">View on GitHub <span aria-hidden="true">↗</span></a>
+        </div>
+        <p class="hero__meta intro" style="--d: 5"><span class="mono">brew install waxdred/tap/skyland</span><span class="hero__release" data-release hidden></span></p>
+      </div>
+
+      <figure class="hero__stage intro intro--depth" style="--d: 3" data-hero-stage>
+        <div class="desk glass glass--floating" data-tilt>
+          <div class="desk__ring" aria-hidden="true"></div>
+          {{ shot('desktop', 'Skyland on macOS: dwindle tiling with fastfetch, Neovim and btop in Ghostty, the focused window bordered in the theme accent, skylandbar in Liquid Glass on top.', eager=true) }}
+        </div>
+        <div class="hero__chip hero__chip--a glass glass--overlay" aria-hidden="true"><span class="dot"></span>dwindle · smart_split</div>
+        <div class="hero__chip hero__chip--b glass glass--overlay" aria-hidden="true"><span class="dot dot--2"></span>focused border · theme accent</div>
+        <figcaption class="caption">Real screenshot — Skyland 0.5 on macOS Sequoia.</figcaption>
+      </figure>
+    </div>
+    <a class="scroll-cue" href="#skyland"><span class="scroll-cue__line" aria-hidden="true"></span><span>Scroll to enter</span></a>
+  </section>
+
+  <!-- 03 — Window manager -->
+  <section class="section wm" id="skyland" aria-labelledby="wm-title">
+    <div class="container wm__grid">
+      <div class="wm__copy">
+        <p class="eyebrow reveal"><span class="eyebrow__num">01</span> / Window management</p>
+        <h2 class="h2 reveal" id="wm-title">A different way to use your Mac.</h2>
+        <p class="lede reveal">Skyland brings a Hyprland-inspired workflow to macOS, combining tiling, workspaces, window groups and fluid transitions. It is a fork of <a href="{{ links.aerospace }}" rel="noopener">AeroSpace</a>: everything AeroSpace does stays, with what makes Hyprland feel like Hyprland on top.</p>
+
+        <ol class="steps" data-steps>
+          <li class="step reveal" data-step="0">
+            <span class="step__num mono">01</span>
+            <div>
+              <h3>Dwindle &amp; smart split</h3>
+              <p>New windows split the focused tile on the side of the cursor. <kbd>alt</kbd>&nbsp;<kbd>j</kbd> toggles the split, <kbd>alt</kbd>&nbsp;+ drag swaps tiles.</p>
+            </div>
+          </li>
+          <li class="step reveal" data-step="1">
+            <span class="step__num mono">02</span>
+            <div>
+              <h3>Window groups</h3>
+              <p><kbd>alt</kbd>&nbsp;<kbd>g</kbd> turns a container into tabs with a tabs bar on top; <kbd>alt</kbd>&nbsp;<kbd>n</kbd> cycles through them.</p>
+            </div>
+          </li>
+          <li class="step reveal" data-step="2">
+            <span class="step__num mono">03</span>
+            <div>
+              <h3>Scratchpads &amp; rules</h3>
+              <p><kbd>alt</kbd>&nbsp;<kbd>s</kbd> slides a scratchpad over the layout. Window rules float, size or send apps to a workspace.</p>
+            </div>
+          </li>
+        </ol>
+
+        <details class="more glass glass--ambient reveal">
+          <summary>Everything else Skyland does</summary>
+          <ul class="more__list">
+            <li><strong>Workspaces</strong> on <kbd>cmd</kbd>&nbsp;<kbd>1…0</kbd>, trackpad swipe between them, overview on <kbd>cmd</kbd>&nbsp;<kbd>↑</kbd></li>
+            <li><strong>Master layout</strong> per workspace, swap with the master</li>
+            <li><strong>Hyprland animations</strong>: presets or <code>bezier</code> lines pasted from a hyprland.conf</li>
+            <li><strong>Window decoration</strong>: rounded corners, active / inactive opacity, dim, focused border</li>
+            <li><strong>43PR themes</strong> as CSS files, colors generated from the wallpaper</li>
+            <li><strong>Binding modes</strong> (Hyprland submaps) with a HUD of their keys</li>
+            <li><strong>Settings window</strong>, key recorder and rules editor, applied live</li>
+            <li><strong>Window switcher</strong>, wallpaper picker, lock screen, media widget</li>
+          </ul>
+          <a class="link-arrow" href="{{ links.keys }}" rel="noopener">All keybindings <span aria-hidden="true">↗</span></a>
+        </details>
+
+        <a class="link-arrow reveal" href="{{ links.repo }}" rel="noopener">Read the source on GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+
+      <div class="wm__visual">
+        <div class="wm__sticky">
+          <div class="layout-demo glass glass--floating depth-reveal" data-layout-demo data-state="-1" role="img"
+               aria-label="Schematic: four windows settle into a dwindle layout, then become a tab group, then a scratchpad slides over them.">
+            <div class="layout-demo__tabs" aria-hidden="true"><span class="is-on">nvim</span><span>btop</span><span>notes</span></div>
+            {{ win('w w1', 'ghostty — fastfetch', 8) }}
+            {{ win('w w2', 'nvim', 12, 'code') }}
+            {{ win('w w3', 'btop', 8, 'chart') }}
+            {{ win('w w4', 'notes', 8) }}
+            {{ win('w w5', 'scratchpad — music', 8, 'media') }}
+          </div>
+          <ul class="indicators" aria-label="Layout demo states">
+            <li><button type="button" data-layout-go="0" aria-pressed="false"><span class="mono">01</span> Dwindle</button></li>
+            <li><button type="button" data-layout-go="1" aria-pressed="false"><span class="mono">02</span> Group</button></li>
+            <li><button type="button" data-layout-go="2" aria-pressed="false"><span class="mono">03</span> Scratchpad</button></li>
+          </ul>
+          <p class="caption">Schematic illustration, eased with Skyland's default <code>windows-bezier = 0.05, 0.9, 0.1, 1.0</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 — Workspaces -->
+  <section class="section workspaces" id="workspaces" aria-labelledby="ws-title">
+    <div class="container">
+      <header class="section-head section-head--split">
+        <div>
+          <p class="eyebrow reveal">Workspaces</p>
+          <h2 class="h2 reveal" id="ws-title">One space per state of mind.</h2>
+        </div>
+        <p class="lede reveal">Code, web, system, media: each workspace keeps its windows and its layout. <kbd>cmd</kbd>&nbsp;<kbd>1…0</kbd> jumps there; with the trackpad, the windows follow your fingers.</p>
+      </header>
+
+      <div class="ws glass glass--floating depth-reveal" data-ws>
+        <div class="ws__tabs" role="tablist" aria-label="Workspaces">
+          <span class="ws__indicator" aria-hidden="true" data-ws-indicator></span>
+          {% set spaces = [
+            ('code', '01', 'Code', 'terminal & editor'),
+            ('web', '02', 'Web', 'browser'),
+            ('system', '03', 'System', 'monitoring & tools'),
+            ('media', '04', 'Media', 'audio & creative'),
+          ] %}
+          {% for key, num, label, sub in spaces %}
+          <button class="ws__tab stagger" style="--i: {{ loop.index0 }}" role="tab" id="ws-tab-{{ key }}" aria-controls="ws-panel-{{ key }}"
+                  aria-selected="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}" data-ws-tab="{{ loop.index0 }}">
+            <span class="mini mini--{{ key }}" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="ws__label"><span class="mono">{{ num }}</span> / {{ label }}</span>
+            <span class="ws__sub">{{ sub }}</span>
+          </button>
+          {% endfor %}
+        </div>
+
+        <div class="ws__viewport">
+          <div class="ws__track" data-ws-track>
+            <div class="ws__panel ws__panel--code" role="tabpanel" id="ws-panel-code" aria-labelledby="ws-tab-code">
+              {{ win('p1', 'nvim — overview.swift', 12, 'code') }}{{ win('p2', 'ghostty', 8) }}{{ win('p3', 'ghostty — git log', 8) }}
+            </div>
+            <div class="ws__panel ws__panel--web" role="tabpanel" id="ws-panel-web" aria-labelledby="ws-tab-web" hidden>
+              {{ win('p1', 'brave — hyprland.org', 10, 'web') }}{{ win('p2', 'docs', 8) }}
+            </div>
+            <div class="ws__panel ws__panel--system" role="tabpanel" id="ws-panel-system" aria-labelledby="ws-tab-system" hidden>
+              {{ win('p1', 'btop', 8, 'chart') }}{{ win('p2', 'skyland doctor', 8) }}{{ win('p3', 'activity', 8, 'chart') }}{{ win('p4', 'logs', 8) }}
+            </div>
+            <div class="ws__panel ws__panel--media" role="tabpanel" id="ws-panel-media" aria-labelledby="ws-tab-media" hidden>
+              {{ win('p1', 'spotify', 8, 'media') }}{{ win('p2', 'preview', 8, 'web') }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ws__real">
+        <p class="caption">Above: an illustration. Below: the real workspace overview, <kbd>cmd</kbd>&nbsp;<kbd>↑</kbd> — every workspace as a glass card with its windows in place.</p>
+        <figure class="shot glass glass--floating depth-reveal">
+          {{ shot('overview', 'Skyland workspace overview: a Liquid Glass strip of twelve workspace cards with app icons and live thumbnails, over the zoomed out windows and a sunset wallpaper.', sizes='(min-width: 1200px) 1100px, 92vw') }}
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 — Liquid Glass & motion -->
+  <section class="section interface" id="interface" aria-labelledby="ui-title">
+    <div class="container">
+      <header class="section-head">
+        <p class="eyebrow reveal"><span class="eyebrow__num">02</span> / Interface design</p>
+        <h2 class="h2 reveal" id="ui-title">Interfaces that feel alive.</h2>
+        <p class="lede reveal">This is where macOS elegance meets the motion language of Hyprland.</p>
+      </header>
+
+      <div class="demos">
+        <article class="demo glass glass--floating depth-reveal" data-demo="focus" style="--i: 0">
+          <div class="demo__stage" aria-hidden="true">
+            {{ win('d-a', 'nvim', 8, 'code') }}{{ win('d-b', 'ghostty', 8) }}
+          </div>
+          <div class="demo__text">
+            <h3><span class="mono">01</span> Focus</h3>
+            <p>A window becomes active. Its border lights up in the theme accent, the others dim and step back.</p>
+          </div>
+          <button class="demo__replay" type="button" data-demo-replay>Replay<span class="sr-only"> focus demo</span></button>
+        </article>
+
+        <article class="demo glass glass--floating depth-reveal" data-demo="motion" style="--i: 1">
+          <div class="demo__stage" aria-hidden="true">
+            {{ win('d-a', 'btop', 8, 'chart') }}{{ win('d-b', 'ghostty', 8) }}<span class="scanline"></span>
+          </div>
+          <div class="demo__text">
+            <h3><span class="mono">02</span> Motion</h3>
+            <p>A window rezzes into the layout through a scan line — the <code>cyberspace</code> preset — while another shrinks away.</p>
+          </div>
+          <button class="demo__replay" type="button" data-demo-replay>Replay<span class="sr-only"> motion demo</span></button>
+        </article>
+
+        <article class="demo demo--wide glass glass--floating depth-reveal" data-demo="glass" style="--i: 2">
+          <div class="demo__stage" aria-hidden="true">
+            {{ win('d-a', 'nvim', 12, 'code') }}{{ win('d-b', 'btop', 8, 'chart') }}
+            <div class="sheet">
+              <span class="sheet__title">Decoration</span>
+              <span class="sheet__row"><span>Rounding</span><span class="sheet__slider" style="--v: .35"></span></span>
+              <span class="sheet__row"><span>Inactive opacity</span><span class="sheet__slider" style="--v: .9"></span></span>
+              <span class="sheet__row"><span>Border width</span><span class="sheet__slider" style="--v: .25"></span></span>
+            </div>
+          </div>
+          <div class="demo__text">
+            <h3><span class="mono">03</span> Glass</h3>
+            <p>A translucent panel unfolds above the desktop. The background blurs, the highlights shift, and the content arrives in a clear hierarchy.</p>
+          </div>
+          <button class="demo__replay" type="button" data-demo-replay>Replay<span class="sr-only"> glass demo</span></button>
+        </article>
+      </div>
+
+      <div class="themes glass glass--ambient reveal">
+        <fieldset class="themes__picker">
+          <legend>Site accent</legend>
+          {% for t in ['midnight', 'aurora', 'violet'] %}
+          <label class="themes__opt">
+            <input type="radio" name="site-theme" value="{{ t }}" data-theme-input{% if loop.first %} checked{% endif %}>
+            <span class="themes__swatch themes__swatch--{{ t }}" aria-hidden="true"></span>{{ t|capitalize }}
+          </label>
+          {% endfor %}
+        </fieldset>
+        <p class="themes__note">These three accents belong to this website. Skyland itself ships the <a href="{{ links.themes }}" rel="noopener">43PR themes</a> (Catppuccin, Nord, Tokyo Night, Rosé Pine…) and can build its colors from your wallpaper.</p>
+      </div>
+
+      <div class="gallery">
+        <figure class="shot glass glass--floating depth-reveal">
+          {{ shot('switcher', 'Window switcher in Liquid Glass: recent windows of every workspace with live thumbnails.', sizes='(min-width: 900px) 50vw, 92vw') }}
+          <figcaption>Window switcher, <kbd>alt</kbd>&nbsp;<kbd>`</kbd></figcaption>
+        </figure>
+        <figure class="shot glass glass--floating depth-reveal" style="--i: 1">
+          {{ shot('wallpaper-picker', 'Wallpaper picker in Liquid Glass: a strip of wallpaper thumbnails over the desktop.', sizes='(min-width: 900px) 50vw, 92vw') }}
+          <figcaption>Wallpaper picker, <kbd>alt</kbd>&nbsp;<kbd>w</kbd></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 — SkylandBar -->
+  <section class="section bar-scene" id="skylandbar" aria-labelledby="bar-title" data-bar-scene>
+    <div class="container">
+      <header class="section-head section-head--split">
+        <div>
+          <p class="eyebrow reveal"><span class="eyebrow__num">03</span> / System experience</p>
+          <h2 class="h2 reveal" id="bar-title">The system, reimagined.</h2>
+        </div>
+        <p class="lede reveal">SkylandBar extends the desktop with a macOS-like system bar in Liquid Glass. It speaks SketchyBar's language, so existing configs and plugins run unchanged.</p>
+      </header>
+
+      <div class="bar-stage" aria-label="SkylandBar">
+        <div class="bar-stage__scroller">
+          <div class="bar-stage__bar" data-bar>
+            <img src="{{ url_for('static', filename='images/skylandbar-1600.webp') }}" width="1600" height="48" loading="lazy" decoding="async"
+                 alt="SkylandBar: Liquid Glass workspace buttons with their apps on the left, the notch in the middle, glass status capsules for date, keyboard, mail, battery and volume on the right.">
+          </div>
+        </div>
+        <div class="bar-popup glass glass--overlay" aria-hidden="true" data-bar-popup>
+          <span class="bar-popup__title">Workspace 3</span>
+          <span class="bar-popup__row"><i class="app-dot"></i>ghostty</span>
+          <span class="bar-popup__row"><i class="app-dot app-dot--2"></i>nvim</span>
+          <span class="bar-popup__row"><i class="app-dot app-dot--3"></i>btop</span>
+        </div>
+        <p class="caption">The bar is a real screenshot; the popup below it is an illustration of a glass popup.</p>
+      </div>
+
+      <ul class="facts">
+        <li class="fact reveal"><h3>Liquid Glass</h3><p>Items, groups and popups in glass: Apple's on macOS 26, a refraction shader on older versions. A selection lens flows between workspaces.</p></li>
+        <li class="fact reveal" style="--i: 1"><h3>Skyland built in</h3><p>Workspaces with their apps, the focused window title, modes — read from Skyland's socket, no script to wire.</p></li>
+        <li class="fact reveal" style="--i: 2"><h3>Windows below it</h3><p>The bar tells Skyland its height. No value to keep in sync, and a TOML config reloaded live.</p></li>
+      </ul>
+      <a class="link-arrow reveal" href="{{ projects.skylandbar.url }}" rel="noopener">SkylandBar on GitHub <span aria-hidden="true">↗</span></a>
+    </div>
+  </section>
+
+  <!-- 07 — Cyberdeck -->
+  <section class="section deck-scene" id="cyberdeck" aria-labelledby="deck-title">
+    <div class="container deck-scene__grid">
+      <div class="deck-scene__copy">
+        <p class="eyebrow reveal"><span class="eyebrow__num">04</span> / Cyberspace tools</p>
+        <h2 class="h2 reveal" id="deck-title">Your personal cyberdeck.</h2>
+        <p class="lede reveal">An apps launcher, a messages panel and a HUD with live system data — the cyberpunk side of the same universe, bound to the keys you already use.</p>
+        <a class="link-arrow reveal" href="{{ projects.cyberdeck.url }}" rel="noopener">skyland-cyberdeck on GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+
+      <div class="hud" data-hud>
+        <button class="hud__orb glass glass--overlay" type="button" aria-expanded="true" aria-controls="hud-panel" data-hud-toggle>
+          <img src="{{ url_for('static', filename='images/logo-128.png') }}" width="40" height="40" alt="">
+          <span class="sr-only">Show or hide the cyberdeck panel</span>
+        </button>
+        <div class="hud__panel" id="hud-panel">
+          <article class="hud-card glass glass--floating" style="--i: 0">
+            <header><span class="mono">alt-d</span><h3>Apps launcher</h3></header>
+            <p>A see-through “eye implant” deck: a curved column of apps, type to search.</p>
+          </article>
+          <article class="hud-card glass glass--floating" style="--i: 1">
+            <header><span class="mono">alt-shift-m</span><h3>Messages</h3></header>
+            <p>Notification Center history and script messages as neon contact cards.</p>
+          </article>
+          <article class="hud-card glass glass--floating" style="--i: 2">
+            <header><span class="mono">alt-shift-d</span><h3>HUD</h3></header>
+            <p>Clock, calendar, connections, CPU, RAM, network, battery and <a href="https://herdr.dev" rel="noopener">herdr</a> agents.</p>
+          </article>
+          <article class="hud-card hud-card--code glass glass--floating" style="--i: 3">
+            <header><span class="mono">api</span><h3>Scripting</h3></header>
+            <pre><code>skyland-cyberdeck notify -t TITLE -b BODY
+skyland-cyberdeck list --json</code></pre>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="container deck-shots">
+      <figure class="shot glass glass--floating depth-reveal" data-remote-shot>
+        <img src="https://raw.githubusercontent.com/waxdred/skyland-cyberdeck/main/docs/launcher.jpg" alt="Cyberdeck apps launcher: a translucent curved column of app icons." loading="lazy" decoding="async">
+        <figcaption>Apps launcher</figcaption>
+      </figure>
+      <figure class="shot glass glass--floating depth-reveal" style="--i: 1" data-remote-shot>
+        <img src="https://raw.githubusercontent.com/waxdred/skyland-cyberdeck/main/docs/messages.jpg" alt="Cyberdeck messages panel: notifications shown as neon contact cards." loading="lazy" decoding="async">
+        <figcaption>Messages panel</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 08 — Ecosystem -->
+  <section class="section ecosystem" id="ecosystem" aria-labelledby="eco-title">
+    <div class="container">
+      <header class="section-head">
+        <p class="eyebrow reveal">The ecosystem</p>
+        <h2 class="h2 reveal" id="eco-title">One universe, three pieces.</h2>
+      </header>
+      <div class="eco">
+        <a class="eco-card eco-card--main glass glass--floating depth-reveal" href="{{ projects.skyland.url }}" rel="noopener">
+          <span class="eco-card__media">{{ shot('switcher', '', sizes='(min-width: 900px) 60vw, 92vw') }}</span>
+          <span class="eco-card__body">
+            <span class="eco-card__name">{{ projects.skyland.name }} {{ stars('skyland') }}</span>
+            <span class="eco-card__desc">{{ projects.skyland.tagline }} Tiling, workspaces, groups, animations and Liquid Glass panels.</span>
+            <span class="eco-card__cta">github.com/waxdred/skyland <span aria-hidden="true">↗</span></span>
+          </span>
+        </a>
+        <a class="eco-card glass glass--floating depth-reveal" style="--i: 1" href="{{ projects.skylandbar.url }}" rel="noopener">
+          <span class="eco-card__media eco-card__media--bar"><img src="{{ url_for('static', filename='images/skylandbar-1600.webp') }}" width="1600" height="48" alt="" loading="lazy" decoding="async"></span>
+          <span class="eco-card__body">
+            <span class="eco-card__name">{{ projects.skylandbar.name }} {{ stars('skylandbar') }}</span>
+            <span class="eco-card__desc">{{ projects.skylandbar.tagline }}</span>
+            <span class="eco-card__cta">github.com/waxdred/skylandBar <span aria-hidden="true">↗</span></span>
+          </span>
+        </a>
+        <a class="eco-card glass glass--floating depth-reveal" style="--i: 2" href="{{ projects.cyberdeck.url }}" rel="noopener">
+          <span class="eco-card__media eco-card__media--deck" aria-hidden="true"><span class="deck-glyph"><i></i><i></i><i></i><i></i></span></span>
+          <span class="eco-card__body">
+            <span class="eco-card__name">{{ projects.cyberdeck.name }} {{ stars('cyberdeck') }}</span>
+            <span class="eco-card__desc">{{ projects.cyberdeck.tagline }}</span>
+            <span class="eco-card__cta">github.com/waxdred/skyland-cyberdeck <span aria-hidden="true">↗</span></span>
+          </span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 — Built, not bought -->
+  <section class="section maker" id="maker" aria-labelledby="maker-title">
+    <div class="container maker__grid">
+      <div>
+        <p class="eyebrow reveal">Built for the curious</p>
+        <h2 class="h2 reveal" id="maker-title">Built, not bought.</h2>
+        <p class="lede reveal">A personal experiment in reshaping the macOS experience — one window, one animation and one idea at a time.</p>
+        <figure class="shot shot--settings glass glass--floating depth-reveal">
+          {{ shot('settings', 'Skyland settings window: decoration sliders (rounding, opacity, dim, border width, Ghostty blur) and animation settings with the cyberspace preset.', sizes='(min-width: 900px) 34vw, 92vw', w=1600, h=1688) }}
+          <figcaption>Settings window, <kbd>alt</kbd>&nbsp;<kbd>i</kbd> — applied live, comments in the config kept.</figcaption>
+        </figure>
+      </div>
+      <ol class="log">
+        <li class="log__item reveal"><span class="log__tag mono">inspiration</span><h3>Hyprland, on a Mac</h3><p>Dwindle, groups, submaps and <code>bezier</code> lines come straight from <a href="{{ links.hyprland }}" rel="noopener">Hyprland</a>; the look from the <a href="{{ links.dotfiles }}" rel="noopener">43PR dotfiles</a>.</p></li>
+        <li class="log__item reveal"><span class="log__tag mono">motion</span><h3>Animations stepped by hand</h3><p>A scripting addition in the Dock steps window transforms and alpha every 8&nbsp;ms. The <a href="{{ links.animation }}" rel="noopener">animation engine</a> has its own <a href="{{ links.animation_lab }}" rel="noopener">browser lab</a>.</p></li>
+        <li class="log__item reveal"><span class="log__tag mono">native</span><h3>Exploring macOS internals</h3><p>Private SkyLight signatures recovered by reverse engineering the dyld shared cache. <a href="{{ links.how }}" rel="noopener">How it works</a>.</p></li>
+        <li class="log__item reveal"><span class="log__tag mono">yours</span><h3>Personalisation first</h3><p>A config file, live settings, recorded keys, per-app rules, themes as CSS.</p></li>
+        <li class="log__item reveal"><span class="log__tag mono">coherence</span><h3>One environment</h3><p>Window manager, bar and cyberdeck share the same glass, the same accent and the same socket. <a href="{{ links.changelog }}" rel="noopener">Changelog</a>.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 10 — GitHub -->
+  <section class="section source" id="source" aria-labelledby="source-title">
+    <div class="container">
+      <div class="source__panel glass glass--focus depth-reveal">
+        <h2 class="h2" id="source-title">Explore the source.</h2>
+        <p class="lede">Skyland is an evolving open-source project. Explore the code, follow the progress and help shape the experience.</p>
+        <div class="install">
+          <code class="install__cmd" data-copy-source>brew install waxdred/tap/skyland &amp;&amp; skyland install</code>
+          <button class="install__copy" type="button" data-copy>Copy</button>
+          <span class="sr-only" aria-live="polite" data-copy-status></span>
+        </div>
+        <div class="source__actions">
+          <a class="btn btn--primary" href="{{ links.repo }}" rel="noopener">Explore the repository</a>
+          <a class="btn btn--ghost" href="{{ links.repo }}/stargazers" rel="noopener">Star on GitHub {{ stars('skyland') }}</a>
+          <a class="btn btn--ghost" href="{{ links.docs }}" rel="noopener">Read the documentation</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container footer__inner">
+    <a class="nav__brand" href="#top">
+      <img src="{{ url_for('static', filename='images/logo-128.png') }}" width="24" height="24" alt="">
+      <span>Skyland</span>
+    </a>
+    <ul class="footer__links">
+      <li><a href="{{ links.repo }}" rel="noopener">GitHub</a></li>
+      <li><a href="{{ links.docs }}" rel="noopener">Documentation</a></li>
+      <li><a href="{{ projects.skylandbar.url }}" rel="noopener">SkylandBar</a></li>
+      <li><a href="{{ projects.cyberdeck.url }}" rel="noopener">Cyberdeck</a></li>
+      <li><a href="{{ links.releases }}" rel="noopener">Releases</a></li>
+    </ul>
+    <p class="footer__legal">Skyland by waxdred · MIT License · built on <a href="{{ links.aerospace }}" rel="noopener">AeroSpace</a> © Nikita Bobko</p>
+    <a class="footer__top" href="#top">Back to top <span aria-hidden="true">↑</span></a>
+  </div>
+</footer>
+{% endblock %}
