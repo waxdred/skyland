@@ -1,0 +1,116 @@
+/* Tablet: 768–1199px — fewer offsets, same scenes. */
+@media (max-width: 1199px) {
+  .hero__inner { grid-template-columns: 1fr; gap: 56px; }
+  .hero__copy { max-width: 680px; }
+  .hero__chip--a { left: 12px; }
+  .hero__chip--b { right: 12px; }
+  .wm__grid { grid-template-columns: 1fr; }
+  .wm__visual { grid-row: 1; }
+  .wm__sticky { position: relative; top: auto; }
+  .steps { margin-top: 32px; }
+  .step { opacity: 1; }
+  .deck-scene__grid { grid-template-columns: 1fr; }
+  .maker__grid { grid-template-columns: 1fr; }
+  .atmos__glow { filter: blur(60px); }
+}
+
+@media (max-width: 900px) {
+  .section-head--split { grid-template-columns: 1fr; }
+  .demos { grid-template-columns: 1fr; }
+  .demo--wide { display: flex; }
+  .demo--wide .demo__text { padding: 20px 10px 8px; }
+  .gallery { grid-template-columns: 1fr; }
+  .gallery .shot:nth-child(2) { margin-top: 0; }
+  .facts { grid-template-columns: 1fr; }
+  .eco { grid-template-columns: 1fr; }
+  .eco-card--main { grid-row: auto; }
+  .nav__menu ul a { padding: 8px 10px; }
+}
+
+/* Mobile: under 768px — one column, horizontal workspaces, simple menu, no parallax. */
+@media (max-width: 767px) {
+  :root { --section-y: 88px; --reveal-y: 18px; }
+
+  .nav { top: 10px; }
+  .nav__inner { flex-wrap: wrap; gap: 0; min-height: 52px; padding: 6px 6px 6px 14px; }
+  .nav__toggle {
+    display: grid;
+    place-items: center;
+    width: 42px; height: 42px;
+    border: 0;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+  }
+  .nav__toggle-bars, .nav__toggle-bars::before, .nav__toggle-bars::after {
+    display: block;
+    width: 18px; height: 1.5px;
+    border-radius: 1px;
+    background: var(--text);
+    transition: transform 200ms var(--ease-out), opacity 150ms;
+  }
+  .nav__toggle-bars { position: relative; }
+  .nav__toggle-bars::before, .nav__toggle-bars::after { content: ""; position: absolute; left: 0; }
+  .nav__toggle-bars::before { top: -6px; }
+  .nav__toggle-bars::after { top: 6px; }
+  .nav__toggle[aria-expanded="true"] .nav__toggle-bars { background: transparent; }
+  .nav__toggle[aria-expanded="true"] .nav__toggle-bars::before { transform: translateY(6px) rotate(45deg); }
+  .nav__toggle[aria-expanded="true"] .nav__toggle-bars::after { transform: translateY(-6px) rotate(-45deg); }
+
+  .js .nav__menu { display: none; }
+  .nav__menu { flex-basis: 100%; flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 2px 4px; }
+  .js .nav.is-open .nav__menu { display: flex; animation: intro-up 220ms var(--ease-out) both; }
+  .js .nav.is-open .nav__inner { --glass-bg: rgba(14, 17, 27, 0.92); }
+  .nav__menu ul { flex-direction: column; }
+  .nav__menu ul a { padding: 12px; font-size: 1rem; }
+  .nav__gh { text-align: center; padding: 12px; }
+
+  .hero { min-height: auto; padding-block: 112px 72px; }
+  .hero__inner { gap: 40px; }
+  .hero__actions .btn { flex: 1 1 auto; justify-content: center; }
+  .hero__chip { display: none; }
+  .hero__stage .caption { text-align: left; }
+  .scroll-cue { display: none; }
+
+  .layout-demo { aspect-ratio: 4 / 3; }
+  .layout-demo .win__body { padding: 7px; gap: 5px; }
+  .win { font-size: 9px; }
+
+  .ws { padding: 10px; }
+  .ws__tabs {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .ws__tabs::-webkit-scrollbar { display: none; }
+  .ws__tab { flex: 0 0 62%; scroll-snap-align: start; }
+  .ws__indicator { display: none !important; }
+  .ws__tab[aria-selected="true"] { border-color: rgb(var(--accent-rgb) / 0.7); background: rgb(var(--accent-rgb) / 0.08); }
+  .ws__panel { aspect-ratio: 4 / 3; }
+
+  .demo__stage { aspect-ratio: 4 / 3; }
+  .sheet { left: 8%; width: 84%; }
+
+  .bar-stage { min-height: 260px; }
+  .bar-stage__bar { min-width: 720px; }
+  .bar-stage .caption { position: static; margin-top: 200px; }
+  .bar-popup { left: 24px; }
+
+  .hud { padding: 28px 0 0 20px; }
+  .hud__orb { width: 60px; height: 60px; border-radius: 18px; }
+  .hud__panel { grid-template-columns: 1fr; padding: 44px 0 0 24px; }
+  .hud-card:nth-child(2), .hud-card:nth-child(4) { translate: none; }
+  .deck-shots { grid-template-columns: 1fr; margin-top: 48px; }
+
+  .install { width: 100%; }
+  .source__actions .btn { flex: 1 1 100%; justify-content: center; }
+  .footer__inner { flex-direction: column; align-items: flex-start; }
+}
+
+/* No hover on touch: nothing is revealed only on hover anyway; just skip lift effects. */
+@media (hover: none) {
+  .btn:hover, .eco-card:hover, .ws__tab:hover { transform: none; }
+}
