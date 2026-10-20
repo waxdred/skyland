@@ -110,6 +110,15 @@
   .footer__inner { flex-direction: column; align-items: flex-start; }
 }
 
+/* Touch: text links get a 44px tall hit area without changing how they look. */
+@media (pointer: coarse) {
+  .link-arrow, .footer__links a, .footer__top, .nav__brand { display: inline-flex; align-items: center; min-height: 44px; }
+  .link-arrow { margin-top: 16px; }
+  .nav__toggle { width: 44px; height: 44px; }
+  .nav__menu ul a, .nav__gh, .indicators button, .demo__replay, .themes__opt, .install__copy { min-height: 44px; }
+  .nav__gh, .demo__replay { display: inline-flex; align-items: center; justify-content: center; }
+}
+
 /* No hover on touch: nothing is revealed only on hover anyway; just skip lift effects. */
 @media (hover: none) {
   .btn:hover, .eco-card:hover, .ws__tab:hover { transform: none; }
