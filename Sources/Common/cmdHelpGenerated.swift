@@ -4,6 +4,9 @@
 let balance_sizes_help_generated = """
     USAGE: balance-sizes [-h|--help] [--workspace <workspace>]
     """
+let bar_height_help_generated = """
+    USAGE: bar-height [-h|--help] [<px>|default]
+    """
 let close_all_windows_but_current_help_generated = """
     USAGE: close-all-windows-but-current [-h|--help] [--quit-if-last-window]
     """
@@ -63,6 +66,12 @@ let fullscreen_help_generated = """
        OR: fullscreen [-h|--help] on  [--window-id <window-id>] [--no-outer-gaps] [--fail-if-noop]
        OR: fullscreen [-h|--help] off [--window-id <window-id>] [--fail-if-noop]
     """
+let group_focus_help_generated = """
+    USAGE: group-focus [-h|--help] (next|prev)
+    """
+let group_rename_help_generated = """
+    USAGE: group-rename [-h|--help] [<name>...]
+    """
 let join_with_help_generated = """
     USAGE: join-with [-h|--help] [--window-id <window-id>] (left|down|up|right)
     """
@@ -105,6 +114,9 @@ let macos_native_fullscreen_help_generated = """
 let macos_native_minimize_help_generated = """
     USAGE: macos-native-minimize [-h|--help] [--window-id <window-id>]
     """
+let master_help_generated = """
+    USAGE: master [-h|--help] (on|off|toggle|swap|focus)
+    """
 let mode_help_generated = """
     USAGE: mode [-h|--help] [--] <binding-mode>
     """
@@ -134,6 +146,12 @@ let move_help_generated = """
                 [--boundaries-action <boundary-action>] [--fail-if-fullscreen]
                 [--fail-if-macos-native-fullscreen] (left|down|up|right)
     """
+let overview_help_generated = """
+    USAGE: overview [-h|--help] (next|prev|confirm|close|search)
+    """
+let pin_help_generated = """
+    USAGE: pin [-h|--help] [--window-id <window-id>] [on|off|toggle]
+    """
 let reload_config_help_generated = """
     USAGE: reload-config [-h|--help] [--no-gui] [--dry-run] [--warnings-as-errors]
     """
@@ -143,6 +161,13 @@ let resize_help_generated = """
 let run_callback_help_generated = """
     USAGE: run-callback [-h|--help] [--for-every-window|--window-id <window-id>] on-window-detected
        OR: run-callback [-h|--help] (on-focus-changed|on-focused-monitor-changed)
+    """
+let scratchpad_help_generated = """
+    USAGE: scratchpad [-h|--help] toggle [<name>] [--app <app-bundle-id>]
+       OR: scratchpad [-h|--help] move [<name>]
+    """
+let settings_help_generated = """
+    USAGE: settings [-h|--help]
     """
 let split_help_generated = """
     USAGE: split [-h|--help] [--window-id <window-id>] (horizontal|vertical|opposite)
@@ -156,6 +181,9 @@ let summon_workspace_help_generated = """
 let swap_help_generated = """
     USAGE: swap [-h|--help] [--window-id <window-id>] [--swap-focus]
                 [--wrap-around] (left|down|up|right|dfs-next|dfs-prev)
+    """
+let switcher_help_generated = """
+    USAGE: switcher [-h|--help] [next|prev] [--workspace focused|all]
     """
 let test_not_help_generated = """
     USAGE: test-not [-h|--help] <lhs> = <rhs>
@@ -176,43 +204,17 @@ let volume_help_generated = """
        OR: volume [-h|--help] (mute-toggle|mute-off|mute-on) [--no-gui]
        OR: volume [-h|--help] set <number> [--no-gui]
     """
+let window_rule_help_generated = """
+    USAGE: window-rule [-h|--help] [--window-id <window-id>] (size|move) <x|N%> <y|N%>
+       OR: window-rule [-h|--help] [--window-id <window-id>] center
+       OR: window-rule [-h|--help] [--window-id <window-id>] opacity <active> [<inactive>]
+       OR: window-rule [-h|--help] [--window-id <window-id>] rounding <px>
+       OR: window-rule [-h|--help] [--window-id <window-id>] (noborder|nodim|noanim) [on|off|toggle]
+    """
 let workspace_back_and_forth_help_generated = """
     USAGE: workspace-back-and-forth [-h|--help]
     """
 let workspace_help_generated = """
     USAGE: workspace [-h|--help] [--auto-back-and-forth] [--fail-if-noop] [--] <workspace-name>
        OR: workspace [-h|--help] [--wrap-around] [--stdin|--no-stdin] (next|prev)
-    """
-let settings_help_generated = """
-    USAGE: settings [-h|--help]
-    """
-let group_focus_help_generated = """
-    USAGE: group-focus [-h|--help] (next|prev)
-    """
-let master_help_generated = """
-    USAGE: master [-h|--help] (on|off|toggle|swap|focus)
-    """
-let window_rule_help_generated = """
-    USAGE: window-rule [-h|--help] [--window-id <window-id>] size <width> <height>
-       OR: window-rule [-h|--help] [--window-id <window-id>] move <x> <y>
-       OR: window-rule [-h|--help] [--window-id <window-id>] center
-       OR: window-rule [-h|--help] [--window-id <window-id>] opacity <active> [<inactive>]
-       OR: window-rule [-h|--help] [--window-id <window-id>] rounding <px>
-       OR: window-rule [-h|--help] [--window-id <window-id>] (noborder|nodim|noanim) [on|off|toggle]
-    """
-let bar_height_help_generated = """
-    USAGE: bar-height [-h|--help] [<px>|default]
-    """
-let overview_help_generated = """
-    USAGE: overview [-h|--help] (next|prev|confirm|close|search)
-    """
-let pin_help_generated = """
-    USAGE: pin [-h|--help] [--window-id <window-id>] [on|off|toggle]
-    """
-let switcher_help_generated = """
-    USAGE: switcher [-h|--help] [next|prev] [--workspace focused|all]
-    """
-let scratchpad_help_generated = """
-    USAGE: scratchpad [-h|--help] toggle [<name>] [--app <app-bundle-id>]
-       OR: scratchpad [-h|--help] move [<name>]
     """

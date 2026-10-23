@@ -14,6 +14,8 @@ extension CmdArgs {
                 command = SettingsCommand(args: self as! SettingsCmdArgs)
             case .groupFocus:
                 command = GroupFocusCommand(args: self as! GroupFocusCmdArgs)
+            case .groupRename:
+                command = GroupRenameCommand(args: self as! GroupRenameCmdArgs)
             case .master:
                 command = MasterCommand(args: self as! MasterCmdArgs)
             case .scratchpad:

@@ -1,0 +1,37 @@
+= aerospace-group-rename(1)
+include::util/man-attributes.adoc[]
+:manname: aerospace-group-rename
+// tag::purpose[]
+:manpurpose: Name the group of the focused window
+// end::purpose[]
+
+// =========================================================== Synopsis
+== Synopsis
+[verse]
+// tag::synopsis[]
+aerospace group-rename [-h|--help] [<name>...]
+
+// end::synopsis[]
+
+// =========================================================== Description
+== Description
+
+// tag::body[]
+{manpurpose}: the name shows at the start of the group's tabs bar. A group is an accordion
+container while `[decoration] group-bar-height` is set.
+
+Without a name, a popup in the panels' style (metal or glass) asks for it: enter keeps it,
+esc cancels, an empty name removes it. A double click on a group's tabs bar opens it too.
+The words after the command are the name: `group-rename work stuff` needs no quotes.
+
+Names are kept while skyland runs.
+
+// =========================================================== Options
+include::./util/conditional-options-header.adoc[]
+
+-h, --help:: Print help
+
+// end::body[]
+
+// =========================================================== Footer
+include::util/man-footer.adoc[]

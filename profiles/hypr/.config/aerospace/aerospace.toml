@@ -238,6 +238,7 @@ alt-ctrl-p = 'pin' # pin: a floating window on every workspace (Hyprland pin)
 alt-a = 'scratchpad toggle music --app com.spotify.client' # named scratchpad: Spotify (special:music)
 alt-j = 'layout tiles horizontal vertical' # Hyprland togglesplit (flip the focused split)
 alt-g = 'layout accordion tiles' # togglegroup: the window's container becomes a group of tabs, or tiles again
+alt-shift-g = 'group-rename' # name the group: a popup (enter keeps it, esc cancels, empty removes it)
 alt-shift-t = 'master toggle' # master layout for this workspace (one big window, a stack on the side)
 alt-shift-enter = 'master swap' # swapwithmaster
 alt-n = 'group-focus next' # next tab of the group (changegroupactive f)
