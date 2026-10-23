@@ -19,6 +19,21 @@ python app.py            # http://127.0.0.1:5000
 
 For production, run it behind a WSGI server, e.g. `gunicorn -w 2 app:app`.
 
+### Static export (GitHub Pages)
+
+The public site is a static export of this app, served by GitHub Pages from
+[waxdred/skyland-site](https://github.com/waxdred/skyland-site)
+(https://waxdred.github.io/skyland-site/):
+
+```sh
+python export.py ../../skyland-site   # renders /, /api/github, robots.txt, sitemap.xml under /skyland-site
+cd ../../skyland-site && git add -A && git commit -m "Site: export of skyland/website" && git push
+```
+
+`/api/github` becomes a file holding the numbers fetched at export time (the page reads it
+with a relative URL). On a Python without system certificates, run the export with
+`SSL_CERT_FILE="$(python -m certifi)"`.
+
 ## Layout
 
 ```
