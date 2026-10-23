@@ -36,6 +36,7 @@ private func refreshGroupBars() async {
             collect(workspace.rootTilingContainer, into: &groups)
         }
     }
+    refreshGroupNames()
     var alive = Set<ObjectIdentifier>()
     for (group, rect) in groups {
         var tabs: [GroupTab] = []
@@ -71,8 +72,6 @@ private func refreshGroupBars() async {
         panel.orderOut(nil)
         bars[id] = nil
     }
-    // a group gone (no longer an accordion, its windows elsewhere): its name too
-    if height > 0 { groupNames = groupNames.filter { alive.contains($0.key) } }
 }
 
 /// Accordion containers of a tree with a laid out rect (nested groups too).
