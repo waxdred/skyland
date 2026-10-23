@@ -38,6 +38,7 @@ public enum CmdKind: String, CaseIterable, Equatable, Sendable {
     case resize
     case settings // skyland
     case groupFocus = "group-focus" // skyland
+    case groupRename = "group-rename" // skyland
     case master // skyland
     case scratchpad // skyland
     case pin // skyland
@@ -71,6 +72,8 @@ func initSubcommands() -> [String: any SubCommandParserProtocol] {
                 result[kind.rawValue] = SubCommandParser(SettingsCmdArgs.init)
             case .groupFocus:
                 result[kind.rawValue] = SubCommandParser(GroupFocusCmdArgs.init)
+            case .groupRename:
+                result[kind.rawValue] = SubCommandParser(GroupRenameCmdArgs.init)
             case .master:
                 result[kind.rawValue] = SubCommandParser(MasterCmdArgs.init)
             case .scratchpad:
