@@ -123,7 +123,8 @@
 
   // ---------- GitHub stats ----------
   const fmt = new Intl.NumberFormat('en', { notation: 'compact' });
-  fetch('/api/github', { headers: { Accept: 'application/json' } })
+  // relative: the Flask app at / and the static export in a sub-path both answer it
+  fetch('api/github', { headers: { Accept: 'application/json' } })
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
       if (!data) return;
