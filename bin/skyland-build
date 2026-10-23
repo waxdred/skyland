@@ -57,4 +57,10 @@ EOF
 identity=-
 security find-identity -v -p codesigning | grep -q '"skyland-codesign"' && identity=skyland-codesign
 codesign --force --sign "${SKYLAND_SIGN_IDENTITY:-$identity}" --entitlements resources/AeroSpace.entitlements "$app"
+# the helpers too, under stable identifiers: what is granted to a signature (Accessibility,
+# Screen Recording, a file access rule of a security tool) outlives a rebuild; ad-hoc, each
+# build was a new binary to allow again
+for tool in aerospace skyland-wallpaper-picker skyland-keys skyland-media; do
+    codesign --force --sign "${SKYLAND_SIGN_IDENTITY:-$identity}" --identifier "com.waxdred.skyland.$tool" ".build/$tool"
+done
 echo "built $app ($cfg)"
