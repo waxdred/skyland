@@ -195,6 +195,7 @@ private struct SettingsView: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject var keys: KeysModel
     @ObservedObject var rules: RulesModel
+    @ObservedObject var monitors: MonitorsModel
     @AppStorage("skyland.settings.tab") private var tab = "general" // reopens on the last tab
 
     var body: some View {
@@ -209,6 +210,7 @@ private struct SettingsView: View {
                 GeneralView(model: model).tabItem { Text("General") }.tag("general")
                 KeysView(model: keys).tabItem { Text("Keys") }.tag("keys")
                 RulesView(model: rules).tabItem { Text("Rules") }.tag("rules")
+                MonitorsView(model: monitors).tabItem { Text("Monitors") }.tag("monitors")
             }
             .padding(.top, 8)
         }
@@ -340,6 +342,7 @@ private struct GeneralView: View {
 @MainActor private let settingsModel = SettingsModel()
 @MainActor private let settingsKeys = KeysModel()
 @MainActor private let settingsRules = RulesModel()
+@MainActor private let settingsMonitors = MonitorsModel()
 
 /// `[decoration] ui-style`, chosen in the Look section (metal | glass | glyph).
 let uiStyleField = SettingField(section: "decoration", key: "ui-style", label: "Style", kind: .choice(["metal", "glass", "glyph"]))
@@ -384,7 +387,7 @@ func showSettingsWindow() {
             effect.state = .active
             blur = effect
         }
-        let host = NSHostingView(rootView: SettingsView(model: settingsModel, keys: settingsKeys, rules: settingsRules))
+        let host = NSHostingView(rootView: SettingsView(model: settingsModel, keys: settingsKeys, rules: settingsRules, monitors: settingsMonitors))
         host.translatesAutoresizingMaskIntoConstraints = false
         blur.addSubview(host)
         NSLayoutConstraint.activate([
@@ -397,6 +400,7 @@ func showSettingsWindow() {
         settingsModel.load() // the file (or the theme) may have changed meanwhile
         settingsKeys.load()
         settingsRules.load()
+        settingsMonitors.load() // screens plugged or unplugged meanwhile
     }
     guard let window = settingsWindow else { return }
     // on the screen under the mouse; orderFrontRegardless: a background app's activate can be ignored
