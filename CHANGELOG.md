@@ -6,6 +6,9 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+- Glyph style in the wallpaper picker (alt-w): glyph panel, Space Mono names, Doto counts,
+  the selection outlined with the red dot.
+
 **CLI: `skyland-cli`** (`.build/skyland-cli`, was `.build/aerospace`), called through the
 `skyland` command as before; its messages say `skyland`. `skyland-keys` reads the new
 config path.

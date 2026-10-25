@@ -185,6 +185,50 @@ func themePreview(_ url: URL) -> NSImage? {
     }
 }
 
+/// ui-style = 'glyph': skyland's Nothing like panels (Sources/AppBundle/skyland/uiStyle.swift)
+let glyph = (try? String(contentsOfFile: uiStyleFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) == "glyph"
+if glyph { // Space Mono, Doto: resources/fonts next to .build, as for Skyland.app
+    let fonts = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
+        .deletingLastPathComponent().appending(path: "../resources/fonts").standardized
+    for file in (try? FileManager.default.contentsOfDirectory(at: fonts, includingPropertiesForKeys: nil)) ?? []
+    where ["ttf", "otf"].contains(file.pathExtension) {
+        CTFontManagerRegisterFontsForURL(file as CFURL, .process, nil)
+    }
+}
+func glyphFont(_ name: String, _ size: CGFloat) -> NSFont { NSFont(name: name, size: size) ?? .monospacedSystemFont(ofSize: size, weight: .regular) }
+
+/// The glyph panel: opaque bg_panel, a faint dot grid, a thin line around.
+final class GlyphPanel: NSView {
+    override func draw(_ dirtyRect: NSRect) {
+        let shape = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 24, yRadius: 24)
+        (skylandTheme["bg_panel"] ?? .black).setFill()
+        shape.fill()
+        NSGraphicsContext.saveGraphicsState()
+        shape.addClip()
+        (skylandTheme["fg"] ?? .white).withAlphaComponent(0.16).setFill()
+        let pitch: CGFloat = 12, dot: CGFloat = 1.6
+        for y in stride(from: pitch / 2, to: bounds.maxY, by: pitch) {
+            for x in stride(from: pitch / 2, to: bounds.maxX, by: pitch) {
+                NSBezierPath(ovalIn: NSRect(x: x - dot / 2, y: y - dot / 2, width: dot, height: dot)).fill()
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        (skylandTheme["border"] ?? .darkGray).setStroke()
+        shape.stroke()
+    }
+}
+
+/// glyph: the one red dot, on the selection
+func glyphDot(in view: NSView, at point: NSPoint) {
+    view.subviews.filter { $0.identifier?.rawValue == "glyph-dot" }.forEach { $0.removeFromSuperview() }
+    let dot = NSView(frame: NSRect(x: point.x, y: point.y, width: 6, height: 6))
+    dot.identifier = NSUserInterfaceItemIdentifier("glyph-dot")
+    dot.wantsLayer = true
+    dot.layer?.cornerRadius = 3
+    dot.layer?.backgroundColor = (skylandTheme["highlight"] ?? .systemRed).cgColor
+    view.addSubview(dot)
+}
+
 final class KeyPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
@@ -243,7 +287,9 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         let glass = uiStyleIsGlass()
-        if glass {
+        if glyph {
+            blur = GlyphPanel()
+        } else if glass {
             panel.hasShadow = false // the glass draws its own
             blur = NSView()
             let surface = GlassSurface()
@@ -265,8 +311,8 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         content.wantsLayer = true
         content.layer?.cornerRadius = 24
         // metal: the blur stays a hint, gray otherwise; glass: tinted already
-        content.layer?.backgroundColor = glass ? nil : skylandTheme["bg"]?.withAlphaComponent(0.85).cgColor
-        content.layer?.borderWidth = skylandTheme.isEmpty || glass ? 0 : 1 // glass: its own rim
+        content.layer?.backgroundColor = glass || glyph ? nil : skylandTheme["bg"]?.withAlphaComponent(0.85).cgColor
+        content.layer?.borderWidth = skylandTheme.isEmpty || glass || glyph ? 0 : 1 // glass: its own rim
         content.layer?.borderColor = themeAccent.withAlphaComponent(0.35).cgColor
         blur.addSubview(content)
         if let bg = skylandTheme["bg"]?.usingColorSpace(.sRGB) { // the search field and its text follow a light or dark theme
@@ -305,6 +351,7 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
         search.placeholderString = "theme"
         search.delegate = self
         search.focusRingType = .none
+        if glyph { search.font = glyphFont("SpaceMono-Regular", 13); search.placeholderString = "THEME" }
         content.addSubview(search)
         let list = NSView()
         list.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(clickedTheme(_:))))
@@ -332,13 +379,14 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             rowView.wantsLayer = true
             rowView.layer?.cornerRadius = 14
             let name = NSTextField(labelWithString: themes[index].name)
-            name.font = .systemFont(ofSize: 15)
+            name.font = glyph ? glyphFont("SpaceMono-Regular", 14) : .systemFont(ofSize: 15)
             name.textColor = themeFg
             name.frame = NSRect(x: 10, y: 5, width: rowView.frame.width - 80, height: 20)
             let count = NSTextField(labelWithString: "\(themes[index].files.count)")
             count.textColor = themeDim
             count.alignment = .right
-            count.frame = NSRect(x: rowView.frame.width - 70, y: 5, width: 60, height: 20)
+            if glyph { count.font = glyphFont("Doto-Black", 17) }
+            count.frame = NSRect(x: rowView.frame.width - (glyph ? 84 : 70), y: 5, width: 60, height: 20)
             rowView.addSubview(name)
             rowView.addSubview(count)
             list.addSubview(rowView)
@@ -357,6 +405,13 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             return
         }
         for (i, rowView) in rows.enumerated() {
+            if glyph { // a card, outlined, and the red dot
+                rowView.layer?.backgroundColor = i == row ? (skylandTheme["bg_card"] ?? .darkGray).cgColor : nil
+                rowView.layer?.borderWidth = i == row ? 1.5 : 0
+                rowView.layer?.borderColor = themeFg.withAlphaComponent(0.85).cgColor
+                if i == row { glyphDot(in: rowView, at: NSPoint(x: rowView.bounds.width - 6 - 6, y: rowView.bounds.midY - 3)) }
+                continue
+            }
             rowView.layer?.backgroundColor = i == row ? themeAccent.withAlphaComponent(0.22).cgColor : nil
         }
     }
@@ -418,9 +473,10 @@ final class Picker: NSObject, NSApplicationDelegate, NSSearchFieldDelegate {
             return
         }
         for (i, cell) in cells.enumerated() {
-            cell.layer?.borderWidth = i == selected ? 3 : 0
-            cell.layer?.borderColor = themeAccent.cgColor
+            cell.layer?.borderWidth = i == selected ? (glyph ? 2 : 3) : 0
+            cell.layer?.borderColor = (glyph ? themeFg : themeAccent).cgColor
         }
+        if glyph { glyphDot(in: cells[selected], at: NSPoint(x: cells[selected].bounds.width - 16, y: cells[selected].bounds.height - 16)) }
     }
 
     func choose() {
