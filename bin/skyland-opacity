@@ -9,5 +9,5 @@ case "${current:-100}" in
     100) next=90 ;; 9*) next=80 ;; 8*) next=70 ;; *) next=100 ;;
 esac
 sed -i '' -E "s/^(inactive-opacity[[:space:]]*=[[:space:]]*)[0-9]+/\1$next/" "$CONFIG"
-"$REPO/.build/aerospace" reload-config </dev/null
+"$REPO/.build/skyland-cli" reload-config </dev/null
 osascript -e "display notification \"inactive windows $next%\" with title \"Opacity\"" >/dev/null

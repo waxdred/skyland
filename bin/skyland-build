@@ -13,12 +13,12 @@ cd "$(dirname "$(readlink -f "$0")")/.."
 cfg=release
 [[ "${1:-}" == --debug || "${SKYLAND_DEBUG:-}" == 1 ]] && cfg=debug
 swiftly run swift build -c $cfg --product AeroSpaceApp
-swiftly run swift build -c $cfg --product aerospace
+swiftly run swift build -c $cfg --product skyland-cli
 bin="$(swiftly run swift build -c $cfg --show-bin-path)"
 # the CLI every script and sketchybar item calls; rm first: overwriting a signed
 # binary in place gets it killed by macOS (Code Signature Invalid)
-rm -f .build/aerospace
-cp "$bin/aerospace" .build/aerospace
+rm -f .build/skyland-cli .build/aerospace
+cp "$bin/skyland-cli" .build/skyland-cli
 swiftc -O tools/wallpaper-picker/main.swift Sources/SkylandGlass/*.swift -o .build/skyland-wallpaper-picker # + ui-style glass
 pkill -f "skyland-wallpaper-picker --resident" || true # the resident picker (alt-w) starts again, rebuilt, at the next pick
 swiftc -O tools/keys-help.swift -o .build/skyland-keys
@@ -61,7 +61,7 @@ codesign --force --sign "${SKYLAND_SIGN_IDENTITY:-$identity}" --entitlements res
 # the helpers too, under stable identifiers: what is granted to a signature (Accessibility,
 # Screen Recording, a file access rule of a security tool) outlives a rebuild; ad-hoc, each
 # build was a new binary to allow again
-for tool in aerospace skyland-wallpaper-picker skyland-keys skyland-media; do
+for tool in skyland-cli skyland-wallpaper-picker skyland-keys skyland-media; do
     codesign --force --sign "${SKYLAND_SIGN_IDENTITY:-$identity}" --identifier "com.waxdred.skyland.$tool" ".build/$tool"
 done
 echo "built $app ($cfg)"
