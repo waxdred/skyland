@@ -6,6 +6,9 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+- `[wallpaper] dynamic-colors = false` still generates the wallpaper colors on a wallpaper
+  change, without applying them: `skyland-cyberdeck theme wallpaper` keeps using them.
+
 **Glyph style**
 - `[decoration] ui-style = 'glyph'` (or Glyph in the settings window): a Nothing OS like look
   for skyland's panels. Opaque panels in the theme's panel color on a faint dot grid, a thin

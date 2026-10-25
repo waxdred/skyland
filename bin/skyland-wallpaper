@@ -101,10 +101,14 @@ case "${1:-}" in
             generate_colors "$file"
             rm -f "$CACHE/theme-file" # a new wallpaper takes over a theme chosen in the picker
             "$REPO/bin/skyland-theme" "$mode" # also refreshes the lock screen
-        elif [[ "$mode" != apply ]]; then
-            "$REPO/bin/skyland-theme" "$mode" # the [theme] dark / light files
         else
-            "$REPO/bin/skyland-lock" refresh
+            # still generated, not applied: for apps on the wallpaper colors (skyland-cyberdeck theme wallpaper)
+            (generate_colors "$file") >/dev/null 2>&1 || true
+            if [[ "$mode" != apply ]]; then
+                "$REPO/bin/skyland-theme" "$mode" # the [theme] dark / light files
+            else
+                "$REPO/bin/skyland-lock" refresh
+            fi
         fi
         ;;
     fetch)
