@@ -289,16 +289,16 @@ private final class SwitcherView: NSView {
         let fg = theme["fg"] ?? .white, accent = theme["accent"] ?? .systemBlue
         let glass = surface != nil
         let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 28, yRadius: 28)
-        if !glass { // metal: a theme tint and a border; glass: its tint and its rim
+        if !glass && !isGlyphStyle { // metal: a theme tint and a border; glass: its tint and its rim; glyph: the opaque panel under it
             (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
             outline.fill()
             accent.withAlphaComponent(0.35).setStroke()
             outline.stroke()
         }
 
-        let search = query.isEmpty ? "Type to filter" : query
+        let search = query.isEmpty ? PanelFont.caps("Type to filter") : query
         NSAttributedString(string: search, attributes: [
-            .font: NSFont.systemFont(ofSize: 15, weight: query.isEmpty ? .regular : .semibold),
+            .font: isGlyphStyle ? PanelFont.label(13, weight: query.isEmpty ? .regular : .semibold) : NSFont.systemFont(ofSize: 15, weight: query.isEmpty ? .regular : .semibold),
             .foregroundColor: query.isEmpty ? fg.withAlphaComponent(0.4) : fg,
         ]).draw(at: NSPoint(x: padding + 2, y: padding))
 
@@ -314,8 +314,8 @@ private final class SwitcherView: NSView {
             cards.append((card, index))
             let active = position == current
             let path = NSBezierPath(roundedRect: card, xRadius: 20, yRadius: 20) // concentric: panel 28, padding 8
-            if !glass { // glass: the lens and the hover drop are the card's highlight
-                (active ? accent.withAlphaComponent(0.18) : fg.withAlphaComponent(0.05)).setFill()
+            if !glass { // glass: the lens and the hover drop are the card's highlight; glyph: tiles in the card color
+                (isGlyphStyle ? theme["bg_card"] ?? fg.withAlphaComponent(0.08) : active ? accent.withAlphaComponent(0.18) : fg.withAlphaComponent(0.05)).setFill()
                 path.fill()
             }
             drawThumbnail(item, in: NSRect(x: card.minX, y: card.minY, width: card.width, height: cardSize.height).insetBy(dx: 8, dy: 8), theme: theme)
@@ -325,19 +325,23 @@ private final class SwitcherView: NSView {
             let truncate = NSMutableParagraphStyle()
             truncate.lineBreakMode = .byTruncatingTail
             NSAttributedString(string: item.app, attributes: [
-                .font: NSFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: active && !glass ? accent : fg, .paragraphStyle: truncate,
+                .font: PanelFont.text(12, weight: .semibold), .foregroundColor: active && !glass ? accent : fg, .paragraphStyle: truncate,
             ]).draw(in: NSRect(x: card.minX + 32, y: labelTop, width: card.width - 64, height: 16))
             NSAttributedString(string: item.workspace, attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .bold), .foregroundColor: fg.withAlphaComponent(0.55),
-            ]).draw(at: NSPoint(x: card.maxX - 26, y: labelTop + 1))
+                .font: isGlyphStyle ? PanelFont.dots(14) : NSFont.monospacedSystemFont(ofSize: 11, weight: .bold), .foregroundColor: fg.withAlphaComponent(0.55),
+            ]).draw(at: NSPoint(x: card.maxX - (isGlyphStyle ? 30 : 26), y: labelTop + (isGlyphStyle ? -1 : 1)))
             NSAttributedString(string: item.title, attributes: [
-                .font: NSFont.systemFont(ofSize: 11), .foregroundColor: fg.withAlphaComponent(0.6), .paragraphStyle: truncate,
+                .font: PanelFont.text(11), .foregroundColor: fg.withAlphaComponent(0.6), .paragraphStyle: truncate,
             ]).draw(in: NSRect(x: card.minX + 10, y: labelTop + 18, width: card.width - 20, height: 15))
 
             if !glass {
                 path.lineWidth = active ? 2.5 : 1
-                (active ? accent : fg.withAlphaComponent(0.12)).setStroke()
+                (active ? accent : isGlyphStyle ? theme["border"] ?? fg.withAlphaComponent(0.12) : fg.withAlphaComponent(0.12)).setStroke()
                 path.stroke()
+            }
+            if isGlyphStyle, active { // the one live thing: a red dot on the selection
+                (theme["highlight"] ?? .systemRed).setFill()
+                NSBezierPath(ovalIn: NSRect(x: card.maxX - 22, y: card.minY + 14, width: 8, height: 8)).fill()
             }
         }
         if let surface { // the glass follows the cards: a lens flows to the selection

@@ -16,6 +16,7 @@ config file) and adds what makes Hyprland feel like Hyprland:
 - **window decoration**: rounded corners, active/inactive opacity, dim inactive windows, focused window **border** in the theme accent (optionally rotating), Ghostty blur; floating windows stay on top
 - **Hyprland animations**: presets (`hyprland`, `slide`, `gnome`, `vertical`, `cyberspace`: windows rez in through a scan line), stackable, or `bezier` / `animation` lines pasted from a hyprland.conf; open, close, move, workspace and scratchpad switches
 - **Liquid Glass** (`[decoration] ui-style = 'glass'`, or Metal / Glass in the settings window): overview, window switcher, HUDs, settings, wallpaper picker and media widget in refractive glass, the engine of [skylandbar](#skylandbar)
+- **Glyph** (`ui-style = 'glyph'`, with the `glyph-dark` / `glyph-light` themes): a Nothing OS like look, black, white dots, one red. Opaque panels on a faint dot grid, dot matrix numbers ([Doto](https://github.com/oliverlalan/Doto)), labels in Space Mono caps, the live thing in red. Palette after [glyph-rice](https://github.com/Nebelung-cloud/glyph-rice); fonts bundled (SIL OFL, `resources/fonts`)
 - **window switcher** (`alt-<` / `alt-backtick`, held like `cmd-tab`): recent windows of every workspace with live thumbnails, type to filter
 - **43PR themes** as CSS files, light/dark toggle, **theme picker**, **colors generated from the wallpaper**, light or dark picked from the wallpaper brightness
 - **wallpaper picker**, **[skylandbar](#skylandbar)** or **sketchybar** (the bar tells skyland its height), **hyprlock-like screen saver**, **floating media widget** with audio-reactive bars or an Audioware-style light wave (`[media] style`)
@@ -299,7 +300,7 @@ border-width = 2                  # focused window border, theme accent gradient
 border-rotate-ms = 4000           # the border gradient turns, one turn in ms (skyland draws it), 0 = static
 blur = 5                          # Ghostty background blur, 0 = none
 group-bar-height = 22             # accordion containers become groups with a tabs bar, 0 = AeroSpace accordion
-ui-style = 'metal'                # skyland's panels: metal (blur) | glass (Liquid Glass, from skylandbar)
+ui-style = 'metal'                # skyland's panels: metal (blur) | glass (Liquid Glass, from skylandbar) | glyph (dots, Nothing OS like)
 
 [animations]                      # Hyprland speed is in ds: speed 5 = 500 ms
 enabled = true

@@ -132,6 +132,7 @@ ITEM_BG_ACTIVE=0xff$c_bg_hover
 BORDER=0xff$c_border
 BORDER_ACTIVE=0xff$c_border_strong
 ACCENT=0xff$c_accent
+HIGHLIGHT=0xff${c_highlight:-$c_accent}
 EOF
 
 if sketchybar --query bar >/dev/null 2>&1; then

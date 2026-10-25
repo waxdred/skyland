@@ -4,6 +4,23 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## Unreleased
+
+- `[wallpaper] dynamic-colors = false` still generates the wallpaper colors on a wallpaper
+  change, without applying them: `skyland-cyberdeck theme wallpaper` keeps using them.
+
+**Glyph style**
+- `[decoration] ui-style = 'glyph'` (or Glyph in the settings window): a Nothing OS like look
+  for skyland's panels. Opaque panels in the theme's panel color on a faint dot grid, a thin
+  line around; numbers and titles in a dot matrix font (Doto: overview workspaces, switcher,
+  mode HUD, startup HUD, settings title), labels in Space Mono caps, text in Space Grotesk;
+  the one live thing (shown workspace, selection, startup runner) in the theme's highlight.
+- Themes `glyph-dark` and `glyph-light`: black, white dots, one red (#D71921), palette after
+  [glyph-rice](https://github.com/Nebelung-cloud/glyph-rice). The focused window border goes
+  white to red.
+- Fonts bundled in Skyland.app (`resources/fonts`, SIL OFL) and registered for skyland only:
+  nothing installed. The wallpaper picker and the media widget keep the metal look for now.
+
 ## v0.5.0
 
 **No window lost**

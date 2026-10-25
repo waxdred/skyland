@@ -38,6 +38,7 @@ cp "$bin/AeroSpaceApp" "$app/Contents/MacOS/Skyland" # the process is named afte
 mkdir -p "$app/Contents/Resources"
 cp docs/config-examples/default-config.toml "$app/Contents/Resources/"
 cp resources/Skyland.icns "$app/Contents/Resources/" # resources/icon/make-icns
+cp -R resources/fonts "$app/Contents/Resources/" # ui-style = 'glyph': Doto, Space Grotesk, Space Mono (SIL OFL, resources/fonts/OFL.txt)
 # Bundle id must match aeroSpaceAppId (Sources/Common/appMetadata.swift)
 cat > "$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

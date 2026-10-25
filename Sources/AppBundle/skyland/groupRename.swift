@@ -154,17 +154,17 @@ private final class RenamePanel: NSPanel, NSTextFieldDelegate {
         for sub in root.subviews { sub.frame = root.bounds; sub.autoresizingMask = [.width, .height] } // the glass shape
         let theme = skylandThemeColors()
         let fg = theme["fg"] ?? .white, dim = theme["fg_dim"] ?? .lightGray
-        let title = NSTextField(labelWithString: "Group name")
-        title.font = .systemFont(ofSize: 12, weight: .semibold)
+        let title = NSTextField(labelWithString: PanelFont.caps("Group name"))
+        title.font = isGlyphStyle ? PanelFont.label(11, weight: .bold) : .systemFont(ofSize: 12, weight: .semibold)
         title.textColor = dim
         title.frame = NSRect(x: 18, y: size.height - 32, width: size.width - 36, height: 16)
         field.stringValue = current
         field.placeholderString = "empty: no name"
-        field.font = .systemFont(ofSize: 15, weight: .medium)
+        field.font = PanelFont.text(15, weight: .medium)
         field.textColor = fg
         field.isBezeled = false
         field.drawsBackground = true
-        field.backgroundColor = (theme["bg"] ?? .black).withAlphaComponent(0.35)
+        field.backgroundColor = isGlyphStyle ? theme["bg_card"] ?? .black : (theme["bg"] ?? .black).withAlphaComponent(0.35)
         field.focusRingType = .none
         field.wantsLayer = true
         field.layer?.cornerRadius = 8

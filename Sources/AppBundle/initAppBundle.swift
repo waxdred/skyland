@@ -20,6 +20,7 @@ import Foundation
 
         await bootstrapConfig_nonCancellable()
         _ = await reloadConfig_nonCancellable()
+        registerPanelFonts() // skyland: the glyph style's fonts, before the first panel
         showStartupHud() // skyland: hidden once the windows are laid out
 
         startUnixSocketServer()
