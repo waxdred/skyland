@@ -82,4 +82,28 @@ final class TomlLinesTest: XCTestCase {
         assertEquals(tomlBlocks(added, name: "on-window-detected").count, 3)
         assertEquals(tomlValue(added, section: "mode.main.binding", key: "alt-q"), "'close'")
     }
+
+    @MainActor func testMonitorAssignment() {
+        assertEquals(monitorAssignmentValue(1), "1")
+        assertEquals(monitorAssignmentValue(3), "[3, 2, 1]")
+        let text = """
+            [workspace-to-monitor-force-assignment]
+            1 = 1
+            5 = [2, 1] # the external screen
+
+            [mode.main.binding]
+            alt-q = 'close'
+            """
+        let section = "workspace-to-monitor-force-assignment"
+        let moved = tomlSet(text, section: section, key: "5", value: monitorAssignmentValue(1))
+        assertEquals(tomlValue(moved, section: section, key: "5"), "1")
+        assertTrue(moved.contains("5 = 1 # the external screen"))
+        let added = tomlSet(text, section: section, key: "7", value: monitorAssignmentValue(2))
+        assertEquals(tomlEntries(added, section: section).map(\.key), ["1", "5", "7"])
+        assertEquals(tomlValue(added, section: section, key: "7"), "[2, 1]")
+        let removed = tomlReplace(text, section: section, key: "5", with: nil)
+        assertEquals(tomlEntries(removed, section: section).map(\.key), ["1"])
+        assertEquals(tomlValue(removed, section: "mode.main.binding", key: "alt-q"), "'close'")
+        assertTrue(parseConfig(added).errors.isEmpty)
+    }
 }
