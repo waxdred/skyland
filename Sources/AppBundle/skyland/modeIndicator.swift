@@ -37,16 +37,21 @@ private func makeModeHud(_ mode: String, bindings: [HotkeyBinding]) -> NSPanel {
     let theme = skylandThemeColors()
     let accent = theme["accent"] ?? .systemBlue
     let keyWidth = bindings.map(\.descriptionWithKeyNotation.count).max() ?? 0
-    let text = NSMutableAttributedString(string: mode.uppercased() + "\n", attributes: [
-        .font: NSFont.systemFont(ofSize: 15, weight: .bold), .foregroundColor: accent,
-    ])
+    // glyph: the theme's colors (the panel follows the theme, light too), a red dot, the name in dots
+    let fg = isGlyphStyle ? theme["fg"] ?? .labelColor : .labelColor
+    let dim = isGlyphStyle ? theme["fg_dim"] ?? .secondaryLabelColor : .secondaryLabelColor
+    let text = NSMutableAttributedString()
+    if isGlyphStyle { text.append(NSAttributedString(string: "● ", attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: theme["highlight"] ?? .systemRed])) }
+    text.append(NSAttributedString(string: mode.uppercased() + "\n", attributes: [
+        .font: PanelFont.dots(isGlyphStyle ? 22 : 15), .foregroundColor: isGlyphStyle ? fg : accent,
+    ]))
     for binding in bindings.prefix(24) {
         let key = binding.descriptionWithKeyNotation.padding(toLength: keyWidth + 3, withPad: " ", startingAt: 0)
         text.append(NSAttributedString(string: "\n" + key, attributes: [
-            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .bold), .foregroundColor: NSColor.labelColor,
+            .font: PanelFont.label(12, weight: .bold), .foregroundColor: fg,
         ]))
         text.append(NSAttributedString(string: binding.commandText, attributes: [
-            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: NSColor.secondaryLabelColor,
+            .font: PanelFont.label(12), .foregroundColor: dim,
         ]))
     }
     let label = NSTextField(labelWithAttributedString: text)
@@ -69,7 +74,7 @@ private func makeModeHud(_ mode: String, bindings: [HotkeyBinding]) -> NSPanel {
     panel.isReleasedWhenClosed = false
     panel.isMovableByWindowBackground = true
     panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
-    panel.appearance = NSAppearance(named: .darkAqua)
+    panel.appearance = isGlyphStyle ? themeAppearance() : NSAppearance(named: .darkAqua)
     let glass = makePanelRoot(radius: 16, for: panel) // ui-style
     glass.frame = NSRect(origin: .zero, size: size)
     glass.addSubview(label)

@@ -495,7 +495,7 @@ private func overviewKey(_ event: NSEvent) {
 private final class OverviewStrip: NSView {
     let monitorRect: Rect, monitorVisible: Rect
     private(set) var workspaces: [Workspace] = []
-    private let blur: NSView = isGlassStyle ? GlassSurface() : NSVisualEffectView()
+    private let blur: NSView = isGlassStyle ? GlassSurface() : isGlyphStyle ? NSView() : NSVisualEffectView() // glyph: the cards view draws the opaque panel
     private let cardsView = OverviewCards()
     private let radius: CGFloat = 28, padding: CGFloat = 18, spacing: CGFloat = 16, labelHeight: CGFloat = 22
 
@@ -596,11 +596,13 @@ private final class OverviewCards: NSView {
         let fg = theme["fg"] ?? .white, accent = theme["accent"] ?? .systemBlue
         // Theme tint over the blur, then the strip border (Hyprspace panelBorderColor)
         let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: radius, yRadius: radius)
-        if !isGlassStyle { // the glass has its own tint
+        if isGlyphStyle {
+            drawGlyphPanel(in: bounds, radius: radius)
+        } else if !isGlassStyle { // the glass has its own tint
             (theme["bg"] ?? .black).withAlphaComponent(0.35).setFill()
             outline.fill()
         }
-        if surface == nil { // glass: its own rim
+        if surface == nil && !isGlyphStyle { // glass: its own rim; glyph: the panel's line
             accent.withAlphaComponent(0.35).setStroke()
             outline.lineWidth = 1
             outline.stroke()
@@ -618,19 +620,24 @@ private final class OverviewCards: NSView {
             let active = workspace == focused
             let highlighted = active || (dragPoint ?? externalDragPoint).map(card.contains) == true // drop target while dragging
             NSAttributedString(string: workspace.name, attributes: [
-                .font: NSFont.systemFont(ofSize: 13, weight: active ? .bold : .medium),
-                .foregroundColor: active ? accent : fg.withAlphaComponent(0.65),
-            ]).draw(at: NSPoint(x: card.minX + 2, y: card.minY - labelHeight + 2))
+                .font: isGlyphStyle ? PanelFont.dots(21) : NSFont.systemFont(ofSize: 13, weight: active ? .bold : .medium),
+                .foregroundColor: active ? (isGlyphStyle ? fg : accent) : fg.withAlphaComponent(isGlyphStyle ? 0.45 : 0.65),
+            ]).draw(at: NSPoint(x: card.minX + (isGlyphStyle && active ? 16 : 2), y: card.minY - labelHeight + (isGlyphStyle ? -4 : 2)))
+            if isGlyphStyle, active { // the one live thing: the shown workspace's red dot
+                (theme["highlight"] ?? .systemRed).setFill()
+                NSBezierPath(ovalIn: NSRect(x: card.minX + 2, y: card.minY - labelHeight / 2 - 4, width: 8, height: 8)).fill()
+            }
 
             let path = NSBezierPath(roundedRect: card, xRadius: 16, yRadius: 16)
             // active: tinted + accent border; inactive: almost transparent (Hyprspace). Glass:
             // the lens and the hover drop instead, a faint fill for the empty ones
-            (surface != nil ? fg.withAlphaComponent(0.03) : highlighted ? accent.withAlphaComponent(0.16) : fg.withAlphaComponent(0.05)).setFill()
+            (surface != nil ? fg.withAlphaComponent(0.03) : isGlyphStyle ? theme["bg_card"] ?? fg.withAlphaComponent(0.08)
+                : highlighted ? accent.withAlphaComponent(0.16) : fg.withAlphaComponent(0.05)).setFill()
             path.fill()
             drawWindows(of: workspace, in: card, theme: theme)
             if surface == nil || (dragPoint ?? externalDragPoint).map(card.contains) == true {
                 path.lineWidth = highlighted ? 2.5 : 1
-                (highlighted ? accent : fg.withAlphaComponent(0.12)).setStroke()
+                (highlighted ? accent : isGlyphStyle ? theme["border"] ?? fg.withAlphaComponent(0.12) : fg.withAlphaComponent(0.12)).setStroke()
                 path.stroke()
             }
         }
@@ -646,7 +653,7 @@ private final class OverviewCards: NSView {
         plusPath.lineWidth = dropping ? 2.5 : 1.2
         (dropping ? accent : fg.withAlphaComponent(0.3)).setStroke()
         plusPath.stroke()
-        let plusText = NSAttributedString(string: "+", attributes: [.font: NSFont.systemFont(ofSize: 34, weight: .light), .foregroundColor: fg.withAlphaComponent(0.5)])
+        let plusText = NSAttributedString(string: "+", attributes: [.font: isGlyphStyle ? PanelFont.dots(34, weight: .regular) : NSFont.systemFont(ofSize: 34, weight: .light), .foregroundColor: fg.withAlphaComponent(0.5)])
         plusText.draw(at: NSPoint(x: plus.midX - plusText.size().width / 2, y: plus.midY - plusText.size().height / 2))
         if let surface { // the glass follows the cards: a lens on the selection's card (else the shown one)
             surface.panels = [GlassSurface.Shape(rect: bounds, radius: Double(radius), tint: LiquidTint.glass)]
@@ -657,8 +664,8 @@ private final class OverviewCards: NSView {
         }
         // the search, in the strip's top margin
         if !query.isEmpty || activeMode == overviewSearchModeId {
-            NSAttributedString(string: "search: \(query)", attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold), .foregroundColor: accent,
+            NSAttributedString(string: PanelFont.caps("search: ") + query, attributes: [
+                .font: PanelFont.label(11, weight: .semibold), .foregroundColor: accent,
             ]).draw(at: NSPoint(x: padding + 2, y: 2))
         }
         // dragged card (alt): an outline under the cursor
@@ -670,7 +677,7 @@ private final class OverviewCards: NSView {
             ghost.lineWidth = 2
             accent.setStroke()
             ghost.stroke()
-            NSAttributedString(string: pressedCard.workspace, attributes: [.font: NSFont.systemFont(ofSize: 22, weight: .bold), .foregroundColor: accent])
+            NSAttributedString(string: pressedCard.workspace, attributes: [.font: PanelFont.dots(22), .foregroundColor: accent])
                 .draw(at: NSPoint(x: rect.minX + 10, y: rect.minY + 8))
         }
         // dragged window under the cursor

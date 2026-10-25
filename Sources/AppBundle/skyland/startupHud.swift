@@ -23,7 +23,7 @@ func showStartupHud() {
     panel.isReleasedWhenClosed = false
     panel.ignoresMouseEvents = true
     panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-    panel.appearance = NSAppearance(named: .darkAqua)
+    panel.appearance = isGlyphStyle ? themeAppearance() : NSAppearance(named: .darkAqua)
     let root = makePanelRoot(radius: 22, for: panel) // ui-style
     root.frame = NSRect(origin: .zero, size: size)
     root.wantsLayer = true
@@ -34,14 +34,15 @@ func showStartupHud() {
     icon.image = NSApp.applicationIconImage
     icon.imageScaling = .scaleProportionallyUpOrDown
     root.addSubview(icon)
-    let title = NSTextField(labelWithString: "skyland")
-    title.font = .systemFont(ofSize: 18, weight: .bold)
-    title.textColor = accent
+    // glyph: the name in dots, the status in Space Mono caps, the runner the one live (red) thing
+    let title = NSTextField(labelWithString: PanelFont.caps("skyland"))
+    title.font = isGlyphStyle ? PanelFont.dots(22) : .systemFont(ofSize: 18, weight: .bold)
+    title.textColor = isGlyphStyle ? theme["fg"] ?? accent : accent
     title.frame = NSRect(x: 82, y: 56, width: 180, height: 24)
     root.addSubview(title)
-    let status = NSTextField(labelWithString: "starting…")
-    status.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-    status.textColor = .secondaryLabelColor
+    let status = NSTextField(labelWithString: PanelFont.caps("starting…"))
+    status.font = PanelFont.label(isGlyphStyle ? 11 : 12)
+    status.textColor = isGlyphStyle ? theme["fg_dim"] ?? .secondaryLabelColor : .secondaryLabelColor
     status.frame = NSRect(x: 82, y: 36, width: 180, height: 18)
     root.addSubview(status)
 
@@ -55,7 +56,8 @@ func showStartupHud() {
     runner.frame = CGRect(x: 0, y: 0, width: 70, height: 3)
     runner.startPoint = CGPoint(x: 0, y: 0.5)
     runner.endPoint = CGPoint(x: 1, y: 0.5)
-    runner.colors = [accent.withAlphaComponent(0).cgColor, accent.cgColor, accent.withAlphaComponent(0).cgColor]
+    let live = isGlyphStyle ? theme["highlight"] ?? accent : accent
+    runner.colors = [live.withAlphaComponent(0).cgColor, live.cgColor, live.withAlphaComponent(0).cgColor]
     track.addSublayer(runner)
     root.layer?.addSublayer(track)
     if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {

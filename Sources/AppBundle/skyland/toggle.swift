@@ -55,8 +55,9 @@ private func showStateHud(_ enabled: Bool) {
     panel.backgroundColor = .clear
     panel.ignoresMouseEvents = true
     panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
-    panel.appearance = NSAppearance(named: .darkAqua)
+    panel.appearance = isGlyphStyle ? themeAppearance() : NSAppearance(named: .darkAqua)
     let glass = makePanelRoot(radius: 18, for: panel) // ui-style
+    let theme = skylandThemeColors()
     glass.frame = NSRect(origin: .zero, size: size)
     panel.contentView = glass
 
@@ -65,14 +66,15 @@ private func showStateHud(_ enabled: Bool) {
     icon.imageScaling = .scaleProportionallyUpOrDown
     icon.alphaValue = enabled ? 1 : 0.35
     glass.addSubview(icon)
-    let label = NSTextField(labelWithString: enabled ? "skyland on" : "skyland off")
-    label.font = .systemFont(ofSize: 17, weight: .semibold)
+    let label = NSTextField(labelWithString: PanelFont.caps(enabled ? "skyland on" : "skyland off"))
+    label.font = isGlyphStyle ? PanelFont.dots(18) : .systemFont(ofSize: 17, weight: .semibold)
+    if isGlyphStyle { label.textColor = theme["fg"] }
     label.alignment = .center
     label.frame = NSRect(x: 0, y: 26, width: size.width, height: 22)
     glass.addSubview(label)
-    let detail = NSTextField(labelWithString: enabled ? "tiling windows" : "windows left alone")
-    detail.font = .systemFont(ofSize: 12)
-    detail.textColor = .secondaryLabelColor
+    let detail = NSTextField(labelWithString: PanelFont.caps(enabled ? "tiling windows" : "windows left alone"))
+    detail.font = isGlyphStyle ? PanelFont.label(10) : .systemFont(ofSize: 12)
+    detail.textColor = isGlyphStyle ? theme["fg_dim"] ?? .secondaryLabelColor : .secondaryLabelColor
     detail.alignment = .center
     detail.frame = NSRect(x: 0, y: 8, width: size.width, height: 16)
     glass.addSubview(detail)

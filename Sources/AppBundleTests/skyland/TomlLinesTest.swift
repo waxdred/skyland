@@ -82,4 +82,10 @@ final class TomlLinesTest: XCTestCase {
         assertEquals(tomlBlocks(added, name: "on-window-detected").count, 3)
         assertEquals(tomlValue(added, section: "mode.main.binding", key: "alt-q"), "'close'")
     }
+
+    @MainActor func testUiStyleGlyph() {
+        assertTrue(parseConfig("[decoration]\nui-style = 'glyph'").errors.isEmpty)
+        assertEquals(parseConfig("[decoration]\nui-style = 'glyph'").config.decoration.uiStyle, "glyph")
+        assertTrue(!parseConfig("[decoration]\nui-style = 'dots'").errors.isEmpty)
+    }
 }

@@ -25,3 +25,8 @@ swift-collections is used for more advanced Swift collections.
 [ISSoundAdditions GitHub link](https://github.com/InerziaSoft/ISSoundAdditions).
 [ISSoundAdditions MIT license](./third-party-license/LICENSE-ISSoundAdditions.txt).
 ISSoundAdditions is used as a convenient API to change system volume.
+
+**Doto, Space Grotesk, Space Mono** (fonts)
+[Doto](https://github.com/oliverlalan/Doto), [Space Grotesk](https://github.com/floriankarsten/space-grotesk), [Space Mono](https://github.com/googlefonts/spacemono).
+[SIL Open Font License 1.1](./third-party-license/LICENSE-fonts-OFL.txt).
+Bundled in `resources/fonts` for the `glyph` ui-style.

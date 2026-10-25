@@ -201,7 +201,8 @@ private struct SettingsView: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 40, height: 40)
-                Text("skyland").font(.system(.title2, design: .monospaced).weight(.bold)).foregroundStyle(model.colors.accent)
+                Text("skyland").font(isGlyphStyle ? Font(PanelFont.dots(28)) : .system(.title2, design: .monospaced).weight(.bold))
+                    .foregroundStyle(isGlyphStyle ? model.colors.text : model.colors.accent)
             }
             .padding(.top, 26) // under the transparent title bar
             TabView(selection: $tab) {
@@ -213,7 +214,7 @@ private struct SettingsView: View {
         }
         .frame(minWidth: 620, minHeight: 560)
         .tint(model.colors.accent)
-        .background(model.colors.background.opacity(isGlassStyle ? 0 : 0.8)) // the theme over the window blur, see-through; glass: tinted in the glass, under its rim
+        .background(model.colors.background.opacity(isGlassStyle || isGlyphStyle ? 0 : 0.8)) // the theme over the window blur, see-through; glass: tinted in the glass, under its rim; glyph: the opaque dotted panel
         .preferredColorScheme(model.colors.dark ? .dark : .light)
     }
 }
@@ -224,7 +225,7 @@ private struct SectionHeader: View {
     let colors: SettingsColors
     var body: some View {
         Text("// " + title.uppercased())
-            .font(.system(.caption, design: .monospaced).weight(.bold))
+            .font(isGlyphStyle ? Font(PanelFont.label(11, weight: .bold)) : .system(.caption, design: .monospaced).weight(.bold))
             .foregroundStyle(colors.accent)
             .kerning(1.2)
     }
@@ -247,7 +248,7 @@ private struct GeneralView: View {
                     Button("Open config file") { NSWorkspace.shared.open(model.configUrl) }
                 }
                 // ui-style: saved right away, this window is made again in the new style
-                Picker("Style", selection: Binding(get: { isGlassStyle ? "glass" : "metal" }, set: { style in
+                Picker("Style", selection: Binding(get: { config.decoration.uiStyle }, set: { style in
                     model.set(uiStyleField, "'\(style)'")
                     Task { @MainActor in
                         await model.save()
@@ -257,6 +258,7 @@ private struct GeneralView: View {
                 })) {
                     Text("Metal").tag("metal")
                     Text("Glass").tag("glass")
+                    Text("Glyph").tag("glyph")
                 }
                 .pickerStyle(.segmented)
                 if isGlassStyle { row(glassBlurField) }
@@ -290,7 +292,7 @@ private struct GeneralView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 10)
-        .background(isGlassStyle ? AnyShapeStyle(model.colors.background.opacity(0.6)) : AnyShapeStyle(.ultraThinMaterial)) // glass: a light tint, the rows scrolling under stay out of the buttons' way
+        .background(isGlyphStyle ? AnyShapeStyle(Color(nsColor: skylandThemeColors()["bg_panel"] ?? .black)) : isGlassStyle ? AnyShapeStyle(model.colors.background.opacity(0.6)) : AnyShapeStyle(.ultraThinMaterial)) // glass: a light tint, the rows scrolling under stay out of the buttons' way
     }
 
     @ViewBuilder
@@ -333,13 +335,14 @@ private struct GeneralView: View {
 
 @MainActor private var settingsWindow: NSWindow? = nil
 @MainActor private var settingsGlass: GlassBackground? = nil
+@MainActor private var settingsWindowStyle = "" // the ui-style the window was made in
 @MainActor private func settingsGlassTint() -> NSColor? { skylandThemeColors()["bg"]?.withAlphaComponent(0.45) }
 @MainActor private let settingsModel = SettingsModel()
 @MainActor private let settingsKeys = KeysModel()
 @MainActor private let settingsRules = RulesModel()
 
-/// `[decoration] ui-style`, chosen in the Look section (metal | glass).
-let uiStyleField = SettingField(section: "decoration", key: "ui-style", label: "Style", kind: .choice(["metal", "glass"]))
+/// `[decoration] ui-style`, chosen in the Look section (metal | glass | glyph).
+let uiStyleField = SettingField(section: "decoration", key: "ui-style", label: "Style", kind: .choice(["metal", "glass", "glyph"]))
 /// the media widget is made again to take it (the panels take it at once)
 let glassBlurField = SettingField(section: "decoration", key: "glass-blur", label: "Glass blur", kind: .int(0 ... 20, step: 1, unit: "pt"),
                                   after: ["skyland-media", "restart"], fallback: "2")
@@ -350,7 +353,7 @@ func showSettingsWindow() {
         window.close()
         return
     }
-    if let window = settingsWindow, (window.contentView is NSVisualEffectView) == isGlassStyle { // ui-style changed: made again
+    if let window = settingsWindow, settingsWindowStyle != config.decoration.uiStyle { // ui-style changed: made again
         window.close()
         settingsWindow = nil
     }
@@ -365,7 +368,10 @@ func showSettingsWindow() {
         window.backgroundColor = .clear
         // blurred translucent background or glass (ui-style), the theme color is laid over it by SettingsView
         let blur: NSView
-        if isGlassStyle {
+        settingsWindowStyle = config.decoration.uiStyle
+        if isGlyphStyle {
+            blur = GlyphPanel(radius: 0) // the window's own corners round it
+        } else if isGlassStyle {
             blur = NSView()
             let glass = GlassBackground(radius: 12, tint: settingsGlassTint())
             settingsGlass = glass
