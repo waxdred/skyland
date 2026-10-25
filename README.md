@@ -275,8 +275,9 @@ generated from the image (matugen).
 
 ## Configuration
 
-`profiles/hypr/.config/aerospace/aerospace.toml` is linked to
-`~/.config/aerospace/aerospace.toml` by `skyland-env hypr`. All AeroSpace options
+`~/.config/skyland/skyland.toml` (or `~/.skyland.toml`), the default from
+`profiles/hypr/.config/skyland/skyland.toml` put there by `skyland-env hypr`. An older
+`~/.config/aerospace/aerospace.toml` is copied there once. All AeroSpace options
 work ([AeroSpace guide](https://nikitabobko.github.io/AeroSpace/guide)); skyland adds:
 
 ```toml
