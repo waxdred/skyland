@@ -3,4 +3,4 @@
 # `scratchpad` command does it inside skyland (no process per toggle, slide animation).
 # usage: skyland-scratch toggle [name] [--app <bundle id>] | move [name]
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
-exec "$REPO/.build/aerospace" scratchpad "$@" </dev/null
+exec "$REPO/.build/skyland-cli" scratchpad "$@" </dev/null

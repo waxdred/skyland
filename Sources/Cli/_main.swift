@@ -5,7 +5,7 @@ import Network
 
 let usage =
     """
-    USAGE: \(CommandLine.arguments.first ?? "aerospace") [-h|--help] [-v|--version] <subcommand> [<args>...]
+    USAGE: \(CommandLine.arguments.first ?? "skyland") [-h|--help] [-v|--version] <subcommand> [<args>...]
 
     SUBCOMMANDS:
     \(subcommandDescriptions.sortedBy { $0[0] }.toPaddingTable(columnSeparator: "   ").joined(separator: "\n"))
@@ -38,7 +38,7 @@ struct Main {
             }
             print(
                 """
-                aerospace CLI client version: \(cliClientVersionAndHash)
+                skyland CLI client version: \(cliClientVersionAndHash)
                 AeroSpace.app server version: \(serverVersionAndHash ?? "Unknown. The server is not responding")
                 """,
             )
@@ -122,7 +122,7 @@ struct Main {
             eprint(
                 """
                 Warning: AeroSpace client/server versions don't match
-                  - aerospace CLI client version: \(cliClientVersionAndHash)
+                  - skyland CLI client version: \(cliClientVersionAndHash)
                   - AeroSpace.app server version: \(ans.serverVersionAndHash)
                   Possible fixes:
                   - Restart AeroSpace.app (server restart is required after each update)

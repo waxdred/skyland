@@ -5,10 +5,10 @@ source ./script/setup.sh
 ./build-debug.sh -Xswiftc -warnings-as-errors
 ./swift-test.sh
 
-./.debug/aerospace -h > /dev/null
-./.debug/aerospace --help > /dev/null
-./.debug/aerospace -v | grep -q "0.0.0-SNAPSHOT SNAPSHOT"
-./.debug/aerospace --version | grep -q "0.0.0-SNAPSHOT SNAPSHOT"
+./.debug/skyland-cli -h > /dev/null
+./.debug/skyland-cli --help > /dev/null
+./.debug/skyland-cli -v | grep -q "0.0.0-SNAPSHOT SNAPSHOT"
+./.debug/skyland-cli --version | grep -q "0.0.0-SNAPSHOT SNAPSHOT"
 
 ./lint.sh
 ./generate.sh

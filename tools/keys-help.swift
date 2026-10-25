@@ -3,12 +3,12 @@
 // comment of each binding or else its command. Bindings that only differ by a
 // digit (cmd-1..cmd-0), or that do the same thing, are shown as one line. Keys
 // take the accent of the current skyland theme. Any key or click closes it.
-//   skyland-keys [config.toml]   (default ~/.config/aerospace/aerospace.toml)
+//   skyland-keys [config.toml]   (default ~/.config/skyland/skyland.toml)
 // Built by bin/skyland-build.
 import AppKit
 
 let path = CommandLine.arguments.dropFirst().first
-    ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config/aerospace/aerospace.toml").path
+    ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config/skyland/skyland.toml").path
 guard let text = try? String(contentsOfFile: path, encoding: .utf8) else {
     FileHandle.standardError.write("cannot read \(path)\n".data(using: .utf8)!)
     exit(1)
