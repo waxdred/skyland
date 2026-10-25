@@ -4,23 +4,7 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
-## Unreleased
-
-- Glyph style in the wallpaper picker (alt-w): glyph panel, Space Mono names, Doto counts,
-  the selection outlined with the red dot.
-
-**CLI: `skyland-cli`** (`.build/skyland-cli`, was `.build/aerospace`), called through the
-`skyland` command as before; its messages say `skyland`. `skyland-keys` reads the new
-config path.
-
-**Config file: `~/.config/skyland/skyland.toml`** (or `~/.skyland.toml`), no longer
-`~/.config/aerospace/aerospace.toml` / `~/.aerospace.toml`. `skyland-env` (run at login)
-copies an existing `~/.config/aerospace/aerospace.toml` there once; the old file stays for
-AeroSpace. A clone's `~/.config/skyland` may now be a real folder: the profile entries it
-misses (themes...) are linked into it.
-
-- `[wallpaper] dynamic-colors = false` still generates the wallpaper colors on a wallpaper
-  change, without applying them: `skyland-cyberdeck theme wallpaper` keeps using them.
+## v0.6.0
 
 **Glyph style**
 - `[decoration] ui-style = 'glyph'` (or Glyph in the settings window): a Nothing OS like look
@@ -28,11 +12,33 @@ misses (themes...) are linked into it.
   line around; numbers and titles in a dot matrix font (Doto: overview workspaces, switcher,
   mode HUD, startup HUD, settings title), labels in Space Mono caps, text in Space Grotesk;
   the one live thing (shown workspace, selection, startup runner) in the theme's highlight.
+- The wallpaper picker (alt-w) too: glyph panel, Space Mono names, Doto counts, the selection
+  outlined with the red dot.
 - Themes `glyph-dark` and `glyph-light`: black, white dots, one red (#D71921), palette after
   [glyph-rice](https://github.com/Nebelung-cloud/glyph-rice). The focused window border goes
-  white to red.
+  white to red. `theme.env` gets `HIGHLIGHT` (the red) for the bar.
 - Fonts bundled in Skyland.app (`resources/fonts`, SIL OFL) and registered for skyland only:
-  nothing installed. The wallpaper picker and the media widget keep the metal look for now.
+  nothing installed. The media widget keeps the metal look for now.
+
+**Monitors settings**
+- A Monitors tab in the settings window: the screens laid out as in Displays, each workspace a
+  chip to drag (or pick from its menu) onto a screen; written to
+  `[workspace-to-monitor-force-assignment]` and applied at once.
+
+**Config file: `~/.config/skyland/skyland.toml`** (or `~/.skyland.toml`), no longer
+`~/.config/aerospace/aerospace.toml` / `~/.aerospace.toml`. `skyland-env` (run at login)
+copies an existing `~/.config/aerospace/aerospace.toml` there once; the old file stays for
+AeroSpace. A clone's `~/.config/skyland` may now be a real folder: the profile entries it
+misses (themes...) are linked into it.
+
+**CLI: `skyland-cli`** (`.build/skyland-cli`, was `.build/aerospace`), called through the
+`skyland` command as before; its messages say `skyland`. The release keeps a copy at the old
+path for sketchybar items of 0.5 until `skyland bar` rebuilds them. `skyland-keys` reads the
+new config path.
+
+**Wallpaper colors**
+- `[wallpaper] dynamic-colors = false` still generates the wallpaper colors on a wallpaper
+  change, without applying them: `skyland-cyberdeck theme wallpaper` keeps using them.
 
 ## v0.5.0
 
