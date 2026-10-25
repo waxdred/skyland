@@ -2,7 +2,7 @@
 # Cycle the opacity of inactive windows, like 43PR SUPER+O: 100 -> 90 -> 80 -> 70 -> 100.
 # Edits [decoration] inactive-opacity in the config and reloads it.
 set -euo pipefail
-CONFIG="$(readlink -f "${SKYLAND_CONFIG:-$HOME/.config/aerospace/aerospace.toml}")"
+CONFIG="$(readlink -f "${SKYLAND_CONFIG:-$HOME/.config/skyland/skyland.toml}")"
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 current="$("$REPO/bin/skyland-config" decoration inactive-opacity)"
 case "${current:-100}" in
