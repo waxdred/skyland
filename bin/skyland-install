@@ -71,7 +71,7 @@ Done. Run  skyland doctor  to check everything. Next:
      (Screen Recording too, for the overview thumbnails and the media widget bars).
   2. Hook sketchybar: end your sketchybarrc with
        [ -x "\$HOME/.local/bin/skyland" ] && "\$HOME/.local/bin/skyland" bar >/dev/null 2>&1 &
-  3. Shortcuts: alt-shift-h. Settings: alt-i. Config: ~/.config/aerospace/aerospace.toml
+  3. Shortcuts: alt-shift-h. Settings: alt-i. Config: ~/.config/skyland/skyland.toml
   4. Optional, window effects (corners, opacity, animations, floating on top):
      partial SIP disable + boot-arg, then skyland sa build && skyland sa load. See README.
 MSG

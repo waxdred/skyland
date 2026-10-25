@@ -22,7 +22,7 @@ read -r -p "Continue? [y/N] " answer
 [[ "$answer" == [yY]* ]] || { echo "Nothing removed."; exit 0; }
 
 step "Quit Skyland"
-"$REPO/.build/aerospace" enable off </dev/null >/dev/null 2>&1 # windows back from their hiding corner
+"$REPO/.build/skyland-cli" enable off </dev/null >/dev/null 2>&1 # windows back from their hiding corner
 pkill -x Skyland 2>/dev/null
 pkill -x AeroSpaceApp 2>/dev/null # its process name before v0.4
 pkill -x borders 2>/dev/null

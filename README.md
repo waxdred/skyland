@@ -275,8 +275,9 @@ generated from the image (matugen).
 
 ## Configuration
 
-`profiles/hypr/.config/aerospace/aerospace.toml` is linked to
-`~/.config/aerospace/aerospace.toml` by `skyland-env hypr`. All AeroSpace options
+`~/.config/skyland/skyland.toml` (or `~/.skyland.toml`), the default from
+`profiles/hypr/.config/skyland/skyland.toml` put there by `skyland-env hypr`. An older
+`~/.config/aerospace/aerospace.toml` is copied there once. All AeroSpace options
 work ([AeroSpace guide](https://nikitabobko.github.io/AeroSpace/guide)); skyland adds:
 
 ```toml
@@ -287,7 +288,7 @@ master-orientation = 'auto'       # left | center | auto (center on ultrawide sc
 master-workspaces = []            # workspaces in the master layout at the very first start        # ...on the side of the cursor (Hyprland smart_split)
 floating-center-percent = 70      # 'layout floating' on a tile: N% of the monitor, centered
 mouse-modifier = 'alt'            # alt + left drag moves, alt + right drag resizes (anywhere on a window)
-bar-height = 32                   # keep windows below sketchybar on every screen (thinner external menu bars); a bar can send it: `aerospace bar-height 36`
+bar-height = 32                   # keep windows below sketchybar on every screen (thinner external menu bars); a bar can send it: `skyland bar-height 36`
 mode-indicator = 'hud'            # binding mode other than main (resize): 'hud' | 'bar' (sketchybar) | 'off'
 key-mapping.preset = 'input-source'  # letters follow the active keyboard layout (FR AZERTY / EN QWERTY)
 
@@ -426,7 +427,7 @@ run = ['layout floating', 'window-rule size 60% 70%', 'window-rule center',
 `size` / `move` take points or a percentage of the screen and need the window floating;
 `noborder`, `nodim`, `noanim` turn the effects off for that window. Hyprland's
 `workspace N silent` is `move-node-to-workspace N` (focus stays where it is; add
-`--focus-follows-window` to follow it). See `aerospace window-rule --help`.
+`--focus-follows-window` to follow it). See `skyland window-rule --help`.
 
 ### SketchyBar
 

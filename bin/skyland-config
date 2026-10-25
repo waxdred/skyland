@@ -3,7 +3,7 @@
 # comment and a leading ~ resolved. Empty output when missing.
 # usage: skyland-config <section> <key>
 set -euo pipefail
-CONFIG="${SKYLAND_CONFIG:-$HOME/.config/aerospace/aerospace.toml}"
+CONFIG="${SKYLAND_CONFIG:-$HOME/.config/skyland/skyland.toml}"
 [[ -r "$CONFIG" ]] || exit 0
 value="$(awk -v section="$1" -v key="$2" '
     /^\[/ { in_section = ($0 ~ "^\\[" section "\\][[:space:]]*$"); next }

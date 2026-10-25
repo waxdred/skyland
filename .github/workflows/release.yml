@@ -33,10 +33,10 @@ jobs:
           mkdir -p "dist/$name/.build/debug"
           git ls-files --recurse-submodules | grep -v '^docs/screenshots/' | tar -cf - -T - | tar -xf - -C "dist/$name"
           cp -R .build/Skyland.app .build/PREBUILT .build/skyland-* "dist/$name/.build/"
-          cp .build/aerospace "dist/$name/.build/"
+          cp .build/skyland-cli "dist/$name/.build/"
           # ponytail: old path of the CLI (sketchybar items of a previous version call it
           # until the bar is rebuilt), drop after a couple of versions
-          cp .build/aerospace "dist/$name/.build/debug/"
+          cp .build/skyland-cli "dist/$name/.build/debug/"
           cp -R .build/mediaremote "dist/$name/.build/"
           (cd dist && zip -qry "$name.zip" "$name")
       - name: Release notes (CHANGELOG.md section of the tag)

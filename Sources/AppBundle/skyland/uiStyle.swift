@@ -97,7 +97,7 @@ func drawGlyphPanel(in rect: NSRect, radius: CGFloat) {
     shape.fill()
     NSGraphicsContext.saveGraphicsState()
     shape.addClip()
-    (theme["fg"] ?? .white).withAlphaComponent(0.07).setFill()
+    (theme["fg"] ?? .white).withAlphaComponent(0.16).setFill()
     let pitch: CGFloat = 12, dot: CGFloat = 1.6
     for y in stride(from: rect.minY + pitch / 2, to: rect.maxY, by: pitch) {
         for x in stride(from: rect.minX + pitch / 2, to: rect.maxX, by: pitch) {

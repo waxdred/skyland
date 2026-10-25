@@ -4,7 +4,7 @@
 # ✓ fine, ! optional part missing (what it gives), ✗ broken (exit 1)
 set -uo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
-CLI="$REPO/.build/aerospace"
+CLI="$REPO/.build/skyland-cli"
 conf() { "$REPO/bin/skyland-config" "$@"; }
 failed=0
 ok() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
@@ -28,7 +28,7 @@ if pgrep -xq Skyland; then
 else
     bad "Skyland.app not running" "open $REPO/.build/Skyland.app (never start the binary from a terminal: it resets its Accessibility permission)"
 fi
-if "$CLI" reload-config --dry-run </dev/null >/dev/null 2>&1; then ok "config valid ($(readlink -f ~/.config/aerospace/aerospace.toml 2>/dev/null || echo ~/.config/aerospace/aerospace.toml))"
+if "$CLI" reload-config --dry-run </dev/null >/dev/null 2>&1; then ok "config valid ($(readlink -f ~/.config/skyland/skyland.toml 2>/dev/null || echo ~/.config/skyland/skyland.toml))"
 elif pgrep -xq Skyland; then bad "config has errors" "skyland reload-config --dry-run"; fi
 windows="$("$CLI" list-windows --all --format '%{window-id}' </dev/null 2>/dev/null | wc -l | tr -d ' ')"
 if [[ "${windows:-0}" -gt 0 ]]; then ok "manages $windows windows (Accessibility works)"

@@ -24,10 +24,24 @@ case "${1:-hypr}" in
 esac
 
 mkdir -p "$HOME/.config"
+# config of skyland up to 0.5: ~/.config/aerospace/aerospace.toml, copied (AeroSpace may still use it)
+legacy="$HOME/.config/aerospace/aerospace.toml" new="$HOME/.config/skyland/skyland.toml"
+if [[ -f "$legacy" && ! -e "$new" && ! -e "$HOME/.skyland.toml" ]]; then
+    [[ -L "$HOME/.config/skyland" ]] && rm "$HOME/.config/skyland" # a real folder of yours, filled below
+    mkdir -p "$HOME/.config/skyland"
+    cp "$legacy" "$new"
+fi
 for entry in "$HYPR"/* "$HYPR"/.[!.]*; do
     [[ -e "$entry" ]] || continue
     dest="$HOME/.config/$(basename "$entry")"
     if [[ -d "$REPO/.git" ]]; then
+        if [[ -d "$dest" && ! -L "$dest" && -d "$entry" ]]; then
+            # a real folder of yours (your config in it): link what it misses
+            for child in "$entry"/* "$entry"/.[!.]*; do
+                [[ -e "$child" && ! -e "$dest/$(basename "$child")" ]] && ln -sn "$child" "$dest/"
+            done
+            continue
+        fi
         if [[ -e "$dest" && ! -L "$dest" ]]; then
             echo "skip $dest: real file, move it away first" >&2
             continue

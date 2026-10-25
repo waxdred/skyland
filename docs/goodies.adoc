@@ -95,7 +95,7 @@ Alternatively, inspect the source code, and build it yourself.
 You can integrate AeroSpace workspace indicators with link:https://github.com/FelixKratz/SketchyBar[Sketchybar].
 Use these snippets as a starting point.
 
-.~/.aerospace.toml
+.~/.skyland.toml
 [source,toml]
 ----
 # Run Sketchybar together with AeroSpace
@@ -150,7 +150,7 @@ link:https://github.com/Jean-Tinland/simple-bar[simple-bar] can be used to displ
 
 In order to sync simple-bar with AeroSpace, add these lines to your AeroSpace config file:
 
-.~/.aerospace.toml
+.~/.skyland.toml
 [source,toml]
 ----
 # Notify simple-bar about window focus change
@@ -172,7 +172,7 @@ exec-on-workspace-change = [
 Invoking Safari/Terminal with a command the obvious way (`exec-and-forget open -a Safari`) results in an outcome that is probably not the intended one.
 Namely, that any workspace already containing an instance of Safari/Terminal is brought in focus.
 
-Opening *a new window* of a program that can support multiple windows (such as Safari or Terminal.app) can be accomplished with an AppleScript inlined in `aerospace.toml` as follows:
+Opening *a new window* of a program that can support multiple windows (such as Safari or Terminal.app) can be accomplished with an AppleScript inlined in `skyland.toml` as follows:
 
 - Safari
 +
@@ -208,7 +208,7 @@ end tell'
 
 If `automatically-unhide-macos-hidden-apps` isn't enough, you can disable `cmd-h` altogether (which will make this hotkey unavailable for apps that might use it for other purposes)
 
-.~/.aerospace.toml
+.~/.skyland.toml
 [source,toml]
 ----
 [mode.main.binding]
@@ -222,7 +222,7 @@ If `automatically-unhide-macos-hidden-apps` isn't enough, you can disable `cmd-h
 You can configure a custom shortcut to take a screenshot.
 `screencapture` is a built-in macOS command.
 
-.~/.aerospace.toml
+.~/.skyland.toml
 [source,toml]
 ----
 alt-shift-s = 'exec-and-forget screencapture -i -c'

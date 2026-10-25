@@ -6,6 +6,16 @@ is also the text of its GitHub release.
 
 ## Unreleased
 
+**CLI: `skyland-cli`** (`.build/skyland-cli`, was `.build/aerospace`), called through the
+`skyland` command as before; its messages say `skyland`. `skyland-keys` reads the new
+config path.
+
+**Config file: `~/.config/skyland/skyland.toml`** (or `~/.skyland.toml`), no longer
+`~/.config/aerospace/aerospace.toml` / `~/.aerospace.toml`. `skyland-env` (run at login)
+copies an existing `~/.config/aerospace/aerospace.toml` there once; the old file stays for
+AeroSpace. A clone's `~/.config/skyland` may now be a real folder: the profile entries it
+misses (themes...) are linked into it.
+
 - `[wallpaper] dynamic-colors = false` still generates the wallpaper colors on a wallpaper
   change, without applying them: `skyland-cyberdeck theme wallpaper` keeps using them.
 
