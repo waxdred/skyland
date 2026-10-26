@@ -4,6 +4,15 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## Unreleased
+
+**Volume / brightness popup**
+- `osd = 'skyland'` (or Settings > macOS appearance): skyland takes the volume, mute and
+  brightness keys and shows its own popup instead of macOS': skyland's icon, the key's
+  symbol, 16 steps and the value, in the ui-style (glyph: a row of dots, OFF in red) and the
+  theme; drag it where it goes, it stays there. Option-shift: quarter steps. An output
+  without volume or an external display goes to macOS as before. Default: `native`.
+
 ## v0.6.0
 
 **Glyph style**

@@ -28,6 +28,7 @@ import Foundation
         startMouseDragTap() // skyland
         observeInputSourceChanges() // skyland
         startArrowKeyTap() // skyland
+        startOsdTap() // skyland
         startMenuBarPeek() // skyland
         startSystemPromptWatch() // skyland
         startSkylandBar() // skyland

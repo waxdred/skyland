@@ -149,6 +149,9 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     }),
     "floating-center-percent": Parser(\.floatingCenterPercent, parseInt),
     "bar-height": Parser(\.barHeight, parseInt),
+    "osd": Parser(\.osd, { raw, backtrace in
+        parseString(raw, backtrace).flatMap { ["native", "skyland"].contains($0) ? .success($0) : .failure(.init(backtrace, "Expected native or skyland")) }
+    }),
     "mode-indicator": Parser(\.modeIndicator, { raw, backtrace in
         parseString(raw, backtrace).flatMap { ["hud", "bar", "off"].contains($0) ? .success($0) : .failure(.init(backtrace, "Expected hud, bar or off")) }
     }),

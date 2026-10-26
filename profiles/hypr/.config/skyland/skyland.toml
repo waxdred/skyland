@@ -20,6 +20,7 @@ floating-center-percent = 70
 # 43PR bindm SUPER + mouse:272 / mouse:273: alt + left drag moves a window,
 # alt + right drag resizes it from the nearest corner (alt-clicks go to skyland)
 mouse-modifier = 'alt'
+osd = 'skyland' # volume / brightness popups: skyland's (ui-style, theme; drag each one where it goes) | native
 default-root-container-layout = 'tiles'
 default-root-container-orientation = 'auto'
 enable-normalization-flatten-containers = true
