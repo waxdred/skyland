@@ -4,6 +4,12 @@ skyland is a fork of [AeroSpace](https://github.com/nikitabobko/AeroSpace): ever
 AeroSpace does still works; this file lists what skyland adds. Each `## vX.Y.Z` section
 is also the text of its GitHub release.
 
+## Unreleased
+
+- Area screenshot (alt-p): the `screenshot` mode's HUD shows while you select (skyland's
+  style, glyph: the red dot), kept out of the picture; back to main when it is taken or
+  cancelled. Add `[mode.screenshot.binding]` (empty) to an older config to get it.
+
 ## v0.6.0
 
 **Glyph style**

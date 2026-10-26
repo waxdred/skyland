@@ -74,6 +74,7 @@ private func makeModeHud(_ mode: String, bindings: [HotkeyBinding]) -> NSPanel {
     panel.isReleasedWhenClosed = false
     panel.isMovableByWindowBackground = true
     panel.collectionBehavior = [.canJoinAllSpaces, .stationary]
+    if mode == "screenshot" { panel.sharingType = .none } // skyland-shot area: shown, not in the picture
     panel.appearance = isGlyphStyle ? themeAppearance() : NSAppearance(named: .darkAqua)
     let glass = makePanelRoot(radius: 16, for: panel) // ui-style
     glass.frame = NSRect(origin: .zero, size: size)
