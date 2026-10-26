@@ -104,6 +104,7 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
         SettingField(section: "appearance", key: "sync-dark-mode", label: "Dark / light follows skyland", kind: .bool, after: ["skyland-appearance"]),
         SettingField(section: "appearance", key: "accent", label: "Accent color", kind: .choice(["theme", "off", "blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite", "multicolor"]), after: ["skyland-appearance"]),
         SettingField(section: "appearance", key: "highlight", label: "Highlight color", kind: .choice(["theme", "off", "blue", "purple", "pink", "red", "orange", "yellow", "green", "graphite"]), after: ["skyland-appearance"]),
+        SettingField(section: "", key: "osd", label: "Volume / brightness popup", kind: .choice(["skyland", "native"]), fallback: "native"),
     ]),
     ("Terminal", [
         SettingField(section: "terminal", key: "app", label: "Terminal app (alt-t)", kind: .choice(["Ghostty", "iTerm", "WezTerm", "kitty", "Terminal", "Alacritty"])),

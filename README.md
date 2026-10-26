@@ -252,6 +252,20 @@ The values found before the first change are kept: `skyland appearance restore` 
 them back. The first dark / light switch asks to let Skyland control System Events.
 Also in the settings window (`alt-i`).
 
+### Volume / brightness popup (optional)
+
+`osd = 'skyland'` (or Settings > macOS appearance, `alt-i`) replaces macOS' volume and
+brightness popups by skyland's: skyland's icon, the key's symbol, the steps and the value,
+in the ui-style and the theme. Drag it where you want it: it comes back there.
+
+<p align="center">
+  <img src="docs/screenshots/osd-glyph.png" alt="Volume popup, glyph style: a row of dots, the value in a dot matrix font" width="328">
+  <img src="docs/screenshots/osd-glass.png" alt="Brightness popup, glass style: Liquid Glass panel and a bar in the theme accent" width="328">
+</p>
+
+skyland takes the volume, mute and brightness keys (option-shift: quarter steps); an output
+without volume or an external display stays with macOS and its popup.
+
 ### Wallpapers
 
 `skyland-wallpaper fetch` downloads SFW wallpapers from [wallhaven](https://wallhaven.cc)
