@@ -9,7 +9,12 @@ dir="$HOME/Pictures/Screenshots"
 mkdir -p "$dir"
 base="$dir/$(date +%Y-%m-%d_%H-%M-%S)"
 case "${1:-area}" in
-    area) files=("$base.png"); screencapture -i "${files[0]}" ;;
+    area) # the `screenshot` mode's HUD while selecting (kept out of the picture), if the config has it
+        files=("$base.png")
+        cli="$(dirname "$(readlink -f "$0")")/skyland"
+        "$cli" mode screenshot </dev/null >/dev/null 2>&1 && trap '"$cli" mode main </dev/null >/dev/null 2>&1' EXIT
+        screencapture -i "${files[0]}" || true
+        ;;
     screen)
         files=()
         for i in $(seq 1 "$(system_profiler SPDisplaysDataType | grep -c Resolution)"); do files+=("$base-$i.png"); done
