@@ -260,7 +260,7 @@
           </label>
           {% endfor %}
         </fieldset>
-        <p class="themes__note">These three accents belong to this website. Skyland itself ships the <a href="{{ links.themes }}" rel="noopener">43PR themes</a> (Catppuccin, Nord, Tokyo Night, Rosé Pine…) and can build its colors from your wallpaper.</p>
+        <p class="themes__note">These three accents belong to this website. Skyland itself ships the <a href="{{ links.themes }}" rel="noopener">43PR themes</a> (Catppuccin, Nord, Tokyo Night, Rosé Pine…) and can build its colors from your wallpaper. Its panels come in three styles: metal, Liquid Glass, and glyph — black, white dots and one red, with the <code>glyph-dark</code> and <code>glyph-light</code> themes.</p>
       </div>
 
       <div class="gallery">
@@ -271,6 +271,19 @@
         <figure class="shot glass glass--floating depth-reveal" style="--i: 1">
           {{ shot('wallpaper-picker', 'Wallpaper picker in Liquid Glass: a strip of wallpaper thumbnails over the desktop.', sizes='(min-width: 900px) 50vw, 92vw') }}
           <figcaption>Wallpaper picker, <kbd>alt</kbd>&nbsp;<kbd>w</kbd></figcaption>
+        </figure>
+      </div>
+
+      <div class="gallery">
+        <figure class="shot glass glass--floating depth-reveal">
+          <img src="{{ url_for('static', filename='images/osd-glyph.webp') }}" width="656" height="200" loading="lazy" decoding="async"
+               alt="Volume popup in the glyph style: Skyland's icon, a speaker, a row of dots and the value in a dot matrix font.">
+          <figcaption>Volume popup, glyph style</figcaption>
+        </figure>
+        <figure class="shot glass glass--floating depth-reveal" style="--i: 1">
+          <img src="{{ url_for('static', filename='images/osd-glass.webp') }}" width="656" height="200" loading="lazy" decoding="async"
+               alt="Brightness popup in Liquid Glass: Skyland's icon, a sun, a bar in the theme accent and the value.">
+          <figcaption>Brightness popup, Liquid Glass — in place of macOS', where you drag it</figcaption>
         </figure>
       </div>
     </div>
@@ -304,7 +317,7 @@
       </div>
 
       <ul class="facts">
-        <li class="fact reveal"><h3>Liquid Glass</h3><p>Items, groups and popups in glass: Apple's on macOS 26, a refraction shader on older versions. A selection lens flows between workspaces.</p></li>
+        <li class="fact reveal"><h3>Liquid Glass</h3><p>Items, groups and popups in glass: Apple's on macOS 26, a refraction shader on older versions. A selection lens flows between workspaces. Or flat and dotted, with the glyph theme.</p></li>
         <li class="fact reveal" style="--i: 1"><h3>Skyland built in</h3><p>Workspaces with their apps, the focused window title, modes — read from Skyland's socket, no script to wire.</p></li>
         <li class="fact reveal" style="--i: 2"><h3>Windows below it</h3><p>The bar tells Skyland its height. No value to keep in sync, and a TOML config reloaded live.</p></li>
       </ul>
