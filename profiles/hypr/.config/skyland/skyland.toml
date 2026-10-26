@@ -331,6 +331,10 @@ enter = 'mode main'
 # Workspace overview (Sources/AppBundle/skyland/overview.swift): shown while this
 # mode is active. Arrows / h l move between workspaces, a digit or a click goes there,
 # j k select a window, enter focuses it, x closes it, typing searches.
+# skyland-shot area (alt-p): this mode's HUD shows while you select an area, kept out of the
+# picture. No bindings: esc and space stay screencapture's.
+[mode.screenshot.binding]
+
 [mode.overview.binding]
 esc = 'mode main'
 enter = 'overview confirm' # focus the selected window
