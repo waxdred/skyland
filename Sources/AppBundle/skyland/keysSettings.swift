@@ -16,6 +16,7 @@ final class KeysModel: ObservableObject {
     @Published var recording: String? = nil // key of the row being re-bound, "" for a new binding
     @Published var error: String? = nil
     private var monitor: Any? = nil
+    private var newEntry: TomlEntry? = nil // what a new binding ("" row) gets, a placeholder when nil
 
     var modes: [String] { config.modes.keys.sorted { $0 == mainModeId ? true : $1 == mainModeId ? false : $0 < $1 } }
     private var section: String { "mode.\(mode).binding" }
@@ -53,9 +54,10 @@ final class KeysModel: ObservableObject {
 
     // MARK: recording
 
-    func record(_ key: String) {
+    func record(_ key: String, new: TomlEntry? = nil) {
         stopRecording()
         recording = key
+        newEntry = new
         Task { await setHotkeysSuspended(true) }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             MainActor.assumeIsolated { self?.recorded(event) }
@@ -79,7 +81,7 @@ final class KeysModel: ObservableObject {
             return
         }
         if target.isEmpty {
-            change(nil, to: TomlEntry(key: notation, value: "'exec-and-forget echo'", comment: "new binding"))
+            change(nil, to: TomlEntry(key: notation, value: newEntry?.value ?? "'exec-and-forget echo'", comment: newEntry?.comment ?? "new binding"))
         } else if let entry = entries.first(where: { $0.key == target }), notation != target {
             change(target, to: TomlEntry(key: notation, value: entry.value, comment: entry.comment))
         }
@@ -211,7 +213,7 @@ private func tomlCommandValue(_ text: String) -> String {
     return "\"" + trimmed.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
 }
 
-private func prettyKey(_ key: String) -> String {
+func prettyKey(_ key: String) -> String {
     let symbols = ["cmd": "⌘", "alt": "⌥", "ctrl": "⌃", "shift": "⇧", "enter": "↩", "tab": "⇥",
                    "left": "←", "right": "→", "up": "↑", "down": "↓"]
     return key.split(separator: "-").map { symbols[String($0)] ?? $0.uppercased() }.joined()

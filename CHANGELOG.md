@@ -13,6 +13,11 @@ is also the text of its GitHub release.
   theme; drag it where it goes, it stays there. Option-shift: quarter steps. An output
   without volume or an external display goes to macOS as before. Default: `native`.
 
+**Settings: the shortcut list key**
+- Settings > General > Shortcuts: the key of the shortcut cheat sheet (`skyland keys`,
+  alt-shift-h by default), recorded like in the Keys tab (duplicates and keys without a
+  modifier refused) and written at once; added when the config has none.
+
 ## v0.6.0
 
 **Glyph style**
