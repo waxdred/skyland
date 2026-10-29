@@ -24,6 +24,7 @@ func syncUiStyle() {
     guard (try? String(contentsOfFile: uiStyleFile, encoding: .utf8)) != style else { return }
     try? FileManager.default.createDirectory(atPath: (uiStyleFile as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
     try? style.write(toFile: uiStyleFile, atomically: true, encoding: .utf8)
+    runSkylandScript(["skyland-media", "restart"]) // [media] theme = 'skyland' follows it (only if open)
 }
 
 /// The root view of a panel in the current style, to hold its content: a theme tinted

@@ -112,6 +112,7 @@ private let settingGroups: [(title: String, fields: [SettingField])] = [
     ("Media widget and lock screen", [
         SettingField(section: "media", key: "opacity", label: "Media widget opacity", kind: .int(10 ... 100, step: 1, unit: "%"), after: ["skyland-media", "restart"]),
         SettingField(section: "media", key: "style", label: "Media widget style", kind: .choice(["classic", "audioware"]), after: ["skyland-media", "restart"]),
+        SettingField(section: "media", key: "theme", label: "Media widget look", kind: .choice(["skyland", "metal", "glass", "glyph"]), after: ["skyland-media", "restart"], fallback: "skyland"),
         SettingField(section: "lock", key: "blur", label: "Lock wallpaper blur", kind: .int(0 ... 20, step: 1, unit: ""), after: ["skyland-lock", "refresh"]),
         SettingField(section: "lock", key: "name", label: "Lock name", kind: .text, after: ["skyland-lock", "refresh"]),
     ]),
