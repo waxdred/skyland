@@ -5,6 +5,7 @@
 # [media]
 # opacity = 92          # percent, whole widget
 # style = 'classic'     # classic (glass, theme colors, bars) | audioware (cyan light wave)
+# theme = 'skyland'     # skyland (follows [decoration] ui-style) | metal | glass | glyph
 set -euo pipefail
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 WIDGET="$REPO/.build/skyland-media"
@@ -13,7 +14,8 @@ open_widget() {
     [[ -x "$WIDGET" ]] || { echo "skyland-media: not built, run bin/skyland-build" >&2; exit 1; }
     opacity="$("$REPO/bin/skyland-config" media opacity)"
     style="$("$REPO/bin/skyland-config" media style)"
-    nohup "$WIDGET" --opacity "${opacity:-92}" --style "${style:-classic}" >/dev/null 2>&1 &
+    look="$("$REPO/bin/skyland-config" media theme)"
+    nohup "$WIDGET" --opacity "${opacity:-92}" --style "${style:-classic}" --look "${look:-skyland}" >/dev/null 2>&1 &
 }
 
 case "${1:-toggle}" in

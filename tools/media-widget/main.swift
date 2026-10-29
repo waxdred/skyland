@@ -23,7 +23,11 @@ let adapterScript = repo.appending(path: "third_party/mediaremote-adapter/bin/me
 let adapterFramework = repo.appending(path: ".build/mediaremote/MediaRemoteAdapter.framework").path
 let themeFile = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".cache/skyland/theme.css")
 let defaults = UserDefaults(suiteName: "com.waxdred.skyland-media")!
-let isGlass = uiStyleIsGlass() // [decoration] ui-style, written by skyland
+// --look metal | glass | glyph, from [media] theme (bin/skyland-media); skyland's ui-style otherwise
+let look = CommandLine.arguments.firstIndex(of: "--look").flatMap { CommandLine.arguments.indices.contains($0 + 1) ? CommandLine.arguments[$0 + 1] : nil }
+    .flatMap { ["metal", "glass", "glyph"].contains($0) ? $0 : nil }
+    ?? (try? String(contentsOfFile: uiStyleFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+let isGlass = look == "glass"
 // --opacity <percent>, from [media] opacity (bin/skyland-media)
 let opacity = CommandLine.arguments.firstIndex(of: "--opacity")
     .flatMap { CommandLine.arguments.indices.contains($0 + 1) ? Double(CommandLine.arguments[$0 + 1]) : nil }
@@ -31,6 +35,9 @@ let opacity = CommandLine.arguments.firstIndex(of: "--opacity")
 // --style classic | audioware, from [media] style (bin/skyland-media)
 let audioware = CommandLine.arguments.firstIndex(of: "--style")
     .map { CommandLine.arguments.indices.contains($0 + 1) && CommandLine.arguments[$0 + 1] == "audioware" } ?? false
+// ui-style = 'glyph': an opaque dotted panel, the Space fonts, dot bars and progress (classic)
+// or the wave as a dot matrix (audioware, GlyphWave)
+let isGlyph = look == "glyph"
 
 func adapter(_ args: [String]) -> Process {
     let p = Process()
@@ -55,6 +62,14 @@ final class Progress: NSView {
     var fraction: CGFloat = 0 { didSet { needsDisplay = true } }
     var track = NSColor.gray, fill = NSColor.white
     override func draw(_ dirtyRect: NSRect) {
+        if isGlyph { // a row of dots, lit up to the position
+            let pitch: CGFloat = 6, dot: CGFloat = 3, count = Int(bounds.width / pitch)
+            for i in 0 ..< count {
+                (CGFloat(i) + 0.5 < CGFloat(count) * fraction ? fill : track).setFill()
+                NSBezierPath(ovalIn: NSRect(x: CGFloat(i) * pitch, y: bounds.midY - dot / 2, width: dot, height: dot)).fill()
+            }
+            return
+        }
         let r = bounds.height / 2
         track.setFill()
         NSBezierPath(roundedRect: bounds, xRadius: r, yRadius: r).fill()
@@ -70,6 +85,18 @@ final class Bars: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard !levels.isEmpty else { return }
         let gap: CGFloat = 3, width = (bounds.width - gap * CGFloat(levels.count - 1)) / CGFloat(levels.count)
+        if isGlyph { // columns of dots, lit from the bottom (dot matrix)
+            let dot = min(width, 3), rows = Int(bounds.height / (dot + 1.5))
+            for (i, level) in levels.enumerated() {
+                let lit = max(1, Int((CGFloat(level) * CGFloat(rows)).rounded()))
+                for row in 0 ..< rows {
+                    color.withAlphaComponent(row < lit ? 1 : 0.16).setFill()
+                    let x = CGFloat(i) * (width + gap) + (width - dot) / 2
+                    NSBezierPath(ovalIn: NSRect(x: x, y: CGFloat(row) * (dot + 1.5), width: dot, height: dot)).fill()
+                }
+            }
+            return
+        }
         for (i, level) in levels.enumerated() {
             let height = max(2, bounds.height * CGFloat(level))
             let bar = NSRect(x: CGFloat(i) * (width + gap), y: 0, width: width, height: height)
@@ -1424,6 +1451,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let radius: CGFloat = 26
     var panel: NSPanel!
     var tint: NSView!
+    var glyphPanel: GlyphPanel?
     var glassBackground: GlassBackground?
     let artwork = NSImageView()
     let title = NSTextField(labelWithString: "Rien en lecture")
@@ -1438,6 +1466,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var artworkKey: String? // base64 of the artwork shown: decoded once per track
     let bars = Bars()
     let wave = AudiowareWave(frame: .zero)
+    let glyphWave = GlyphWave(frame: .zero)
     var shownLevels = [Float](repeating: 0, count: 14)
     let audio = AudioBands(bands: 14)
     var buttons: [NSButton] = []
@@ -1461,7 +1490,12 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         // [media] opacity on the background only: the artwork and the text stay opaque
         let glass = DragView(frame: NSRect(origin: .zero, size: size))
-        if isGlass { // ui-style = 'glass' (Sources/SkylandGlass, compiled in)
+        if isGlyph {
+            let background = GlyphPanel(frame: glass.bounds, radius: radius)
+            background.alphaValue = opacity
+            glass.addSubview(background)
+            glyphPanel = background
+        } else if isGlass { // ui-style = 'glass' (Sources/SkylandGlass, compiled in)
             panel.hasShadow = false // the glass draws its own
             let background = GlassBackground(radius: radius) // whole: its rim stays defined, the tint takes the opacity
             glass.addSubview(background)
@@ -1493,9 +1527,13 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         artwork.layer?.masksToBounds = true
         glass.addSubview(artwork)
 
-        for (field, y, font) in [(title, 80.0, NSFont.systemFont(ofSize: 14, weight: .semibold)),
-                                 (artist, 62.0, NSFont.systemFont(ofSize: 12)),
-                                 (source, 46.0, NSFont.systemFont(ofSize: 10, weight: .medium))]
+        if isGlyph { registerGlyphFonts() }
+        let font = { (name: String, size: CGFloat, weight: NSFont.Weight) in
+            isGlyph ? NSFont(name: name, size: size) ?? .systemFont(ofSize: size, weight: weight) : .systemFont(ofSize: size, weight: weight)
+        }
+        for (field, y, font) in [(title, 80.0, font("SpaceGrotesk-Bold", 14, .semibold)),
+                                 (artist, 62.0, font("SpaceGrotesk-Regular", 12, .regular)),
+                                 (source, 46.0, font("SpaceMono-Bold", 10, .medium))]
         {
             field.frame = NSRect(x: 114, y: y, width: size.width - 128, height: 18)
             field.font = font
@@ -1503,7 +1541,12 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
             glass.addSubview(field)
         }
         progress.frame = NSRect(x: 114, y: 38, width: size.width - 128, height: 4)
-        if audioware { // the wave is the background, under the artwork, text and buttons; its center line is the progress
+        if audioware && isGlyph {
+            glyphWave.frame = glass.bounds
+            glyphWave.axis = progress.frame.midY
+            glass.addSubview(glyphWave, positioned: .above, relativeTo: tint)
+            audio.followsWave = true
+        } else if audioware { // the wave is the background, under the artwork, text and buttons; its center line is the progress
             wave.frame = glass.bounds
             wave.axisFraction = progress.frame.midY / size.height
             glass.addSubview(wave, positioned: .above, relativeTo: tint)
@@ -1573,7 +1616,9 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
         for i in shownLevels.indices {
             shownLevels[i] = max(target.indices.contains(i) ? target[i] : 0, shownLevels[i] * 0.85)
         }
-        if audioware {
+        if audioware && isGlyph {
+            glyphWave.advance(playing: playing, wave: playing ? audio.wave?.low : nil)
+        } else if audioware {
             wave.advance(levels: shownLevels, playing: playing, wave: playing ? audio.wave : nil) // silent or paused: flat line
         } else if bars.levels != shownLevels {
             bars.levels = shownLevels
@@ -1595,9 +1640,24 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applyTheme() {
         themeDate = (try? themeFile.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-        if audioware { applyAudioware(); return }
+        if audioware && !isGlyph { applyAudioware(); return }
         let c = themeColors()
         let fg = c["fg"] ?? .white, dim = c["fg_dim"] ?? .lightGray
+        if let glyphPanel { // opaque panel, white / grey dots, the source in the one red
+            glyphPanel.colors = c
+            title.textColor = fg
+            artist.textColor = dim
+            source.textColor = c["highlight"] ?? fg
+            progress.track = (c["fg_faint"] ?? .darkGray)
+            progress.fill = fg
+            progress.needsDisplay = true
+            for button in buttons { button.contentTintColor = fg }
+            bars.color = fg
+            glyphWave.colors = c
+            artwork.layer?.cornerRadius = 8
+            artwork.layer?.backgroundColor = (c["bg_card"] ?? .darkGray).cgColor
+            return
+        }
         setTint((c["bg_card"] ?? .black).withAlphaComponent(isGlass ? 0.2 : 0.55))
         title.textColor = fg
         artist.textColor = dim
@@ -1706,6 +1766,7 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId)
         {
             source.stringValue = FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
+            if isGlyph { source.stringValue = source.stringValue.uppercased() } // glyph labels: caps
         } else {
             source.stringValue = ""
         }
@@ -1726,13 +1787,14 @@ final class Widget: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func updateProgress() {
         guard let duration = state["durationMicros"] as? Double, duration > 0,
-              let elapsed = state["elapsedTimeMicros"] as? Double else { progress.fraction = 0; wave.progress = 0; return }
+              let elapsed = state["elapsedTimeMicros"] as? Double else { progress.fraction = 0; wave.progress = 0; glyphWave.progress = 0; return }
         var now = elapsed
         if state["playing"] as? Bool == true, let stamp = state["timestampEpochMicros"] as? Double {
             now += (Date().timeIntervalSince1970 * 1e6 - stamp) * (state["playbackRate"] as? Double ?? 1)
         }
         progress.fraction = CGFloat(now / duration)
         wave.progress = progress.fraction
+        glyphWave.progress = progress.fraction
     }
 
     @objc func send(_ sender: NSButton) {
@@ -1820,3 +1882,95 @@ app.setActivationPolicy(.accessory)
 let widget = Widget()
 app.delegate = widget
 app.run()
+
+/// glyph: the panel, opaque in the theme's panel color, a faint dot grid, a thin line
+/// (as skyland's own panels, Sources/AppBundle/skyland/uiStyle.swift).
+final class GlyphPanel: NSView {
+    let radius: CGFloat
+    var colors: [String: NSColor] = [:] { didSet { needsDisplay = true } }
+
+    init(frame: NSRect, radius: CGFloat) {
+        self.radius = radius
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let shape = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: radius, yRadius: radius)
+        (colors["bg_panel"] ?? colors["bg"] ?? .black).setFill()
+        shape.fill()
+        NSGraphicsContext.saveGraphicsState()
+        shape.addClip()
+        (colors["fg"] ?? .white).withAlphaComponent(0.16).setFill()
+        let pitch: CGFloat = 12, dot: CGFloat = 1.6
+        for y in stride(from: pitch / 2, to: bounds.maxY, by: pitch) {
+            for x in stride(from: pitch / 2, to: bounds.maxX, by: pitch) {
+                NSBezierPath(ovalIn: NSRect(x: x - dot / 2, y: y - dot / 2, width: dot, height: dot)).fill()
+            }
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        (colors["border"] ?? .darkGray).setStroke()
+        shape.lineWidth = 1
+        shape.stroke()
+    }
+}
+
+/// The repo's resources/fonts (SIL OFL), for this process only: nothing installed.
+func registerGlyphFonts() {
+    let dir = repo.appending(path: "resources/fonts")
+    for file in (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        where ["ttf", "otf"].contains(file.pathExtension)
+    {
+        CTFontManagerRegisterFontsForURL(file as CFURL, .process, nil)
+    }
+}
+
+/// audioware in the glyph style: the live wave as a dot matrix over the panel, an
+/// oscilloscope on the low signal (auto gain, tapered at both ends), flat when silent; the
+/// center row of dots is the progress, the playhead the theme's one red.
+final class GlyphWave: NSView {
+    var progress: CGFloat = 0 { didSet { if progress != oldValue { needsDisplay = true } } }
+    var axis: CGFloat = 40 // center line, from the bottom
+    var colors: [String: NSColor] = [:] { didSet { needsDisplay = true } }
+    private let pitch: CGFloat = 6, dot: CGFloat = 2.4
+    private var shape: [CGFloat] = [], peak: Float = 0.01
+
+    func advance(playing: Bool, wave: [Float]?) {
+        let columns = Int(bounds.width / pitch)
+        if shape.count != columns { shape = [CGFloat](repeating: 0, count: columns) }
+        let samples = playing ? wave ?? [] : []
+        peak = max(peak * 0.98, samples.map(abs).max() ?? 0, 0.01)
+        let reach = min(axis, bounds.height - axis) - pitch
+        var moved = false
+        for c in shape.indices {
+            let x = (CGFloat(c) + 0.5) / CGFloat(columns)
+            let v = samples.isEmpty ? 0 : CGFloat(samples[min(samples.count - 1, Int(x * CGFloat(samples.count)))] / peak)
+            let target = v * sin(.pi * x) * reach // the cover's window: still at both ends
+            if abs(target - shape[c]) > 0.1 { moved = true }
+            shape[c] += (target - shape[c]) * 0.5
+        }
+        if moved { needsDisplay = true }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let fg = colors["fg"] ?? .white, faint = colors["fg_faint"] ?? .darkGray
+        let row = (axis / pitch).rounded(.down) * pitch + pitch / 2 // on the panel's dot grid
+        let fill = { (color: NSColor, x: CGFloat, y: CGFloat, size: CGFloat) in
+            color.setFill()
+            NSBezierPath(ovalIn: NSRect(x: x - size / 2, y: y - size / 2, width: size, height: size)).fill()
+        }
+        let columns = Int(bounds.width / pitch), head = Int(progress * CGFloat(columns))
+        for c in 0 ..< columns { // paused before any frame: the line alone
+            let h = shape.indices.contains(c) ? shape[c] : 0, x = CGFloat(c) * pitch + pitch / 2
+            fill(c < head ? fg : faint, x, row, dot)
+            let steps = Int(abs(h) / pitch)
+            if steps > 0 {
+                for step in 1 ... steps { // the dots of the wave, brighter near the line
+                    fill(fg.withAlphaComponent(1 - 0.6 * CGFloat(step) / CGFloat(steps + 1)), x, row + CGFloat(step) * pitch * (h > 0 ? 1 : -1), dot)
+                }
+            }
+        }
+        if columns > 0 { fill(colors["highlight"] ?? fg, CGFloat(min(head, columns - 1)) * pitch + pitch / 2, row, dot * 1.8) }
+    }
+}
