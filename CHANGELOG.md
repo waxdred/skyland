@@ -13,14 +13,10 @@ is also the text of its GitHub release.
   theme; drag it where it goes, it stays there. Option-shift: quarter steps. An output
   without volume or an external display goes to macOS as before. Default: `native`.
 
-**Media widget: glyph, and its own look**
-- The glyph style reaches the media widget: the dotted panel, Space Grotesk titles, the
-  source app in Space Mono caps in the theme's highlight; classic: dot-matrix bars and a row of
-  dots for the progress; audioware: the wave as a dot matrix, its center row of dots the
-  progress, the playhead in the highlight.
-- `[media] theme = 'skyland' | 'metal' | 'glass' | 'glyph'` (or Settings > Media widget look):
-  `skyland` (default) follows `ui-style`, and the open widget is restarted when it changes;
-  the others keep that look whatever the panels use.
+**Settings: the shortcut list key**
+- Settings > General > Shortcuts: the key of the shortcut cheat sheet (`skyland keys`,
+  alt-shift-h by default), recorded like in the Keys tab (duplicates and keys without a
+  modifier refused) and written at once; added when the config has none.
 
 ## v0.6.0
 

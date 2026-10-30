@@ -209,7 +209,7 @@ private struct SettingsView: View {
             }
             .padding(.top, 26) // under the transparent title bar
             TabView(selection: $tab) {
-                GeneralView(model: model).tabItem { Text("General") }.tag("general")
+                GeneralView(model: model, keys: keys).tabItem { Text("General") }.tag("general")
                 KeysView(model: keys).tabItem { Text("Keys") }.tag("keys")
                 RulesView(model: rules).tabItem { Text("Rules") }.tag("rules")
                 MonitorsView(model: monitors).tabItem { Text("Monitors") }.tag("monitors")
@@ -237,6 +237,7 @@ private struct SectionHeader: View {
 
 private struct GeneralView: View {
     @ObservedObject var model: SettingsModel
+    @ObservedObject var keys: KeysModel
 
     var body: some View {
         Form {
@@ -272,11 +273,34 @@ private struct GeneralView: View {
                     ForEach(group.fields) { field in row(field) }
                 } header: { SectionHeader(title: group.title, colors: model.colors) }
             }
+            Section {
+                cheatSheetRow
+            } header: { SectionHeader(title: "Shortcuts", colors: model.colors) }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .frame(minWidth: 480, minHeight: 520)
         .safeAreaInset(edge: .bottom) { saveBar }
+    }
+
+    /// The main-mode key running `skyland keys` (the shortcut cheat sheet), recorded like in the Keys tab
+    /// and written right away.
+    private var cheatSheetRow: some View {
+        let entry = keys.mode == mainModeId ? keys.entries.first { $0.value.contains("skyland keys") } : nil
+        let recording = keys.recording == (entry?.key ?? "")
+        return VStack(alignment: .leading) {
+            HStack {
+                Text("Shortcut list").foregroundStyle(model.colors.text)
+                Spacer()
+                Button(recording ? "press keys…" : entry.map { prettyKey($0.key) } ?? "none") {
+                    if keys.mode != mainModeId { keys.mode = mainModeId; keys.load() }
+                    let current = keys.entries.first { $0.value.contains("skyland keys") }
+                    keys.record(current?.key ?? "", new: TomlEntry(key: "", value: "'exec-and-forget skyland keys'", comment: "this shortcut list"))
+                }
+                .font(.system(.body, design: .monospaced))
+            }
+            if let error = keys.error { Text(error).foregroundStyle(.red).font(.callout).textSelection(.enabled) }
+        }
     }
 
     /// Unsaved changes, Revert, Save (cmd-s)
